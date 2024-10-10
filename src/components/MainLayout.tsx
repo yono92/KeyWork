@@ -1,7 +1,6 @@
 import React from "react";
 import Header from "./Header";
 import ProgressBar from "./ProgressBar";
-import TypingText from "./TypingText";
 import TypingInput from "./TypingInput";
 import DarkModeToggle from "./DarkModeToggle";
 import useTypingStore from "../store/store";

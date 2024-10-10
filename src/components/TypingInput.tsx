@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import useTypingStore from "../store/store";
 import quotesData from "../data/quotes.json";
+import { decomposeHangul } from "../utils/hangulUtils"; // 유틸리티 함수 가져오기
 
 const TypingInput: React.FC = () => {
     const text = useTypingStore((state) => state.text);
@@ -46,8 +47,17 @@ const TypingInput: React.FC = () => {
             setTypingSpeed(calculatedSpeed);
 
             // 정확도 계산
-            const correctChars = Array.from(input).filter((char, index) => char === text[index]).length;
-            const calculatedAccuracy = Math.round((correctChars / Math.max(input.length, text.length)) * 100);
+            const decomposedText = decomposeHangul(text);
+            const decomposedInput = decomposeHangul(input);
+            let correctChars = 0;
+
+            for (let i = 0; i < decomposedInput.length; i++) {
+                if (decomposedInput[i] === decomposedText[i]) {
+                    correctChars++;
+                }
+            }
+
+            const calculatedAccuracy = Math.round((correctChars / Math.max(decomposedInput.length, decomposedText.length)) * 100);
             setAccuracy(calculatedAccuracy);
         }
     }, [input, setProgress, text, startTime]);
@@ -64,6 +74,7 @@ const TypingInput: React.FC = () => {
 
     const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
         if (e.key === "Enter") {
+            // 현재 속도와 정확도 기록
             setPreviousSpeed(typingSpeed);
             setPreviousAccuracy(accuracy);
 
@@ -81,23 +92,25 @@ const TypingInput: React.FC = () => {
                 return updatedAccuracies;
             });
 
+            // 입력 필드 초기화 및 상태 초기화
             setInput("");
             setStartTime(null);
             setTypingSpeed(0);
+            setAccuracy(100); // 정확도 초기화
             const randomQuote = getRandomQuote("korean");
-            setText(randomQuote);
+            setText(randomQuote); // 새로운 문장 설정
         }
     };
 
     const renderText = () => {
         return text.split("").map((char, index) => {
-            let className = "text-gray-400"; // 기본 스타일 (아직 입력되지 않은 텍스트)
+            let className = "text-gray-400"; // 기본 스타일
 
             if (index < input.length) {
                 if (input[index] === char) {
-                    className = "text-green-500 font-semibold"; // 올바르게 입력된 텍스트
+                    className = "text-green-500 font-semibold"; // 올바르게 입력된 문자
                 } else {
-                    className = "text-red-500 font-semibold"; // 잘못 입력된 텍스트
+                    className = "text-red-500 font-semibold"; // 잘못 입력된 문자
                 }
             }
 
