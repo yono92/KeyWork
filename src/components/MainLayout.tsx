@@ -21,7 +21,6 @@ const MainLayout: React.FC = () => {
                             <div className="text-lg">KeyWork</div>
                         </div>
                         <ProgressBar />
-                        <TypingText />
                         <TypingInput />
                     </div>
                 </main>
