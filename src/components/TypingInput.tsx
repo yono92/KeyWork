@@ -1,7 +1,8 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import useTypingStore from "../store/store";
 import quotesData from "../data/quotes.json";
-import { decomposeHangul } from "../utils/hangulUtils"; // 유틸리티 함수 가져오기
+import { decomposeHangul } from "../utils/hangulUtils";
+import { Howl } from "howler";
 
 const TypingInput: React.FC = () => {
     const text = useTypingStore((state) => state.text);
@@ -14,12 +15,18 @@ const TypingInput: React.FC = () => {
     const [typingSpeed, setTypingSpeed] = useState<number>(0);
     const [accuracy, setAccuracy] = useState<number>(0);
     const [previousSpeed, setPreviousSpeed] = useState<number | null>(null);
-    const [previousAccuracy, setPreviousAccuracy] = useState<number | null>(null);
+    const [previousAccuracy, setPreviousAccuracy] = useState<number | null>(
+        null
+    );
     const [allSpeeds, setAllSpeeds] = useState<number[]>([]);
     const [allAccuracies, setAllAccuracies] = useState<number[]>([]);
     const [averageSpeed, setAverageSpeed] = useState<number>(0);
     const [averageAccuracy, setAverageAccuracy] = useState<number>(0);
     const inputRef = useRef<HTMLInputElement>(null);
+
+    // 사운드 상태를 관리
+    const [keyClickSound, setKeyClickSound] = useState<Howl | null>(null);
+    const [errorSound, setErrorSound] = useState<Howl | null>(null);
 
     const getRandomQuote = (language: "korean" | "english") => {
         const quotesArray = quotesData[language];
@@ -27,13 +34,52 @@ const TypingInput: React.FC = () => {
         return quotesArray[randomIndex];
     };
 
+    const initSounds = useCallback(() => {
+        const clickSound = new Howl({
+            src: ["/sounds/keyclick.mp3"],
+            format: ["mp3"],
+            preload: true,
+            onload: () => console.log("Key click sound loaded successfully"),
+            onloaderror: (id, error) =>
+                console.error("Error loading key click sound:", error),
+        });
+        setKeyClickSound(clickSound);
+
+        const errSound = new Howl({
+            src: ["/sounds/error.mp3"],
+            format: ["mp3"],
+            preload: true,
+            onload: () => console.log("Error sound loaded successfully"),
+            onloaderror: (id, error) =>
+                console.error("Error loading error sound:", error),
+        });
+        setErrorSound(errSound);
+    }, []);
+
     useEffect(() => {
+        // 사용자 제스처 발생 후 사운드 초기화
+        const handleUserGesture = () => {
+            initSounds();
+            document.removeEventListener("click", handleUserGesture);
+            document.removeEventListener("keypress", handleUserGesture);
+        };
+
+        document.addEventListener("click", handleUserGesture);
+        document.addEventListener("keypress", handleUserGesture);
+
+        // 텍스트 설정
+        const initialRandomQuote = getRandomQuote("korean");
+        setText(initialRandomQuote);
+
         if (inputRef.current) {
             inputRef.current.focus();
         }
-        const initialRandomQuote = getRandomQuote("korean");
-        setText(initialRandomQuote);
-    }, [setText]);
+
+        return () => {
+            document.removeEventListener("click", handleUserGesture);
+            document.removeEventListener("keypress", handleUserGesture);
+        };
+    }, [setText, initSounds]);
 
     useEffect(() => {
         const progress = (input.length / text.length) * 100;
@@ -43,7 +89,9 @@ const TypingInput: React.FC = () => {
             const currentTime = Date.now();
             const timeElapsedInMinutes = (currentTime - startTime) / 60000;
             const charactersTyped = input.length;
-            const calculatedSpeed = Math.round(charactersTyped / timeElapsedInMinutes);
+            const calculatedSpeed = Math.round(
+                charactersTyped / timeElapsedInMinutes
+            );
             setTypingSpeed(calculatedSpeed);
 
             // 정확도 계산
@@ -57,7 +105,11 @@ const TypingInput: React.FC = () => {
                 }
             }
 
-            const calculatedAccuracy = Math.round((correctChars / Math.max(decomposedInput.length, decomposedText.length)) * 100);
+            const calculatedAccuracy = Math.round(
+                (correctChars /
+                    Math.max(decomposedInput.length, decomposedText.length)) *
+                    100
+            );
             setAccuracy(calculatedAccuracy);
         }
     }, [input, setProgress, text, startTime]);
@@ -69,6 +121,14 @@ const TypingInput: React.FC = () => {
             setStartTime(Date.now());
         }
 
+        // 올바른 입력일 경우
+        if (value.length > input.length) {
+            console.log("Attempting to play key click sound");
+            keyClickSound?.play();
+        } else if (value.length < input.length) {
+            console.log("Attempting to play error sound");
+            errorSound?.play();
+        }
         setInput(value);
     };
 
@@ -80,15 +140,23 @@ const TypingInput: React.FC = () => {
 
             setAllSpeeds((prevSpeeds) => {
                 const updatedSpeeds = [...prevSpeeds, typingSpeed];
-                const totalSpeed = updatedSpeeds.reduce((acc, curr) => acc + curr, 0);
+                const totalSpeed = updatedSpeeds.reduce(
+                    (acc, curr) => acc + curr,
+                    0
+                );
                 setAverageSpeed(Math.round(totalSpeed / updatedSpeeds.length));
                 return updatedSpeeds;
             });
 
             setAllAccuracies((prevAccuracies) => {
                 const updatedAccuracies = [...prevAccuracies, accuracy];
-                const totalAccuracy = updatedAccuracies.reduce((acc, curr) => acc + curr, 0);
-                setAverageAccuracy(Math.round(totalAccuracy / updatedAccuracies.length));
+                const totalAccuracy = updatedAccuracies.reduce(
+                    (acc, curr) => acc + curr,
+                    0
+                );
+                setAverageAccuracy(
+                    Math.round(totalAccuracy / updatedAccuracies.length)
+                );
                 return updatedAccuracies;
             });
 
@@ -139,7 +207,9 @@ const TypingInput: React.FC = () => {
                     onChange={handleInputChange}
                     onKeyDown={handleKeyPress}
                     className={`w-full p-2 text-xl border rounded ${
-                        darkMode ? "bg-gray-700 text-white" : "bg-gray-100 text-black"
+                        darkMode
+                            ? "bg-gray-700 text-white"
+                            : "bg-gray-100 text-black"
                     }`}
                     placeholder="여기에 타이핑하세요..."
                     autoFocus
@@ -148,26 +218,41 @@ const TypingInput: React.FC = () => {
 
             <div className="mt-6 text-center grid grid-cols-2 gap-4">
                 <p className="text-lg text-gray-600">
-                    현재 타이핑 속도: <span className="text-xl font-bold">{typingSpeed}</span> 타/분
+                    현재 타이핑 속도:{" "}
+                    <span className="text-xl font-bold">{typingSpeed}</span>{" "}
+                    타/분
                 </p>
                 <p className="text-lg text-gray-600">
-                    현재 정확도: <span className="text-xl font-bold">{accuracy}</span>%
+                    현재 정확도:{" "}
+                    <span className="text-xl font-bold">{accuracy}</span>%
                 </p>
                 {previousSpeed !== null && (
                     <p className="text-lg text-gray-600">
-                        이전 문장 타이핑 속도: <span className="text-xl font-bold">{previousSpeed}</span> 타/분
+                        이전 문장 타이핑 속도:{" "}
+                        <span className="text-xl font-bold">
+                            {previousSpeed}
+                        </span>{" "}
+                        타/분
                     </p>
                 )}
                 {previousAccuracy !== null && (
                     <p className="text-lg text-gray-600">
-                        이전 문장 정확도: <span className="text-xl font-bold">{previousAccuracy}</span>%
+                        이전 문장 정확도:{" "}
+                        <span className="text-xl font-bold">
+                            {previousAccuracy}
+                        </span>
+                        %
                     </p>
                 )}
                 <p className="text-lg text-gray-600">
-                    평균 타이핑 속도: <span className="text-xl font-bold">{averageSpeed}</span> 타/분
+                    평균 타이핑 속도:{" "}
+                    <span className="text-xl font-bold">{averageSpeed}</span>{" "}
+                    타/분
                 </p>
                 <p className="text-lg text-gray-600">
-                    평균 정확도: <span className="text-xl font-bold">{averageAccuracy}</span>%
+                    평균 정확도:{" "}
+                    <span className="text-xl font-bold">{averageAccuracy}</span>
+                    %
                 </p>
             </div>
         </div>
