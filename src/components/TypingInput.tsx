@@ -3,12 +3,14 @@ import useTypingStore from "../store/store";
 import quotesData from "../data/quotes.json";
 import { decomposeHangul } from "../utils/hangulUtils";
 import { Howl } from "howler";
+import Keyboard from "./Keyboard";
 
 const TypingInput: React.FC = () => {
     const text = useTypingStore((state) => state.text);
     const setProgress = useTypingStore((state) => state.setProgress);
     const darkMode = useTypingStore((state) => state.darkMode);
     const setText = useTypingStore((state) => state.setText);
+    const [language, setLanguage] = useState<string>("korean");
 
     const [input, setInput] = useState<string>("");
     const [startTime, setStartTime] = useState<number | null>(null);
@@ -18,15 +20,39 @@ const TypingInput: React.FC = () => {
     const [previousAccuracy, setPreviousAccuracy] = useState<number | null>(
         null
     );
+
     const [allSpeeds, setAllSpeeds] = useState<number[]>([]);
     const [allAccuracies, setAllAccuracies] = useState<number[]>([]);
     const [averageSpeed, setAverageSpeed] = useState<number>(0);
     const [averageAccuracy, setAverageAccuracy] = useState<number>(0);
     const inputRef = useRef<HTMLInputElement>(null);
+    const [pressedKeys, setPressedKeys] = useState<string[]>([]);
 
     // 사운드 상태를 관리
     const [keyClickSound, setKeyClickSound] = useState<Howl | null>(null);
     const [errorSound, setErrorSound] = useState<Howl | null>(null);
+
+    const handleKeyDown = useCallback((e: KeyboardEvent) => {
+        setPressedKeys((prevKeys) => [
+            ...new Set([...prevKeys, e.key.toLowerCase()]),
+        ]);
+    }, []);
+
+    const handleKeyUp = useCallback((e: KeyboardEvent) => {
+        setPressedKeys((prevKeys) =>
+            prevKeys.filter((key) => key !== e.key.toLowerCase())
+        );
+    }, []);
+
+    useEffect(() => {
+        window.addEventListener("keydown", handleKeyDown);
+        window.addEventListener("keyup", handleKeyUp);
+
+        return () => {
+            window.removeEventListener("keydown", handleKeyDown);
+            window.removeEventListener("keyup", handleKeyUp);
+        };
+    }, [handleKeyDown, handleKeyUp]);
 
     const getRandomQuote = (language: "korean" | "english") => {
         const quotesArray = quotesData[language];
@@ -40,8 +66,6 @@ const TypingInput: React.FC = () => {
             format: ["mp3"],
             preload: true,
             onload: () => console.log("Key click sound loaded successfully"),
-            onloaderror: (id, error) =>
-                console.error("Error loading key click sound:", error),
         });
         setKeyClickSound(clickSound);
 
@@ -50,8 +74,6 @@ const TypingInput: React.FC = () => {
             format: ["mp3"],
             preload: true,
             onload: () => console.log("Error sound loaded successfully"),
-            onloaderror: (id, error) =>
-                console.error("Error loading error sound:", error),
         });
         setErrorSound(errSound);
     }, []);
@@ -121,6 +143,11 @@ const TypingInput: React.FC = () => {
             setStartTime(Date.now());
         }
 
+        // 현재 언어 설정
+        setLanguage(
+            /[\u3131-\u3163\uAC00-\uD7A3]/.test(value) ? "korean" : "english"
+        );
+
         // 올바른 입력일 경우
         if (value.length > input.length) {
             console.log("Attempting to play key click sound");
@@ -131,7 +158,6 @@ const TypingInput: React.FC = () => {
         }
         setInput(value);
     };
-
     const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
         if (e.key === "Enter") {
             // 현재 속도와 정확도 기록
@@ -215,7 +241,11 @@ const TypingInput: React.FC = () => {
                     autoFocus
                 />
             </div>
-
+            <Keyboard
+                pressedKeys={pressedKeys}
+                language={language}
+                darkMode={darkMode}
+            />
             <div className="mt-6 text-center grid grid-cols-2 gap-4">
                 <p className="text-lg text-gray-600">
                     현재 타이핑 속도:{" "}
