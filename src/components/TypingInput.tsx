@@ -2,7 +2,6 @@ import React, { useEffect, useRef, useState, useCallback } from "react";
 import useTypingStore from "../store/store";
 import quotesData from "../data/quotes.json";
 import { decomposeHangul } from "../utils/hangulUtils";
-import { Howl } from "howler";
 import Keyboard from "./Keyboard";
 
 const TypingInput: React.FC = () => {
@@ -27,10 +26,12 @@ const TypingInput: React.FC = () => {
     const [averageAccuracy, setAverageAccuracy] = useState<number>(0);
     const inputRef = useRef<HTMLInputElement>(null);
     const [pressedKeys, setPressedKeys] = useState<string[]>([]);
+    const [isMobile, setIsMobile] = useState<boolean>(false);
 
-    // 사운드 상태를 관리
-    const [keyClickSound, setKeyClickSound] = useState<Howl | null>(null);
-    const [errorSound, setErrorSound] = useState<Howl | null>(null);
+    const [keyClickSound, setKeyClickSound] = useState<HTMLAudioElement | null>(
+        null
+    );
+    const [errorSound, setErrorSound] = useState<HTMLAudioElement | null>(null);
 
     const handleKeyDown = useCallback((e: KeyboardEvent) => {
         setPressedKeys((prevKeys) => [
@@ -60,26 +61,46 @@ const TypingInput: React.FC = () => {
         return quotesArray[randomIndex];
     };
 
-    const initSounds = useCallback(() => {
-        const clickSound = new Howl({
-            src: ["/sounds/keyclick.mp3"],
-            format: ["mp3"],
-            preload: true,
-            onload: () => console.log("Key click sound loaded successfully"),
+    const createAudio = (urls: string[]): HTMLAudioElement => {
+        const audio = new Audio();
+        audio.preload = "auto";
+
+        const sourceElements = urls.map((url) => {
+            const source = document.createElement("source");
+            source.src = url;
+            source.type = url.endsWith("mp3") ? "audio/mpeg" : "audio/wav";
+            return source;
         });
+
+        sourceElements.forEach((source) => audio.appendChild(source));
+
+        audio.onerror = (e) => {
+            console.error("Audio error:", e);
+            if (audio.src !== urls[urls.length - 1]) {
+                audio.src = urls[urls.indexOf(audio.src) + 1];
+            }
+        };
+
+        return audio;
+    };
+
+    const initSounds = useCallback(() => {
+        const clickSoundUrls = [
+            `${window.location.origin}/sounds/keyclick.mp3`,
+            `${window.location.origin}/sounds/keyclick.wav`,
+        ];
+        const clickSound = createAudio(clickSoundUrls);
         setKeyClickSound(clickSound);
 
-        const errSound = new Howl({
-            src: ["/sounds/error.mp3"],
-            format: ["mp3"],
-            preload: true,
-            onload: () => console.log("Error sound loaded successfully"),
-        });
+        const errorSoundUrls = [
+            `${window.location.origin}/sounds/error.mp3`,
+            `${window.location.origin}/sounds/error.wav`,
+        ];
+        const errSound = createAudio(errorSoundUrls);
         setErrorSound(errSound);
     }, []);
 
     useEffect(() => {
-        // 사용자 제스처 발생 후 사운드 초기화
         const handleUserGesture = () => {
             initSounds();
             document.removeEventListener("click", handleUserGesture);
@@ -89,7 +110,6 @@ const TypingInput: React.FC = () => {
         document.addEventListener("click", handleUserGesture);
         document.addEventListener("keypress", handleUserGesture);
 
-        // 텍스트 설정
         const initialRandomQuote = getRandomQuote("korean");
         setText(initialRandomQuote);
 
@@ -136,6 +156,36 @@ const TypingInput: React.FC = () => {
         }
     }, [input, setProgress, text, startTime]);
 
+    const playSound = (sound: HTMLAudioElement | null) => {
+        if (sound) {
+            sound.currentTime = 0;
+            sound.play().catch((error) => {
+                console.error("Error playing sound:", error);
+                // 여기에 폴백 메커니즘을 추가할 수 있습니다.
+                // 예: 다른 오디오 파일 시도 또는 시각적 피드백으로 대체
+            });
+        }
+    };
+
+    useEffect(() => {
+        const checkMobile = () => {
+            setIsMobile(window.innerWidth <= 768); // Adjust this breakpoint as needed
+        };
+
+        checkMobile();
+        window.addEventListener("resize", checkMobile);
+
+        return () => window.removeEventListener("resize", checkMobile);
+    }, []);
+
+    useEffect(() => {
+        const checkMobile = () => {
+            setIsMobile(/iPhone|iPad|iPod|Android/i.test(navigator.userAgent));
+        };
+
+        checkMobile();
+    }, []);
+
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const value = e.target.value;
 
@@ -151,13 +201,14 @@ const TypingInput: React.FC = () => {
         // 올바른 입력일 경우
         if (value.length > input.length) {
             console.log("Attempting to play key click sound");
-            keyClickSound?.play();
+            playSound(keyClickSound);
         } else if (value.length < input.length) {
             console.log("Attempting to play error sound");
-            errorSound?.play();
+            playSound(errorSound);
         }
         setInput(value);
     };
+
     const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
         if (e.key === "Enter") {
             // 현재 속도와 정확도 기록
@@ -241,11 +292,13 @@ const TypingInput: React.FC = () => {
                     autoFocus
                 />
             </div>
-            <Keyboard
-                pressedKeys={pressedKeys}
-                language={language}
-                darkMode={darkMode}
-            />
+            {!isMobile && (
+                <Keyboard
+                    pressedKeys={pressedKeys}
+                    language={language}
+                    darkMode={darkMode}
+                />
+            )}
             <div className="mt-6 text-center grid grid-cols-2 gap-4">
                 <p className="text-lg text-gray-600">
                     현재 타이핑 속도:{" "}
