@@ -4,6 +4,7 @@ import ProgressBar from "./ProgressBar";
 import TypingInput from "./TypingInput";
 import DarkModeToggle from "./DarkModeToggle";
 import useTypingStore from "../store/store";
+import Footer from "./footer";
 
 const MainLayout: React.FC = () => {
     const darkMode = useTypingStore((state) => state.darkMode);
@@ -23,6 +24,7 @@ const MainLayout: React.FC = () => {
                         <TypingInput />
                     </div>
                 </main>
+                <Footer />
                 <DarkModeToggle />
             </div>
         </div>
