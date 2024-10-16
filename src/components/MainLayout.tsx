@@ -3,7 +3,7 @@ import Header from "./Header";
 import ProgressBar from "./ProgressBar";
 import TypingInput from "./TypingInput";
 import DarkModeToggle from "./DarkModeToggle";
-import Footer from "./footer";
+import Footer from "./Footer";
 import useTypingStore from "../store/store";
 
 const MainLayout: React.FC = () => {
