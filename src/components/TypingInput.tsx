@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import useTypingStore from "../store/store";
 import quotesData from "../data/quotes.json";
-import { decomposeHangul } from "../utils/hangulUtils";
+import { decomposeHangul ,isHangul ,compareHangulJamo } from "../utils/hangulUtils";
 import Keyboard from "./Keyboard";
 
 const TypingInput: React.FC = () => {
@@ -44,6 +44,35 @@ const TypingInput: React.FC = () => {
             prevKeys.filter((key) => key !== e.key.toLowerCase())
         );
     }, []);
+
+    const calculateAccuracy = (originalText: string, inputText: string): number => {
+        let correctChars = 0;
+        let totalChars = 0;
+    
+        for (let i = 0; i < Math.max(originalText.length, inputText.length); i++) {
+            const originalChar = originalText[i] || '';
+            const inputChar = inputText[i] || '';
+    
+            if (isHangul(originalChar) && isHangul(inputChar)) {
+                // 한글 문자 비교
+                const comparison = compareHangulJamo(originalChar, inputChar);
+                const correctJamo = comparison.filter(result => result === 'correct').length;
+                const totalJamo = comparison.filter(result => result !== 'pending').length;
+                
+                correctChars += correctJamo;
+                totalChars += totalJamo;
+            } else {
+                // 비 한글 문자 비교
+                if (originalChar === inputChar) {
+                    correctChars++;
+                }
+                totalChars++;
+            }
+        }
+    
+        return totalChars > 0 ? Math.round((correctChars / totalChars) * 100) : 100;
+    };
+    
 
     useEffect(() => {
         window.addEventListener("keydown", handleKeyDown);
@@ -197,6 +226,9 @@ const TypingInput: React.FC = () => {
         setLanguage(
             /[\u3131-\u3163\uAC00-\uD7A3]/.test(value) ? "korean" : "english"
         );
+
+        const calculatedAccuracy = calculateAccuracy(text, value);
+        setAccuracy(calculatedAccuracy);
 
         // 올바른 입력일 경우
         if (value.length > input.length) {

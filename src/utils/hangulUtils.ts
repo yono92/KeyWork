@@ -1,5 +1,7 @@
 // hangulUtils.ts
 
+
+
 export const decomposeHangul = (char: string): string[] => {
     const code = char.charCodeAt(0) - 0xAC00;
     if (code < 0 || code > 11171) return [char];
