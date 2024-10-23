@@ -1,4 +1,5 @@
 // hangulUtils.ts
+import { getLevenshteinDistance } from "./levenshtein";
 
 export const decomposeHangul = (char: string): string[] => {
     const code = char.charCodeAt(0) - 0xAC00;
@@ -18,12 +19,28 @@ export const isHangul = (char: string): boolean => {
     return code >= 0xAC00 && code <= 0xD7A3;
 };
 
-export const compareHangulJamo = (target: string, input: string): ('correct' | 'incorrect' | 'pending')[] => {
-    const targetJamo = decomposeHangul(target);
-    const inputJamo = decomposeHangul(input);
+export const compareHangulJamo = (
+    target: string,
+    input: string
+): ('correct' | 'incorrect' | 'pending')[] => {
+    const targetJamo = target.split('').flatMap(decomposeHangul);
+    const inputJamo = input.split('').flatMap(decomposeHangul);
 
     return targetJamo.map((jamo, index) => {
         if (index >= inputJamo.length) return 'pending'; // 아직 입력되지 않은 경우
         return inputJamo[index] === jamo ? 'correct' : 'incorrect'; // 자모 비교
     });
 };
+
+
+export const calculateHangulAccuracy = (target: string, input: string): number => {
+    const targetJamo = target.split("").flatMap(decomposeHangul);
+    const inputJamo = input.split("").flatMap(decomposeHangul);
+
+    const maxLength = Math.max(targetJamo.length, inputJamo.length);
+    const distance = getLevenshteinDistance(targetJamo, inputJamo);
+
+    const accuracy = ((maxLength - distance) / maxLength) * 100;
+    return Math.max(0, Math.round(accuracy)); // 정확도가 음수가 되지 않도록 보장
+};
+

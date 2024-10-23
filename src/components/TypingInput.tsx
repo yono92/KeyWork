@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import useTypingStore from "../store/store";
 import quotesData from "../data/quotes.json";
-import { decomposeHangul } from "../utils/hangulUtils";
+import { calculateHangulAccuracy } from "../utils/hangulUtils";
 import Keyboard from "./Keyboard";
 
 const TypingInput: React.FC = () => {
@@ -15,11 +15,6 @@ const TypingInput: React.FC = () => {
     const [startTime, setStartTime] = useState<number | null>(null);
     const [typingSpeed, setTypingSpeed] = useState<number>(0);
     const [accuracy, setAccuracy] = useState<number>(0);
-    const [previousSpeed, setPreviousSpeed] = useState<number | null>(null);
-    const [previousAccuracy, setPreviousAccuracy] = useState<number | null>(
-        null
-    );
-
     const [allSpeeds, setAllSpeeds] = useState<number[]>([]);
     const [allAccuracies, setAllAccuracies] = useState<number[]>([]);
     const [averageSpeed, setAverageSpeed] = useState<number>(0);
@@ -123,38 +118,25 @@ const TypingInput: React.FC = () => {
         };
     }, [setText, initSounds]);
 
+
     useEffect(() => {
         const progress = (input.length / text.length) * 100;
         setProgress(progress);
-
+    
         if (input.length > 0 && startTime !== null) {
             const currentTime = Date.now();
             const timeElapsedInMinutes = (currentTime - startTime) / 60000;
             const charactersTyped = input.length;
-            const calculatedSpeed = Math.round(
-                charactersTyped / timeElapsedInMinutes
-            );
+            const calculatedSpeed = Math.round(charactersTyped / timeElapsedInMinutes);
             setTypingSpeed(calculatedSpeed);
-
-            // 정확도 계산
-            const decomposedText = decomposeHangul(text);
-            const decomposedInput = decomposeHangul(input);
-            let correctChars = 0;
-
-            for (let i = 0; i < decomposedInput.length; i++) {
-                if (decomposedInput[i] === decomposedText[i]) {
-                    correctChars++;
-                }
-            }
-
-            const calculatedAccuracy = Math.round(
-                (correctChars /
-                    Math.max(decomposedInput.length, decomposedText.length)) *
-                    100
-            );
+    
+            const calculatedAccuracy = calculateHangulAccuracy(text, input);
+            console.log(`Accuracy: ${calculatedAccuracy}%`);
             setAccuracy(calculatedAccuracy);
         }
     }, [input, setProgress, text, startTime]);
+    
+    
 
     const playSound = (sound: HTMLAudioElement | null) => {
         if (sound) {
@@ -212,28 +194,28 @@ const TypingInput: React.FC = () => {
     const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
         if (e.key === "Enter") {
             // 현재 속도와 정확도 기록
-            setPreviousSpeed(typingSpeed);
-            setPreviousAccuracy(accuracy);
+
+
 
             setAllSpeeds((prevSpeeds) => {
                 const updatedSpeeds = [...prevSpeeds, typingSpeed];
-                const totalSpeed = updatedSpeeds.reduce(
-                    (acc, curr) => acc + curr,
-                    0
-                );
-                setAverageSpeed(Math.round(totalSpeed / updatedSpeeds.length));
+                if (updatedSpeeds.length > 0) {
+                    const totalSpeed = updatedSpeeds.reduce((acc, curr) => acc + curr, 0);
+                    setAverageSpeed(Math.round(totalSpeed / updatedSpeeds.length));
+                }
                 return updatedSpeeds;
             });
+            
 
             setAllAccuracies((prevAccuracies) => {
                 const updatedAccuracies = [...prevAccuracies, accuracy];
-                const totalAccuracy = updatedAccuracies.reduce(
-                    (acc, curr) => acc + curr,
-                    0
-                );
-                setAverageAccuracy(
-                    Math.round(totalAccuracy / updatedAccuracies.length)
-                );
+                if (updatedAccuracies.length > 0) {
+                    const totalAccuracy = updatedAccuracies.reduce(
+                        (acc, curr) => acc + curr,
+                        0
+                    );
+                    setAverageAccuracy(Math.round(totalAccuracy / updatedAccuracies.length));
+                }
                 return updatedAccuracies;
             });
 
@@ -241,9 +223,11 @@ const TypingInput: React.FC = () => {
             setInput("");
             setStartTime(null);
             setTypingSpeed(0);
-            setAccuracy(100); // 정확도 초기화
+            setAccuracy(0); // 초기화는 0으로 설정 (100%가 아닌)
             const randomQuote = getRandomQuote("korean");
             setText(randomQuote); // 새로운 문장 설정
+
+
         }
     };
 
@@ -309,24 +293,6 @@ const TypingInput: React.FC = () => {
                     현재 정확도:{" "}
                     <span className="text-xl font-bold">{accuracy}</span>%
                 </p>
-                {previousSpeed !== null && (
-                    <p className="text-lg text-gray-600">
-                        이전 문장 타이핑 속도:{" "}
-                        <span className="text-xl font-bold">
-                            {previousSpeed}
-                        </span>{" "}
-                        타/분
-                    </p>
-                )}
-                {previousAccuracy !== null && (
-                    <p className="text-lg text-gray-600">
-                        이전 문장 정확도:{" "}
-                        <span className="text-xl font-bold">
-                            {previousAccuracy}
-                        </span>
-                        %
-                    </p>
-                )}
                 <p className="text-lg text-gray-600">
                     평균 타이핑 속도:{" "}
                     <span className="text-xl font-bold">{averageSpeed}</span>{" "}
