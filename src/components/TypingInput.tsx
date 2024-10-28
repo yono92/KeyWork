@@ -3,13 +3,14 @@ import useTypingStore from "../store/store";
 import quotesData from "../data/quotes.json";
 import { calculateHangulAccuracy } from "../utils/hangulUtils";
 import Keyboard from "./Keyboard";
+import LanguageToggle from "./LanguageToggle";
 
 const TypingInput: React.FC = () => {
     const text = useTypingStore((state) => state.text);
     const setProgress = useTypingStore((state) => state.setProgress);
     const darkMode = useTypingStore((state) => state.darkMode);
     const setText = useTypingStore((state) => state.setText);
-    const [language, setLanguage] = useState<string>("korean");
+    const [language, setLanguage] = useState<"korean" | "english">("korean");
 
     const [input, setInput] = useState<string>("");
     const [startTime, setStartTime] = useState<number | null>(null);
@@ -32,6 +33,15 @@ const TypingInput: React.FC = () => {
             ...new Set([...prevKeys, e.key.toLowerCase()]),
         ]);
     }, []);
+
+    const toggleLanguage = () => {
+        const newLanguage = language === "korean" ? "english" : "korean";
+        setLanguage(newLanguage);
+        const randomQuote = getRandomQuote(newLanguage);
+        setText(randomQuote);
+        setInput("");
+        setStartTime(null);
+    };
 
     const handleKeyUp = useCallback((e: KeyboardEvent) => {
         setPressedKeys((prevKeys) =>
@@ -117,19 +127,20 @@ const TypingInput: React.FC = () => {
         };
     }, [setText, initSounds]);
 
-
     // 정확도를 계산하는 useEffect
     useEffect(() => {
         const progress = (input.length / text.length) * 100;
         setProgress(progress);
-    
+
         if (input.length > 0 && startTime !== null) {
             const currentTime = Date.now();
             const timeElapsedInMinutes = (currentTime - startTime) / 60000;
             const charactersTyped = input.length;
-            const calculatedSpeed = Math.round(charactersTyped / timeElapsedInMinutes);
+            const calculatedSpeed = Math.round(
+                charactersTyped / timeElapsedInMinutes
+            );
             setTypingSpeed(calculatedSpeed);
-    
+
             const calculatedAccuracy = calculateHangulAccuracy(text, input);
             setAccuracy(calculatedAccuracy);
         } else {
@@ -138,8 +149,6 @@ const TypingInput: React.FC = () => {
             setAccuracy(0);
         }
     }, [input, text, startTime, setProgress]);
-    
-    
 
     const playSound = (sound: HTMLAudioElement | null) => {
         if (sound) {
@@ -194,21 +203,24 @@ const TypingInput: React.FC = () => {
         setInput(value);
     };
 
-
     const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
         if (e.key === "Enter") {
             // 현재 속도와 정확도가 0이 아닌 경우에만 기록
             if (typingSpeed > 0 && accuracy > 0) {
-                setAllSpeeds(prevSpeeds => {
+                setAllSpeeds((prevSpeeds) => {
                     const updatedSpeeds = [...prevSpeeds, typingSpeed];
-                    const newAverageSpeed = updatedSpeeds.reduce((acc, curr) => acc + curr, 0) / updatedSpeeds.length;
+                    const newAverageSpeed =
+                        updatedSpeeds.reduce((acc, curr) => acc + curr, 0) /
+                        updatedSpeeds.length;
                     setAverageSpeed(Math.round(newAverageSpeed));
                     return updatedSpeeds;
                 });
 
-                setAllAccuracies(prevAccuracies => {
+                setAllAccuracies((prevAccuracies) => {
                     const updatedAccuracies = [...prevAccuracies, accuracy];
-                    const newAverageAccuracy = updatedAccuracies.reduce((acc, curr) => acc + curr, 0) / updatedAccuracies.length;
+                    const newAverageAccuracy =
+                        updatedAccuracies.reduce((acc, curr) => acc + curr, 0) /
+                        updatedAccuracies.length;
                     setAverageAccuracy(Math.round(newAverageAccuracy));
                     return updatedAccuracies;
                 });
@@ -219,7 +231,8 @@ const TypingInput: React.FC = () => {
             setStartTime(null);
             setTypingSpeed(0);
             setAccuracy(0);
-            const randomQuote = getRandomQuote("korean");
+            // 현재 language 상태를 사용하여 새로운 인용구 가져오기
+            const randomQuote = getRandomQuote(language);
             setText(randomQuote);
         }
     };
@@ -246,6 +259,11 @@ const TypingInput: React.FC = () => {
 
     return (
         <div className={`mt-10 w-full max-w-4xl mx-auto`}>
+            {/* 언어 전환 버튼을 우측 상단으로 이동하고 스타일 개선 */}
+            <LanguageToggle
+                language={language}
+                toggleLanguage={toggleLanguage}
+            />
             <div
                 className={`p-4 border rounded-lg text-3xl font-semibold leading-relaxed tracking-wide ${
                     darkMode
@@ -278,20 +296,27 @@ const TypingInput: React.FC = () => {
             )}
             <div className="mt-6 text-center grid grid-cols-2 gap-4">
                 <p className="text-lg text-gray-600">
-                    현재 타이핑 속도: <span className="text-xl font-bold">{typingSpeed}</span> 타/분
+                    현재 타이핑 속도:{" "}
+                    <span className="text-xl font-bold">{typingSpeed}</span>{" "}
+                    타/분
                 </p>
                 <p className="text-lg text-gray-600">
-                    현재 정확도: <span className="text-xl font-bold">{accuracy}</span>%
+                    현재 정확도:{" "}
+                    <span className="text-xl font-bold">{accuracy}</span>%
                 </p>
                 <p className="text-lg text-gray-600">
-                    평균 타이핑 속도: <span className="text-xl font-bold">
+                    평균 타이핑 속도:{" "}
+                    <span className="text-xl font-bold">
                         {allSpeeds.length > 0 ? averageSpeed : 0}
-                    </span> 타/분
+                    </span>{" "}
+                    타/분
                 </p>
                 <p className="text-lg text-gray-600">
-                    평균 정확도: <span className="text-xl font-bold">
+                    평균 정확도:{" "}
+                    <span className="text-xl font-bold">
                         {allAccuracies.length > 0 ? averageAccuracy : 0}
-                    </span>%
+                    </span>
+                    %
                 </p>
             </div>
         </div>
