@@ -283,7 +283,7 @@ const TypingInput: React.FC = () => {
                             ? "bg-gray-700 text-white"
                             : "bg-gray-100 text-black"
                     }`}
-                    placeholder="여기에 타이핑하세요..."
+                    placeholder=""
                     autoFocus
                 />
             </div>
