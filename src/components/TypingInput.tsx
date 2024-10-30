@@ -1,25 +1,21 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import useTypingStore from "../store/store";
 import quotesData from "../data/quotes.json";
-import { decomposeHangul } from "../utils/hangulUtils";
+import { calculateHangulAccuracy } from "../utils/hangulUtils";
 import Keyboard from "./Keyboard";
+import LanguageToggle from "./LanguageToggle";
 
 const TypingInput: React.FC = () => {
     const text = useTypingStore((state) => state.text);
     const setProgress = useTypingStore((state) => state.setProgress);
     const darkMode = useTypingStore((state) => state.darkMode);
     const setText = useTypingStore((state) => state.setText);
-    const [language, setLanguage] = useState<string>("korean");
+    const [language, setLanguage] = useState<"korean" | "english">("korean");
 
     const [input, setInput] = useState<string>("");
     const [startTime, setStartTime] = useState<number | null>(null);
     const [typingSpeed, setTypingSpeed] = useState<number>(0);
     const [accuracy, setAccuracy] = useState<number>(0);
-    const [previousSpeed, setPreviousSpeed] = useState<number | null>(null);
-    const [previousAccuracy, setPreviousAccuracy] = useState<number | null>(
-        null
-    );
-
     const [allSpeeds, setAllSpeeds] = useState<number[]>([]);
     const [allAccuracies, setAllAccuracies] = useState<number[]>([]);
     const [averageSpeed, setAverageSpeed] = useState<number>(0);
@@ -27,7 +23,6 @@ const TypingInput: React.FC = () => {
     const inputRef = useRef<HTMLInputElement>(null);
     const [pressedKeys, setPressedKeys] = useState<string[]>([]);
     const [isMobile, setIsMobile] = useState<boolean>(false);
-
     const [keyClickSound, setKeyClickSound] = useState<HTMLAudioElement | null>(
         null
     );
@@ -38,6 +33,15 @@ const TypingInput: React.FC = () => {
             ...new Set([...prevKeys, e.key.toLowerCase()]),
         ]);
     }, []);
+
+    const toggleLanguage = () => {
+        const newLanguage = language === "korean" ? "english" : "korean";
+        setLanguage(newLanguage);
+        const randomQuote = getRandomQuote(newLanguage);
+        setText(randomQuote);
+        setInput("");
+        setStartTime(null);
+    };
 
     const handleKeyUp = useCallback((e: KeyboardEvent) => {
         setPressedKeys((prevKeys) =>
@@ -123,6 +127,7 @@ const TypingInput: React.FC = () => {
         };
     }, [setText, initSounds]);
 
+    // 정확도를 계산하는 useEffect
     useEffect(() => {
         const progress = (input.length / text.length) * 100;
         setProgress(progress);
@@ -136,25 +141,14 @@ const TypingInput: React.FC = () => {
             );
             setTypingSpeed(calculatedSpeed);
 
-            // 정확도 계산
-            const decomposedText = decomposeHangul(text);
-            const decomposedInput = decomposeHangul(input);
-            let correctChars = 0;
-
-            for (let i = 0; i < decomposedInput.length; i++) {
-                if (decomposedInput[i] === decomposedText[i]) {
-                    correctChars++;
-                }
-            }
-
-            const calculatedAccuracy = Math.round(
-                (correctChars /
-                    Math.max(decomposedInput.length, decomposedText.length)) *
-                    100
-            );
+            const calculatedAccuracy = calculateHangulAccuracy(text, input);
             setAccuracy(calculatedAccuracy);
+        } else {
+            // 입력이 없을 때는 0으로 설정
+            setTypingSpeed(0);
+            setAccuracy(0);
         }
-    }, [input, setProgress, text, startTime]);
+    }, [input, text, startTime, setProgress]);
 
     const playSound = (sound: HTMLAudioElement | null) => {
         if (sound) {
@@ -211,39 +205,35 @@ const TypingInput: React.FC = () => {
 
     const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
         if (e.key === "Enter") {
-            // 현재 속도와 정확도 기록
-            setPreviousSpeed(typingSpeed);
-            setPreviousAccuracy(accuracy);
+            // 현재 속도와 정확도가 0이 아닌 경우에만 기록
+            if (typingSpeed > 0 && accuracy > 0) {
+                setAllSpeeds((prevSpeeds) => {
+                    const updatedSpeeds = [...prevSpeeds, typingSpeed];
+                    const newAverageSpeed =
+                        updatedSpeeds.reduce((acc, curr) => acc + curr, 0) /
+                        updatedSpeeds.length;
+                    setAverageSpeed(Math.round(newAverageSpeed));
+                    return updatedSpeeds;
+                });
 
-            setAllSpeeds((prevSpeeds) => {
-                const updatedSpeeds = [...prevSpeeds, typingSpeed];
-                const totalSpeed = updatedSpeeds.reduce(
-                    (acc, curr) => acc + curr,
-                    0
-                );
-                setAverageSpeed(Math.round(totalSpeed / updatedSpeeds.length));
-                return updatedSpeeds;
-            });
-
-            setAllAccuracies((prevAccuracies) => {
-                const updatedAccuracies = [...prevAccuracies, accuracy];
-                const totalAccuracy = updatedAccuracies.reduce(
-                    (acc, curr) => acc + curr,
-                    0
-                );
-                setAverageAccuracy(
-                    Math.round(totalAccuracy / updatedAccuracies.length)
-                );
-                return updatedAccuracies;
-            });
+                setAllAccuracies((prevAccuracies) => {
+                    const updatedAccuracies = [...prevAccuracies, accuracy];
+                    const newAverageAccuracy =
+                        updatedAccuracies.reduce((acc, curr) => acc + curr, 0) /
+                        updatedAccuracies.length;
+                    setAverageAccuracy(Math.round(newAverageAccuracy));
+                    return updatedAccuracies;
+                });
+            }
 
             // 입력 필드 초기화 및 상태 초기화
             setInput("");
             setStartTime(null);
             setTypingSpeed(0);
-            setAccuracy(100); // 정확도 초기화
-            const randomQuote = getRandomQuote("korean");
-            setText(randomQuote); // 새로운 문장 설정
+            setAccuracy(0);
+            // 현재 language 상태를 사용하여 새로운 인용구 가져오기
+            const randomQuote = getRandomQuote(language);
+            setText(randomQuote);
         }
     };
 
@@ -269,6 +259,11 @@ const TypingInput: React.FC = () => {
 
     return (
         <div className={`mt-10 w-full max-w-4xl mx-auto`}>
+            {/* 언어 전환 버튼을 우측 상단으로 이동하고 스타일 개선 */}
+            <LanguageToggle
+                language={language}
+                toggleLanguage={toggleLanguage}
+            />
             <div
                 className={`p-4 border rounded-lg text-3xl font-semibold leading-relaxed tracking-wide ${
                     darkMode
@@ -288,7 +283,7 @@ const TypingInput: React.FC = () => {
                             ? "bg-gray-700 text-white"
                             : "bg-gray-100 text-black"
                     }`}
-                    placeholder="여기에 타이핑하세요..."
+                    placeholder=""
                     autoFocus
                 />
             </div>
@@ -309,32 +304,18 @@ const TypingInput: React.FC = () => {
                     현재 정확도:{" "}
                     <span className="text-xl font-bold">{accuracy}</span>%
                 </p>
-                {previousSpeed !== null && (
-                    <p className="text-lg text-gray-600">
-                        이전 문장 타이핑 속도:{" "}
-                        <span className="text-xl font-bold">
-                            {previousSpeed}
-                        </span>{" "}
-                        타/분
-                    </p>
-                )}
-                {previousAccuracy !== null && (
-                    <p className="text-lg text-gray-600">
-                        이전 문장 정확도:{" "}
-                        <span className="text-xl font-bold">
-                            {previousAccuracy}
-                        </span>
-                        %
-                    </p>
-                )}
                 <p className="text-lg text-gray-600">
                     평균 타이핑 속도:{" "}
-                    <span className="text-xl font-bold">{averageSpeed}</span>{" "}
+                    <span className="text-xl font-bold">
+                        {allSpeeds.length > 0 ? averageSpeed : 0}
+                    </span>{" "}
                     타/분
                 </p>
                 <p className="text-lg text-gray-600">
                     평균 정확도:{" "}
-                    <span className="text-xl font-bold">{averageAccuracy}</span>
+                    <span className="text-xl font-bold">
+                        {allAccuracies.length > 0 ? averageAccuracy : 0}
+                    </span>
                     %
                 </p>
             </div>
