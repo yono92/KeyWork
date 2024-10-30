@@ -28,10 +28,16 @@ const TypingInput: React.FC = () => {
     );
     const [errorSound, setErrorSound] = useState<HTMLAudioElement | null>(null);
 
+    // const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    //     setPressedKeys((prevKeys) => [
+    //         ...new Set([...prevKeys, e.key.toLowerCase()]),
+    //     ]);
+    // }, []);
+
     const handleKeyDown = useCallback((e: KeyboardEvent) => {
-        setPressedKeys((prevKeys) => [
-            ...new Set([...prevKeys, e.key.toLowerCase()]),
-        ]);
+        // Key 대신 Code를 사용
+        const keyCode = e.code.replace("Key", "").toLowerCase();
+        setPressedKeys((prevKeys) => [...new Set([...prevKeys, keyCode])]);
     }, []);
 
     const toggleLanguage = () => {
@@ -43,10 +49,14 @@ const TypingInput: React.FC = () => {
         setStartTime(null);
     };
 
+    // const handleKeyUp = useCallback((e: KeyboardEvent) => {
+    //     setPressedKeys((prevKeys) =>
+    //         prevKeys.filter((key) => key !== e.key.toLowerCase())
+    //     );
+    // }, []);
     const handleKeyUp = useCallback((e: KeyboardEvent) => {
-        setPressedKeys((prevKeys) =>
-            prevKeys.filter((key) => key !== e.key.toLowerCase())
-        );
+        const keyCode = e.code.replace("Key", "").toLowerCase();
+        setPressedKeys((prevKeys) => prevKeys.filter((key) => key !== keyCode));
     }, []);
 
     useEffect(() => {

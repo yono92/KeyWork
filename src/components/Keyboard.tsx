@@ -150,6 +150,35 @@ const Keyboard: React.FC<KeyboardProps> = ({
     const layout = language === "korean" ? koreanLayout : englishLayout;
 
     const getKeyClass = (key: string): string => {
+        // 한글-영문 키 매핑 추가
+        const koreanToEnglish: { [key: string]: string } = {
+            ㅂ: "q",
+            ㅈ: "w",
+            ㄷ: "e",
+            ㄱ: "r",
+            ㅅ: "t",
+            ㅛ: "y",
+            ㅕ: "u",
+            ㅑ: "i",
+            ㅐ: "o",
+            ㅔ: "p",
+            ㅁ: "a",
+            ㄴ: "s",
+            ㅇ: "d",
+            ㄹ: "f",
+            ㅎ: "g",
+            ㅗ: "h",
+            ㅓ: "j",
+            ㅏ: "k",
+            ㅣ: "l",
+            ㅋ: "z",
+            ㅌ: "x",
+            ㅊ: "c",
+            ㅍ: "v",
+            ㅠ: "b",
+            ㅜ: "n",
+            ㅡ: "m",
+        };
         let baseClass = `
             flex items-center justify-center 
             border rounded-md shadow-md cursor-pointer 
@@ -157,11 +186,20 @@ const Keyboard: React.FC<KeyboardProps> = ({
             text-sm font-bold
         `;
 
+        // 키 체크 로직 수정
+        const isKeyPressed = () => {
+            const lowercaseKey = key.toLowerCase();
+            if (language === "korean" && koreanToEnglish[key]) {
+                return pressedKeys.includes(koreanToEnglish[key]);
+            }
+            return pressedKeys.includes(lowercaseKey);
+        };
+
         if (darkMode) {
             baseClass += ` 
                 border-gray-600 
                 ${
-                    pressedKeys.includes(key.toLowerCase())
+                    isKeyPressed()
                         ? "bg-blue-700 text-white"
                         : "bg-gray-700 text-gray-300 hover:bg-gray-600"
                 }
@@ -170,14 +208,14 @@ const Keyboard: React.FC<KeyboardProps> = ({
             baseClass += ` 
                 border-gray-400 
                 ${
-                    pressedKeys.includes(key.toLowerCase())
+                    isKeyPressed()
                         ? "bg-blue-200 text-gray-800"
                         : "bg-white text-gray-800 hover:bg-gray-100"
                 }
             `;
         }
 
-        if (pressedKeys.includes(key.toLowerCase())) {
+        if (isKeyPressed()) {
             baseClass += " transform translate-y-px shadow-sm";
         }
 
