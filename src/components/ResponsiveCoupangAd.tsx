@@ -11,7 +11,7 @@ const ResponsiveCoupangAd: React.FC = () => {
     const darkMode = useTypingStore((state) => state.darkMode);
     const [adSize, setAdSize] = useState<AdSizeType>({
         width: "250",
-        height: "600",
+        height: "300",
     });
 
     useEffect(() => {
