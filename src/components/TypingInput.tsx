@@ -27,6 +27,7 @@ const TypingInput: React.FC = () => {
         null
     );
     const [errorSound, setErrorSound] = useState<HTMLAudioElement | null>(null);
+    const [isValidInput, setIsValidInput] = useState<boolean>(true);
 
     const handleKeyDown = useCallback((e: KeyboardEvent) => {
         // Key 대신 Code를 사용
@@ -181,6 +182,41 @@ const TypingInput: React.FC = () => {
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const value = e.target.value;
+        const lastChar = value.slice(-1); // 마지막으로 입력된 문자
+
+        // 입력값이 비어있거나 백스페이스인 경우는 허용
+        if (!value || value.length < input.length) {
+            setInput(value);
+            if (value.length < input.length) {
+                playSound(errorSound);
+            }
+            return;
+        }
+
+        setIsValidInput(true);
+
+        // 스페이스바는 항상 허용
+        if (lastChar === " ") {
+            setInput(value);
+            playSound(keyClickSound);
+            return;
+        }
+        // 마지막 문자 검증
+        const isKoreanChar = /[\u3131-\u3163\uAC00-\uD7A3]/.test(lastChar);
+        const isEnglishChar = /^[a-zA-Z0-9\s.,!?'"()-]$/.test(lastChar);
+
+        // 현재 언어와 입력값이 일치하지 않으면 무시
+        if (
+            (language === "korean" && !isKoreanChar) ||
+            (language === "english" && !isEnglishChar)
+        ) {
+            playSound(errorSound);
+            setIsValidInput(false);
+            setTimeout(() => setIsValidInput(true), 1000);
+            return;
+        }
+
+        setIsValidInput(true);
 
         if (input.length === 0 && startTime === null) {
             setStartTime(Date.now());
@@ -191,14 +227,7 @@ const TypingInput: React.FC = () => {
             /[\u3131-\u3163\uAC00-\uD7A3]/.test(value) ? "korean" : "english"
         );
 
-        // 올바른 입력일 경우
-        if (value.length > input.length) {
-            console.log("Attempting to play key click sound");
-            playSound(keyClickSound);
-        } else if (value.length < input.length) {
-            console.log("Attempting to play error sound");
-            playSound(errorSound);
-        }
+        playSound(keyClickSound);
         setInput(value);
     };
 
@@ -277,14 +306,31 @@ const TypingInput: React.FC = () => {
                     value={input}
                     onChange={handleInputChange}
                     onKeyDown={handleKeyPress}
-                    className={`w-full p-2 text-xl border rounded ${
-                        darkMode
-                            ? "bg-gray-700 text-white"
-                            : "bg-gray-100 text-black"
-                    }`}
+                    className={`w-full p-2 text-xl border rounded transition-colors duration-200
+                ${
+                    darkMode
+                        ? "bg-gray-700 text-white"
+                        : "bg-gray-100 text-black"
+                }
+                ${
+                    isValidInput
+                        ? darkMode
+                            ? "border-gray-600"
+                            : "border-gray-300"
+                        : "border-red-500 animate-shake"
+                }
+                ${!isValidInput && "ring-2 ring-red-500"}
+            `}
                     placeholder=""
                     autoFocus
                 />
+                {!isValidInput && (
+                    <p className="text-red-500 text-sm mt-1">
+                        {language === "korean"
+                            ? "한글만 입력 가능합니다"
+                            : "영문만 입력 가능합니다"}
+                    </p>
+                )}
             </div>
             {!isMobile && (
                 <Keyboard

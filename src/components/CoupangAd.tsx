@@ -95,8 +95,6 @@ const CoupangAd: React.FC<CoupangAdProps> = ({
                     src={`https://ads-partners.coupang.com/widgets.html?id=${id}&template=${template}&trackingCode=${trackingCode}&width=${width}&height=${height}`}
                     width={width}
                     height={height}
-                    frameBorder="0"
-                    scrolling="no"
                     referrerPolicy="unsafe-url"
                 />
             </div>
