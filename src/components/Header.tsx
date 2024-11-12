@@ -1,5 +1,4 @@
 import React, { useState } from "react";
-import { Menu, X } from "lucide-react";
 import useTypingStore from "../store/store";
 
 const Header: React.FC = () => {
@@ -24,13 +23,9 @@ const Header: React.FC = () => {
             <div className="relative">
                 <button
                     onClick={() => setIsMenuOpen(!isMenuOpen)}
-                    className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                    className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors text-xl"
                 >
-                    {isMenuOpen ? (
-                        <X className="w-6 h-6" />
-                    ) : (
-                        <Menu className="w-6 h-6" />
-                    )}
+                    {isMenuOpen ? "✕" : "☰"}
                 </button>
 
                 {isMenuOpen && (
