@@ -287,7 +287,6 @@ const TypingInput: React.FC = () => {
 
     return (
         <div className={`mt-10 w-full max-w-4xl mx-auto`}>
-            {/* 언어 전환 버튼을 우측 상단으로 이동하고 스타일 개선 */}
             <LanguageToggle
                 language={language}
                 toggleLanguage={toggleLanguage}
