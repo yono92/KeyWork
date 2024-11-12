@@ -14,7 +14,7 @@ const RightSidebar: React.FC = () => {
             style={{ height: "auto", maxWidth: "300px" }} // 레이아웃 최적화
         >
             <div className="flex flex-col items-center gap-4">
-                <ResponsiveCoupangAd />
+                {/* <ResponsiveCoupangAd /> */}
             </div>
         </aside>
     );
