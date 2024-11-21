@@ -227,13 +227,14 @@ const FallingWordsGame: React.FC = () => {
             const matchedWord = words.find((word) => value === word.text);
 
             if (matchedWord) {
-                setInput("");
                 setLastTypedTime(Date.now());
 
                 requestAnimationFrame(() => {
                     setWords((curr) =>
                         curr.filter((word) => word.id !== matchedWord.id)
                     );
+
+                    setInput(""); // 인풋창 초기화 
 
                     if (matchedWord.type !== "normal") {
                         handleItemEffect(matchedWord.type);
