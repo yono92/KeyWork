@@ -34,7 +34,7 @@ const FallingWordsGame: React.FC = () => {
     const inputRef = useRef<HTMLInputElement>(null);
 
     const spawnInterval =
-        Math.max(2000 - level * 150, 500) * (slowMotion ? 1.5 : 1);
+        Math.max(2000 - level * 100, 300) * (slowMotion ? 1.5 : 1);
     const fallSpeed = Math.min(1 + level * 0.5, 10) * (slowMotion ? 0.5 : 1);
 
     const ITEM_TYPES = {
@@ -60,39 +60,42 @@ const FallingWordsGame: React.FC = () => {
         const gameArea = gameAreaRef.current;
         const maxLeft = gameArea ? gameArea.offsetWidth - 100 : 0;
 
-        const wordText = getRandomWord();
-        if (!wordText) return;
+        const numWords = Math.min(1 + Math.floor(level / 2), 5); // 레벨에 따라 최대 5개 생성
+        for (let i = 0; i < numWords; i++) {
+            const wordText = getRandomWord();
+            if (!wordText) continue;
 
-        // 아이템 확률 계산 단순화
-        let wordType: Word["type"] = "normal";
-        const random = Math.random();
+            let wordType: Word["type"] = "normal";
+            const random = Math.random();
 
-        // 레벨에 따른 아이템 확률 증가 (5% + 레벨당 1%, 최대 20%)
-        const itemChance = Math.min(0.05 + (level - 1) * 0.01, 0.2);
+            const itemChance = Math.min(0.05 + (level - 1) * 0.01, 0.2);
 
-        if (random < itemChance) {
-            // 아이템 종류를 균등하게 분배
-            const itemTypes: Word["type"][] = [
-                "life",
-                "slow",
-                "clear",
-                "shield",
-                "score",
-            ];
-            wordType = itemTypes[Math.floor(Math.random() * itemTypes.length)];
+            if (random < itemChance) {
+                const itemTypes: Word["type"][] = [
+                    "life",
+                    "slow",
+                    "clear",
+                    "shield",
+                    "score",
+                ];
+                wordType =
+                    itemTypes[Math.floor(Math.random() * itemTypes.length)];
+            }
+
+            const newWord: Word = {
+                id: Date.now() + i, // 고유 ID 보장
+                text: wordText,
+                left: Math.random() * maxLeft,
+                top: -50,
+                type: wordType,
+                color:
+                    wordType !== "normal"
+                        ? ITEM_TYPES[wordType].color
+                        : undefined,
+            };
+
+            setWords((curr) => [...curr, newWord]);
         }
-
-        const newWord: Word = {
-            id: Date.now(),
-            text: wordText,
-            left: Math.random() * maxLeft,
-            top: -50,
-            type: wordType,
-            color:
-                wordType !== "normal" ? ITEM_TYPES[wordType].color : undefined,
-        };
-
-        setWords((curr) => [...curr, newWord]);
     }, [gameOver, language, level]);
 
     // 이모지와 함께 단어를 표시하는 컴포넌트
@@ -234,7 +237,7 @@ const FallingWordsGame: React.FC = () => {
                         curr.filter((word) => word.id !== matchedWord.id)
                     );
 
-                    setInput(""); // 인풋창 초기화 
+                    setInput(""); // 인풋창 초기화
 
                     if (matchedWord.type !== "normal") {
                         handleItemEffect(matchedWord.type);
