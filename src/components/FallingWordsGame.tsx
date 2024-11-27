@@ -317,7 +317,7 @@ const FallingWordsGame: React.FC = () => {
                     </div>
                     <div className="text-xl font-bold">Level: {level}</div>
                     <div className="text-xl font-bold">
-                        Lives: {"❤️".repeat(lives)}
+                        Life: {"❤️".repeat(lives)}
                     </div>
                 </div>
 
