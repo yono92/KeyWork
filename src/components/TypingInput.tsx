@@ -203,12 +203,12 @@ const TypingInput: React.FC = () => {
         }
         // 마지막 문자 검증
         const isKoreanChar = /[\u3131-\u3163\uAC00-\uD7A3]/.test(lastChar);
-        const isEnglishChar = /^[a-zA-Z0-9\s.,!?'"()-]$/.test(lastChar);
-
+        const isEnglishOrSpecialChar = /^[\u0020-\u007E\u00A0-\u00FF]*$/.test(lastChar); // 영문 및 특수문자 허용
+        
         // 현재 언어와 입력값이 일치하지 않으면 무시
         if (
             (language === "korean" && !isKoreanChar) ||
-            (language === "english" && !isEnglishChar)
+            (language === "english" && !isEnglishOrSpecialChar)
         ) {
             playSound(errorSound);
             setIsValidInput(false);
@@ -223,9 +223,12 @@ const TypingInput: React.FC = () => {
         }
 
         // 현재 언어 설정
-        setLanguage(
-            /[\u3131-\u3163\uAC00-\uD7A3]/.test(value) ? "korean" : "english"
-        );
+        if (/[\u3131-\u3163\uAC00-\uD7A3]/.test(value)) {
+            setLanguage("korean");
+        } else if (/^[\u0020-\u007E\u00A0-\u00FF]*$/.test(value)) {
+            setLanguage("english");
+        }
+        
 
         playSound(keyClickSound);
         setInput(value);
