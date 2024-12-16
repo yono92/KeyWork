@@ -335,7 +335,7 @@ const FallingWordsGame: React.FC = () => {
                             }`}
                         >
                             {combo} Combo!{" "}
-                            {combo >= 10 ? " 🔥" : combo >= 5 ? " ⚡" : " ✨"}
+                            {combo >= 15 ? " 🔥" : combo >= 3 ? " ⚡" : " ✨"}
                         </div>
                     </div>
                 )}
