@@ -12,6 +12,14 @@ interface Word {
     color?: string;
 }
 
+const ITEM_TYPES = {
+    life: { chance: 0.03, color: "text-red-400" },
+    slow: { chance: 0.03, color: "text-blue-400" },
+    clear: { chance: 0.02, color: "text-purple-400" },
+    shield: { chance: 0.02, color: "text-yellow-400" },
+    score: { chance: 0.05, color: "text-green-400" },
+};
+
 const FallingWordsGame: React.FC = () => {
     const darkMode = useTypingStore((state) => state.darkMode);
     const language = useTypingStore((state) => state.language);
@@ -45,13 +53,25 @@ const FallingWordsGame: React.FC = () => {
         score: { chance: 0.05, color: "text-green-400" },
     };
 
-    const getRandomWord = () => {
+    const getRandomWord = (): string => {
+        // 반환 타입 명시
         const wordsList = wordsData[language];
         if (!Array.isArray(wordsList) || wordsList.length === 0) {
             console.error("Invalid words data structure");
             return "";
         }
         return wordsList[Math.floor(Math.random() * wordsList.length)];
+    };
+
+    const updateActiveEffects = (effect: string, duration: number) => {
+        setActiveEffects((prev) => new Set(prev).add(effect));
+        setTimeout(() => {
+            setActiveEffects((prev) => {
+                const next = new Set(prev);
+                next.delete(effect);
+                return next;
+            });
+        }, duration);
     };
 
     const spawnWord = useCallback((): void => {
@@ -120,43 +140,21 @@ const FallingWordsGame: React.FC = () => {
         switch (type) {
             case "life":
                 setLives((prev) => Math.min(prev + 1, 5));
-                // 생명 획득 시 콤보 유지
                 break;
             case "slow":
-                setActiveEffects((prev) => new Set(prev).add("slow"));
                 setSlowMotion(true);
-                // 슬로우 모션 시간 증가
-                setTimeout(() => {
-                    setSlowMotion(false);
-                    setActiveEffects((prev) => {
-                        const next = new Set(prev);
-                        next.delete("slow");
-                        return next;
-                    });
-                }, 8000); // 8초로 증가
+                updateActiveEffects("slow", 8000); // 8초로 증가
                 break;
             case "clear":
                 setWords((curr) => curr.filter((w) => w.type === "normal"));
-                // 클리어 시 보너스 점수
                 setScore((prev) => prev + 50 * level);
                 break;
             case "shield":
                 setShield(true);
-                setActiveEffects((prev) => new Set(prev).add("shield"));
-                // 쉴드 지속시간 증가
-                setTimeout(() => {
-                    setShield(false);
-                    setActiveEffects((prev) => {
-                        const next = new Set(prev);
-                        next.delete("shield");
-                        return next;
-                    });
-                }, 5000); // 5초로 증가
+                updateActiveEffects("shield", 5000); // 5초로 증가
                 break;
             case "score":
-                // 점수 보너스 증가 (레벨 * 200)
                 setScore((prev) => prev + 200 * level);
-                // 콤보 보너스도 추가
                 setCombo((prev) => prev + 2);
                 break;
         }
