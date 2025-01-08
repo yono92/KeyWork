@@ -12,6 +12,14 @@ interface Word {
     color?: string;
 }
 
+const ITEM_TYPES = {
+    life: { chance: 0.03, color: "text-red-400" },
+    slow: { chance: 0.03, color: "text-blue-400" },
+    clear: { chance: 0.02, color: "text-purple-400" },
+    shield: { chance: 0.02, color: "text-yellow-400" },
+    score: { chance: 0.05, color: "text-green-400" },
+} as const;
+
 const FallingWordsGame: React.FC = () => {
     const darkMode = useTypingStore((state) => state.darkMode);
     const language = useTypingStore((state) => state.language);
@@ -36,14 +44,6 @@ const FallingWordsGame: React.FC = () => {
     const spawnInterval =
         Math.max(2000 - level * 100, 300) * (slowMotion ? 1.5 : 1);
     const fallSpeed = Math.min(1 + level * 0.5, 10) * (slowMotion ? 0.5 : 1);
-
-    const ITEM_TYPES = {
-        life: { chance: 0.03, color: "text-red-400" },
-        slow: { chance: 0.03, color: "text-blue-400" },
-        clear: { chance: 0.02, color: "text-purple-400" },
-        shield: { chance: 0.02, color: "text-yellow-400" },
-        score: { chance: 0.05, color: "text-green-400" },
-    };
 
     const getRandomWord = (): string => {
         // 반환 타입 명시
