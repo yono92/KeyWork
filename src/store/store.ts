@@ -10,10 +10,8 @@ interface TypingState {
     progress: number;
     text: string;
 
-    // 게임 모드 관련 상태
+    // 게임 모드 및 언어 상태
     gameMode: GameMode;
-
-    // 언어 상태 추가
     language: "korean" | "english";
 
     // 기존 액션
@@ -21,10 +19,8 @@ interface TypingState {
     setProgress: (progress: number) => void;
     setText: (text: string) => void;
 
-    // 게임 모드 변경 액션
+    // 게임 모드 및 언어 변경 액션
     setGameMode: (mode: GameMode) => void;
-
-    // 언어 변경 액션 추가
     toggleLanguage: () => void;
 }
 
