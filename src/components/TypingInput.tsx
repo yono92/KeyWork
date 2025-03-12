@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import useTypingStore from "../store/store";
 import quotesData from "../data/quotes.json";
-import { calculateHangulAccuracy } from "../utils/hangulUtils";
+import { calculateHangulAccuracy, countKeystrokes } from "../utils/hangulUtils";
 import Keyboard from "./Keyboard";
 import LanguageToggle from "./LanguageToggle";
 
@@ -134,11 +134,29 @@ const TypingInput: React.FC = () => {
 
         if (input.length > 0 && startTime !== null) {
             const currentTime = Date.now();
-            const timeElapsedInMinutes = (currentTime - startTime) / 60000;
-            const charactersTyped = input.length;
-            const calculatedSpeed = Math.round(
-                charactersTyped / timeElapsedInMinutes
+            // 시작 시간에 약간의 지연을 고려 (반응 시간 보정)
+            const adjustedStartTime = startTime + 500; // 500ms 지연 보정
+            const timeElapsedInMinutes = Math.max(
+                0.1,
+                (currentTime - adjustedStartTime) / 60000
             );
+
+            // 실제 키 입력 횟수를 계산
+            const keystrokes = countKeystrokes(input);
+
+            // 분당 타자수 계산 (실제 키 입력 횟수 기준)
+            let calculatedSpeed = Math.round(keystrokes / timeElapsedInMinutes);
+
+            // 짧은 시간 동안의 타수 계산 보정 (초기 타수가 비현실적으로 높게 나오는 것 방지)
+            if (timeElapsedInMinutes < 0.2) {
+                // 12초 미만일 경우
+                calculatedSpeed = Math.min(calculatedSpeed, 1000);
+            }
+
+            // 언어별 보정 계수 적용
+            const languageMultiplier = language === "korean" ? 1.2 : 1.0; // 한글 가중치 상향 (1.1 -> 1.2)
+            calculatedSpeed = Math.round(calculatedSpeed * languageMultiplier);
+
             setTypingSpeed(calculatedSpeed);
 
             const calculatedAccuracy = calculateHangulAccuracy(text, input);
@@ -148,7 +166,7 @@ const TypingInput: React.FC = () => {
             setTypingSpeed(0);
             setAccuracy(0);
         }
-    }, [input, text, startTime, setProgress]);
+    }, [input, text, startTime, setProgress, language]);
 
     const playSound = (sound: HTMLAudioElement | null) => {
         if (sound) {
@@ -203,8 +221,10 @@ const TypingInput: React.FC = () => {
         }
         // 마지막 문자 검증
         const isKoreanChar = /[\u3131-\u3163\uAC00-\uD7A3]/.test(lastChar);
-        const isEnglishOrSpecialChar = /^[\u0020-\u007E\u00A0-\u00FF]*$/.test(lastChar); // 영문 및 특수문자 허용
-        
+        const isEnglishOrSpecialChar = /^[\u0020-\u007E\u00A0-\u00FF]*$/.test(
+            lastChar
+        ); // 영문 및 특수문자 허용
+
         // 현재 언어와 입력값이 일치하지 않으면 무시
         if (
             (language === "korean" && !isKoreanChar) ||
@@ -228,7 +248,6 @@ const TypingInput: React.FC = () => {
         } else if (/^[\u0020-\u007E\u00A0-\u00FF]*$/.test(value)) {
             setLanguage("english");
         }
-        
 
         playSound(keyClickSound);
         setInput(value);
@@ -240,18 +259,61 @@ const TypingInput: React.FC = () => {
             if (typingSpeed > 0 && accuracy > 0) {
                 setAllSpeeds((prevSpeeds) => {
                     const updatedSpeeds = [...prevSpeeds, typingSpeed];
+
+                    // 이상치 제거 (평균의 2배 이상인 값은 제외)
+                    const validSpeeds =
+                        updatedSpeeds.length > 1
+                            ? updatedSpeeds.filter((speed) => {
+                                  const currentAvg =
+                                      updatedSpeeds.reduce(
+                                          (acc, curr) => acc + curr,
+                                          0
+                                      ) / updatedSpeeds.length;
+                                  return speed <= currentAvg * 2;
+                              })
+                            : updatedSpeeds;
+
+                    // 최근 값에 더 높은 가중치 부여 (최근 값일수록 더 중요하게 반영)
+                    let weightedSum = 0;
+                    let weightSum = 0;
+
+                    validSpeeds.forEach((speed, index) => {
+                        const weight = index + 1; // 인덱스가 클수록(최근 값일수록) 가중치가 높음
+                        weightedSum += speed * weight;
+                        weightSum += weight;
+                    });
+
                     const newAverageSpeed =
-                        updatedSpeeds.reduce((acc, curr) => acc + curr, 0) /
-                        updatedSpeeds.length;
+                        weightSum > 0
+                            ? weightedSum / weightSum
+                            : validSpeeds.reduce((acc, curr) => acc + curr, 0) /
+                              validSpeeds.length;
+
                     setAverageSpeed(Math.round(newAverageSpeed));
                     return updatedSpeeds;
                 });
 
                 setAllAccuracies((prevAccuracies) => {
                     const updatedAccuracies = [...prevAccuracies, accuracy];
+
+                    // 가중 평균 계산 (최근 값에 더 높은 가중치 부여)
+                    let weightedSum = 0;
+                    let weightSum = 0;
+
+                    updatedAccuracies.forEach((acc, index) => {
+                        const weight = index + 1; // 인덱스가 클수록(최근 값일수록) 가중치가 높음
+                        weightedSum += acc * weight;
+                        weightSum += weight;
+                    });
+
                     const newAverageAccuracy =
-                        updatedAccuracies.reduce((acc, curr) => acc + curr, 0) /
-                        updatedAccuracies.length;
+                        weightSum > 0
+                            ? weightedSum / weightSum
+                            : updatedAccuracies.reduce(
+                                  (acc, curr) => acc + curr,
+                                  0
+                              ) / updatedAccuracies.length;
+
                     setAverageAccuracy(Math.round(newAverageAccuracy));
                     return updatedAccuracies;
                 });

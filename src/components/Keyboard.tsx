@@ -179,6 +179,7 @@ const Keyboard: React.FC<KeyboardProps> = ({
             ㅜ: "n",
             ㅡ: "m",
         };
+        
         let baseClass = `
             flex items-center justify-center 
             border rounded-md shadow-md cursor-pointer 
