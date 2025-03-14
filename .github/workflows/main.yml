@@ -21,9 +21,39 @@ jobs:
                       cd ~/keywork/KeyWork
                       git pull origin main
                       npm install
+                      npm run build
 
                       # AWS 자격 증명 설정
                       echo "AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}" > .env
                       echo "AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY_ID }}" >> .env
 
-                      pm2 reload keywork
+                      # serve 패키지 설치 (없는 경우)
+                      npm list -g serve || npm install -g serve
+
+                      # ecosystem.config.js 파일 생성 - 포트를 5173으로 변경
+                      echo "module.exports = {
+                        apps: [{
+                          name: 'keywork',
+                          script: 'serve',
+                          args: '-s dist -l 5173',  // 포트를 5173으로 변경
+                          env: {
+                            PM2_SERVE_PATH: './dist',
+                            PM2_SERVE_PORT: 5173,   // 포트를 5173으로 변경
+                            PM2_SERVE_SPA: 'true',
+                            PM2_SERVE_HOMEPAGE: '/index.html'
+                          }
+                        }]
+                      }" > ecosystem.config.js
+
+                      # PM2로 애플리케이션 실행
+                      pm2 describe keywork > /dev/null
+                      if [ $? -eq 0 ]; then
+                        # 이미 실행 중인 경우 재시작
+                        pm2 restart keywork
+                      else
+                        # 처음 실행하는 경우
+                        pm2 start ecosystem.config.js
+                      fi
+
+                      # PM2 상태 저장
+                      pm2 save
