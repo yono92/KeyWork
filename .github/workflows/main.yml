@@ -20,6 +20,7 @@ jobs:
                   script: |
                       cd ~/keywork/KeyWork
                       git pull origin main
+                      npm install
 
                       # AWS 자격 증명 설정
                       echo "AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}" > .env

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import Header from "./Header";
 import ProgressBar from "./ProgressBar";
 import TypingInput from "./TypingInput";
@@ -7,9 +7,20 @@ import DarkModeToggle from "./DarkModeToggle";
 import Footer from "./Footer";
 import useTypingStore from "../store/store";
 
-const MainLayout: React.FC = () => {
+// Props 타입 정의 추가
+interface MainLayoutProps {
+    gameMode: "practice" | "falling-words";
+}
+
+// Props 타입을 컴포넌트에 적용
+const MainLayout: React.FC<MainLayoutProps> = ({ gameMode }) => {
     const darkMode = useTypingStore((state) => state.darkMode);
-    const gameMode = useTypingStore((state) => state.gameMode);
+    const setGameMode = useTypingStore((state) => state.setGameMode);
+
+    // URL에서 받은 gameMode를 스토어에 동기화
+    useEffect(() => {
+        setGameMode(gameMode);
+    }, [gameMode, setGameMode]);
 
     return (
         <div className={`${darkMode ? "dark" : ""} flex flex-col min-h-screen`}>

@@ -1,4 +1,5 @@
 import React from "react";
+import { Routes, Route, Navigate } from "react-router-dom";
 import MainLayout from "./components/MainLayout";
 import useTypingStore from "./store/store";
 import RightSidebar from "./components/RightSidebar";
@@ -13,7 +14,17 @@ const App: React.FC = () => {
         <div className={`${darkMode ? "dark" : ""} relative`}>
             <div className="flex">
                 <div className="flex-grow">
-                    <MainLayout />
+                    <Routes>
+                        <Route
+                            path="/practice"
+                            element={<MainLayout gameMode="practice" />}
+                        />
+                        <Route
+                            path="/falling-words"
+                            element={<MainLayout gameMode="falling-words" />}
+                        />
+                        <Route path="/" element={<Navigate to="/practice" />} />
+                    </Routes>
                 </div>
                 {/* 프로덕션 + 데스크톱에서만 사이드바 표시 */}
                 {!isMobile && !isSmallScreen && <RightSidebar />}

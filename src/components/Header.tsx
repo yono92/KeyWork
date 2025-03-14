@@ -1,10 +1,12 @@
 import React, { useState } from "react";
-import useTypingStore from "../store/store";
+import { useNavigate, useLocation } from "react-router-dom";
+import logo from "../assets/images/keywork.jpg";
 
 const Header: React.FC = () => {
     const [isMenuOpen, setIsMenuOpen] = useState<boolean>(false);
-    const gameMode = useTypingStore((state) => state.gameMode);
-    const setGameMode = useTypingStore((state) => state.setGameMode);
+
+    const navigate = useNavigate();
+    const location = useLocation();
 
     const gameModes = [
         { id: "practice", name: "문장연습" },
@@ -12,14 +14,26 @@ const Header: React.FC = () => {
     ] as const;
 
     const handleGameModeSelect = (mode: "practice" | "falling-words") => {
-        setGameMode(mode);
+        navigate(`/${mode}`);
         setIsMenuOpen(false);
+    };
+
+    // 홈으로 이동하는 함수 추가
+    const navigateToHome = () => {
+        navigate("/");
     };
 
     return (
         <header className="p-4 flex justify-between items-center border-b border-gray-200 dark:border-gray-700">
-            <div className="text-2xl font-bold">KeyWork</div>
-
+            <div
+                className="flex items-center"
+                onClick={navigateToHome} // 클릭 이벤트 추가
+                style={{ cursor: "pointer" }}
+            >
+                {/* 로고 이미지를 글씨 앞에 배치 */}
+                {/* <img src={logo} alt="KeyWork Logo" className="h-10 mr-2" /> */}
+                <div className="text-2xl font-bold">KeyWork</div>
+            </div>
             <div className="relative">
                 <button
                     onClick={() => setIsMenuOpen(!isMenuOpen)}
@@ -39,7 +53,7 @@ const Header: React.FC = () => {
                                     }
                                     className={`w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700
                                         ${
-                                            gameMode === mode.id
+                                            location.pathname === `/${mode.id}`
                                                 ? "bg-blue-50 dark:bg-blue-900 text-blue-600 dark:text-blue-300"
                                                 : "text-gray-700 dark:text-gray-300"
                                         }`}
