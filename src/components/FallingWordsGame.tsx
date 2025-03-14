@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 import useTypingStore from "../store/store";
 import wordsData from "../data/word.json";
 import LanguageToggle from "./LanguageToggle";
+import { useLocation } from "react-router-dom";
 
 interface Word {
     id: number;
@@ -24,6 +25,7 @@ const FallingWordsGame: React.FC = () => {
     const darkMode = useTypingStore((state) => state.darkMode);
     const language = useTypingStore((state) => state.language);
     const toggleLanguage = useTypingStore((state) => state.toggleLanguage);
+    const location = useLocation();
 
     const [words, setWords] = useState<Word[]>([]);
     const [input, setInput] = useState<string>("");
@@ -163,8 +165,11 @@ const FallingWordsGame: React.FC = () => {
                     top: word.top + fallSpeed,
                 }));
 
+                const bottomThreshold = window.innerHeight - 720;
+
                 const remainingWords = updatedWords.filter((word) => {
-                    if (word.top > window.innerHeight - 150) {
+                    if (word.top > bottomThreshold) {
+                        // 단어가 바닥에 닿았을 때
                         if (word.type !== "normal") return false;
                         if (shield) return false;
 

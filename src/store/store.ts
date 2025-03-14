@@ -9,15 +9,17 @@ interface TypingState {
     darkMode: boolean;
     progress: number;
     text: string;
+    input: string;
 
     // 게임 모드 및 언어 상태
-    gameMode: GameMode;
+    gameMode: "practice" | "falling-words";
     language: "korean" | "english";
 
     // 기존 액션
     toggleDarkMode: () => void;
     setProgress: (progress: number) => void;
     setText: (text: string) => void;
+    setInput: (input: string) => void;
 
     // 게임 모드 및 언어 변경 액션
     setGameMode: (mode: GameMode) => void;
@@ -27,29 +29,40 @@ interface TypingState {
 // Zustand를 사용해 전역 상태 스토어 생성
 const useTypingStore = create<TypingState>((set) => ({
     // 기존 초기값
-    darkMode: true,
+    darkMode: localStorage.getItem("darkMode") === "true",
     progress: 0,
-    text: "고생 끝에 낙이 온다",
+    text: "타이핑 연습을 시작하세요.",
+    input: "",
 
     // 게임 모드 초기값
-    gameMode: "practice" as GameMode,
+    gameMode: "practice", // 기본값, URL에서 덮어씌워짐
 
     // 언어 초기값
-    language: "korean",
+    language:
+        localStorage.getItem("language") === "english" ? "english" : "korean",
 
     // 기존 액션
-    toggleDarkMode: () => set((state) => ({ darkMode: !state.darkMode })),
+    toggleDarkMode: () =>
+        set((state) => {
+            const newDarkMode = !state.darkMode;
+            localStorage.setItem("darkMode", String(newDarkMode));
+            return { darkMode: newDarkMode };
+        }),
     setProgress: (progress: number) => set({ progress }),
     setText: (text: string) => set({ text }),
+    setInput: (input: string) => set({ input }),
 
     // 게임 모드 변경 액션
     setGameMode: (mode: GameMode) => set({ gameMode: mode }),
 
     // 언어 변경 액션 추가
     toggleLanguage: () =>
-        set((state) => ({
-            language: state.language === "korean" ? "english" : "korean",
-        })),
+        set((state) => {
+            const newLanguage =
+                state.language === "korean" ? "english" : "korean";
+            localStorage.setItem("language", newLanguage);
+            return { language: newLanguage };
+        }),
 }));
 
 export default useTypingStore;
