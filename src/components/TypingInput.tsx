@@ -28,6 +28,8 @@ const TypingInput: React.FC = () => {
     );
     const [errorSound, setErrorSound] = useState<HTMLAudioElement | null>(null);
     const [isValidInput, setIsValidInput] = useState<boolean>(true);
+    const [audioContext, setAudioContext] = useState<AudioContext | null>(null);
+    const [audioInitialized, setAudioInitialized] = useState<boolean>(false);
 
     const handleKeyDown = useCallback((e: KeyboardEvent) => {
         // Key 대신 Code를 사용
@@ -65,55 +67,177 @@ const TypingInput: React.FC = () => {
         return quotesArray[randomIndex];
     };
 
-    const createAudio = (urls: string[]): HTMLAudioElement => {
-        const audio = new Audio();
-        audio.preload = "auto";
+    const playSound = useCallback((sound: HTMLAudioElement | null) => {
+        if (!sound) return;
 
-        const sourceElements = urls.map((url) => {
-            const source = document.createElement("source");
-            source.src = url;
-            source.type = url.endsWith("mp3") ? "audio/mpeg" : "audio/wav";
-            return source;
-        });
-
-        sourceElements.forEach((source) => audio.appendChild(source));
-
-        audio.onerror = (e) => {
-            console.error("Audio error:", e);
-            if (audio.src !== urls[urls.length - 1]) {
-                audio.src = urls[urls.indexOf(audio.src) + 1];
+        try {
+            // 소스가 설정되어 있는지 확인
+            if (!sound.src) {
+                console.error("Audio element has no source");
+                return;
             }
+
+            // 재생 전 설정
+            sound.currentTime = 0;
+
+            // 소리 재생 시도
+            const playPromise = sound.play();
+
+            if (playPromise !== undefined) {
+                playPromise.catch((error) => {
+                    console.error("Error playing sound:", error.message);
+
+                    // 오디오 소스 다시 로드 시도
+                    if (error.message.includes("no supported sources")) {
+                        console.log("Attempting to reload audio source...");
+                        const currentSrc = sound.src;
+                        sound.src = currentSrc;
+                        sound.load();
+                    }
+                });
+            }
+        } catch (error) {
+            console.error("Unexpected error playing sound:", error);
+        }
+    }, []);
+
+    const createAudio = useCallback((url: string): HTMLAudioElement => {
+        // 단순화된 오디오 생성
+        const audio = new Audio();
+
+        // 전체 URL 경로 설정 (상대 경로 문제 해결)
+        if (url.startsWith("/")) {
+            audio.src = `${window.location.origin}${url}`;
+        } else {
+            audio.src = url;
+        }
+
+        // 디버깅을 위한 로그 추가
+        console.log("Creating audio with source:", audio.src);
+
+        audio.preload = "auto";
+        audio.volume = 0.5;
+
+        // 오류 처리 개선
+        audio.onerror = () => {
+            console.error(`Failed to load audio from: ${audio.src}`);
         };
 
         return audio;
-    };
-
-    const initSounds = useCallback(() => {
-        const clickSoundUrls = [
-            `${window.location.origin}/sounds/keyclick.mp3`,
-            `${window.location.origin}/sounds/keyclick.wav`,
-        ];
-        const clickSound = createAudio(clickSoundUrls);
-        setKeyClickSound(clickSound);
-
-        const errorSoundUrls = [
-            `${window.location.origin}/sounds/error.mp3`,
-            `${window.location.origin}/sounds/error.wav`,
-        ];
-        const errSound = createAudio(errorSoundUrls);
-        setErrorSound(errSound);
     }, []);
 
+    const initSounds = useCallback(() => {
+        try {
+            // 직접 public 폴더의 파일 경로 사용
+            const clickSound = createAudio("/sounds/keyclick.mp3");
+            setKeyClickSound(clickSound);
+
+            const errSound = createAudio("/sounds/error.mp3");
+            setErrorSound(errSound);
+
+            console.log("Audio initialization completed");
+        } catch (error) {
+            console.error("Failed to initialize audio:", error);
+        }
+    }, [createAudio]);
+
+    const beep = useCallback(
+        (frequency = 800, duration = 30, volume = 0.2) => {
+            try {
+                // 오디오가 초기화되지 않았으면 초기화
+                if (!audioContext) {
+                    const AudioContextClass =
+                        window.AudioContext ||
+                        (window as any).webkitAudioContext;
+                    if (!AudioContextClass) {
+                        console.error(
+                            "AudioContext not supported in this browser"
+                        );
+                        return;
+                    }
+
+                    const newAudioContext = new AudioContextClass();
+                    setAudioContext(newAudioContext);
+                    setAudioInitialized(true);
+
+                    // 새로 생성된 컨텍스트로 비프음 생성
+                    const oscillator = newAudioContext.createOscillator();
+                    const gainNode = newAudioContext.createGain();
+
+                    oscillator.type = "sine";
+                    oscillator.frequency.setValueAtTime(
+                        frequency,
+                        newAudioContext.currentTime
+                    );
+                    gainNode.gain.setValueAtTime(
+                        volume,
+                        newAudioContext.currentTime
+                    );
+
+                    oscillator.connect(gainNode);
+                    gainNode.connect(newAudioContext.destination);
+
+                    oscillator.start();
+                    oscillator.stop(
+                        newAudioContext.currentTime + duration / 1000
+                    );
+
+                    return;
+                }
+
+                // 이미 초기화된 오디오 컨텍스트 사용
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+
+                oscillator.type = "sine";
+                oscillator.frequency.setValueAtTime(
+                    frequency,
+                    audioContext.currentTime
+                );
+                gainNode.gain.setValueAtTime(volume, audioContext.currentTime);
+
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+
+                oscillator.start();
+                oscillator.stop(audioContext.currentTime + duration / 1000);
+            } catch (error) {
+                console.error("Error playing beep:", error);
+            }
+        },
+        [audioContext]
+    );
+
     useEffect(() => {
-        const handleUserGesture = () => {
-            initSounds();
-            document.removeEventListener("click", handleUserGesture);
-            document.removeEventListener("keypress", handleUserGesture);
+        const initAudio = () => {
+            try {
+                const AudioContextClass =
+                    window.AudioContext || (window as any).webkitAudioContext;
+                if (!AudioContextClass) {
+                    console.error("AudioContext not supported in this browser");
+                    return;
+                }
+
+                const newAudioContext = new AudioContextClass();
+                setAudioContext(newAudioContext);
+                setAudioInitialized(true);
+            } catch (error) {
+                console.error("Failed to initialize audio:", error);
+            }
         };
 
-        document.addEventListener("click", handleUserGesture);
-        document.addEventListener("keypress", handleUserGesture);
+        // 사용자 상호작용 이벤트 핸들러
+        const handleUserInteraction = () => {
+            if (!audioInitialized) {
+                initAudio();
+            }
+        };
 
+        // 이벤트 리스너 등록 (keypress 대신 keydown 사용)
+        document.addEventListener("click", handleUserInteraction);
+        document.addEventListener("keydown", handleUserInteraction);
+
+        // 컴포넌트 마운트 시 초기화
         const initialRandomQuote = getRandomQuote("korean");
         setText(initialRandomQuote);
 
@@ -122,10 +246,10 @@ const TypingInput: React.FC = () => {
         }
 
         return () => {
-            document.removeEventListener("click", handleUserGesture);
-            document.removeEventListener("keypress", handleUserGesture);
+            document.removeEventListener("click", handleUserInteraction);
+            document.removeEventListener("keydown", handleUserInteraction);
         };
-    }, [setText, initSounds]);
+    }, [setText, audioInitialized]);
 
     // 정확도를 계산하는 useEffect
     useEffect(() => {
@@ -168,17 +292,6 @@ const TypingInput: React.FC = () => {
         }
     }, [input, text, startTime, setProgress, language]);
 
-    const playSound = (sound: HTMLAudioElement | null) => {
-        if (sound) {
-            sound.currentTime = 0;
-            sound.play().catch((error) => {
-                console.error("Error playing sound:", error);
-                // 여기에 폴백 메커니즘을 추가할 수 있습니다.
-                // 예: 다른 오디오 파일 시도 또는 시각적 피드백으로 대체
-            });
-        }
-    };
-
     useEffect(() => {
         const checkMobile = () => {
             setIsMobile(window.innerWidth <= 768); // Adjust this breakpoint as needed
@@ -198,16 +311,34 @@ const TypingInput: React.FC = () => {
         checkMobile();
     }, []);
 
+    // 키 클릭 사운드 함수 추가
+    // const playKeyClickSound = useCallback(() => {
+    //     beep(800, 30, 0.2); // 높은 주파수, 짧은 지속 시간
+    // }, [beep]);
+    // 키 클릭 사운드 함수 수정 - 오디오 파일 사용
+    const playKeyClickSound = useCallback(() => {
+        // beep 대신 오디오 파일 재생
+        if (keyClickSound) {
+            keyClickSound.currentTime = 0;
+            keyClickSound.volume = 0.5;
+            keyClickSound.play().catch((error) => {
+                console.error("Error playing key click sound:", error.message);
+                // 오디오 재생 실패 시 beep으로 폴백
+                beep(800, 30, 0.2);
+            });
+        } else {
+            // 오디오 파일이 로드되지 않았을 경우 beep 사용
+            beep(800, 30, 0.2);
+        }
+    }, [keyClickSound, beep]);
+
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const value = e.target.value;
-        const lastChar = value.slice(-1); // 마지막으로 입력된 문자
+        const lastChar = value.slice(-1);
 
         // 입력값이 비어있거나 백스페이스인 경우는 허용
         if (!value || value.length < input.length) {
             setInput(value);
-            if (value.length < input.length) {
-                playSound(errorSound);
-            }
             return;
         }
 
@@ -216,40 +347,38 @@ const TypingInput: React.FC = () => {
         // 스페이스바는 항상 허용
         if (lastChar === " ") {
             setInput(value);
-            playSound(keyClickSound);
+            playKeyClickSound();
             return;
         }
+
         // 마지막 문자 검증
         const isKoreanChar = /[\u3131-\u3163\uAC00-\uD7A3]/.test(lastChar);
         const isEnglishOrSpecialChar = /^[\u0020-\u007E\u00A0-\u00FF]*$/.test(
             lastChar
-        ); // 영문 및 특수문자 허용
+        );
 
-        // 현재 언어와 입력값이 일치하지 않으면 무시
-        if (
-            (language === "korean" && !isKoreanChar) ||
-            (language === "english" && !isEnglishOrSpecialChar)
-        ) {
-            playSound(errorSound);
-            setIsValidInput(false);
-            setTimeout(() => setIsValidInput(true), 1000);
+        // 현재 언어와 입력값이 일치하지 않을 때 자동 전환
+        if (language === "korean" && !isKoreanChar && isEnglishOrSpecialChar) {
+            setLanguage("english");
+            const randomQuote = getRandomQuote("english");
+            setText(randomQuote);
+            setInput("");
+            setStartTime(null);
+            return;
+        } else if (language === "english" && isKoreanChar) {
+            setLanguage("korean");
+            const randomQuote = getRandomQuote("korean");
+            setText(randomQuote);
+            setInput("");
+            setStartTime(null);
             return;
         }
-
-        setIsValidInput(true);
 
         if (input.length === 0 && startTime === null) {
             setStartTime(Date.now());
         }
 
-        // 현재 언어 설정
-        if (/[\u3131-\u3163\uAC00-\uD7A3]/.test(value)) {
-            setLanguage("korean");
-        } else if (/^[\u0020-\u007E\u00A0-\u00FF]*$/.test(value)) {
-            setLanguage("english");
-        }
-
-        playSound(keyClickSound);
+        playKeyClickSound();
         setInput(value);
     };
 
