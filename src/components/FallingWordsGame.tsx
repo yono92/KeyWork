@@ -165,7 +165,7 @@ const FallingWordsGame: React.FC = () => {
                     top: word.top + fallSpeed,
                 }));
 
-                const bottomThreshold = window.innerHeight - 720;
+                const bottomThreshold = window.innerHeight - 150;
 
                 const remainingWords = updatedWords.filter((word) => {
                     if (word.top > bottomThreshold) {
