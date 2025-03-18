@@ -24,6 +24,10 @@ interface TypingState {
     // 게임 모드 및 언어 변경 액션
     setGameMode: (mode: GameMode) => void;
     toggleLanguage: () => void;
+
+    // 음소거 관련 상태
+    isMuted: boolean;
+    toggleMute: () => void;
 }
 
 // Zustand를 사용해 전역 상태 스토어 생성
@@ -63,6 +67,10 @@ const useTypingStore = create<TypingState>((set) => ({
             localStorage.setItem("language", newLanguage);
             return { language: newLanguage };
         }),
+
+    // 음소거 관련 상태
+    isMuted: false,
+    toggleMute: () => set((state) => ({ isMuted: !state.isMuted })),
 }));
 
 export default useTypingStore;
