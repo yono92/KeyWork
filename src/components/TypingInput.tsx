@@ -4,6 +4,7 @@ import quotesData from "../data/quotes.json";
 import { calculateHangulAccuracy, countKeystrokes } from "../utils/hangulUtils";
 import Keyboard from "./Keyboard";
 import LanguageToggle from "./LanguageToggle";
+import MuteToggle from "./MuteToggle";
 
 const TypingInput: React.FC = () => {
     const text = useTypingStore((state) => state.text);
@@ -30,6 +31,7 @@ const TypingInput: React.FC = () => {
     const [isValidInput, setIsValidInput] = useState<boolean>(true);
     const [audioContext, setAudioContext] = useState<AudioContext | null>(null);
     const [audioInitialized, setAudioInitialized] = useState<boolean>(false);
+    const isMuted = useTypingStore((state) => state.isMuted);
 
     const handleKeyDown = useCallback((e: KeyboardEvent) => {
         // Key 대신 Code를 사용
@@ -317,6 +319,8 @@ const TypingInput: React.FC = () => {
     // }, [beep]);
     // 키 클릭 사운드 함수 수정 - 오디오 파일 사용
     const playKeyClickSound = useCallback(() => {
+        if (isMuted) return;
+
         // beep 대신 오디오 파일 재생
         if (keyClickSound) {
             keyClickSound.currentTime = 0;
@@ -330,7 +334,7 @@ const TypingInput: React.FC = () => {
             // 오디오 파일이 로드되지 않았을 경우 beep 사용
             beep(800, 30, 0.2);
         }
-    }, [keyClickSound, beep]);
+    }, [keyClickSound, beep, isMuted]);
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const value = e.target.value;
@@ -359,6 +363,15 @@ const TypingInput: React.FC = () => {
 
         // 현재 언어와 입력값이 일치하지 않을 때 자동 전환
         if (language === "korean" && !isKoreanChar && isEnglishOrSpecialChar) {
+            // 현재 진행 중인 텍스트가 있고 입력이 있는 경우에만 확인
+            if (input.length > 0) {
+                const shouldSwitch = window.confirm(
+                    "영어로 전환하시겠습니까? (현재 진행중인 내용은 저장되지 않습니다)"
+                );
+                if (!shouldSwitch) {
+                    return;
+                }
+            }
             setLanguage("english");
             const randomQuote = getRandomQuote("english");
             setText(randomQuote);
@@ -366,6 +379,15 @@ const TypingInput: React.FC = () => {
             setStartTime(null);
             return;
         } else if (language === "english" && isKoreanChar) {
+            // 현재 진행 중인 텍스트가 있고 입력이 있는 경우에만 확인
+            if (input.length > 0) {
+                const shouldSwitch = window.confirm(
+                    "한글로 전환하시겠습니까? (현재 진행중인 내용은 저장되지 않습니다)"
+                );
+                if (!shouldSwitch) {
+                    return;
+                }
+            }
             setLanguage("korean");
             const randomQuote = getRandomQuote("korean");
             setText(randomQuote);
@@ -485,6 +507,7 @@ const TypingInput: React.FC = () => {
                 language={language}
                 toggleLanguage={toggleLanguage}
             />
+            <MuteToggle /> {/* 추가 */}
             <div
                 className={`p-4 border rounded-lg text-3xl font-semibold leading-relaxed tracking-wide ${
                     darkMode
