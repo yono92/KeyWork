@@ -144,7 +144,7 @@ const FallingWordsGame: React.FC = () => {
     const handleItemEffect = (type: Word["type"]) => {
         switch (type) {
             case "life":
-                setLives((prev) => Math.min(prev + 1, 5));
+                setLives((prev) => Math.min(prev + 1));
                 break;
             case "slow":
                 setSlowMotion(true);
