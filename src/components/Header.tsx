@@ -10,7 +10,7 @@ const Header: React.FC = () => {
 
     const gameModes = [
         { id: "practice", name: "문장연습" },
-        { id: "falling-words", name: "소나기" },
+        { id: "falling-words", name: "소나기(BETA)" },
     ] as const;
 
     const handleGameModeSelect = (mode: "practice" | "falling-words") => {
