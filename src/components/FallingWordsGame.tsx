@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 import useTypingStore from "../store/store";
 import wordsData from "../data/word.json";
 import LanguageToggle from "./LanguageToggle";
-import { useLocation } from "react-router-dom";
+
 
 interface Word {
     id: number;
@@ -25,7 +25,7 @@ const FallingWordsGame: React.FC = () => {
     const darkMode = useTypingStore((state) => state.darkMode);
     const language = useTypingStore((state) => state.language);
     const toggleLanguage = useTypingStore((state) => state.toggleLanguage);
-    const location = useLocation();
+
 
     const [words, setWords] = useState<Word[]>([]);
     const [input, setInput] = useState<string>("");
@@ -59,13 +59,23 @@ const FallingWordsGame: React.FC = () => {
 
     const updateActiveEffects = (effect: string, duration: number) => {
         setActiveEffects((prev) => new Set(prev).add(effect));
+        
+        // 효과 시작 시 적용
+        if (effect === "slow") setSlowMotion(true);
+        if (effect === "shield") setShield(true);
+        
         setTimeout(() => {
             setActiveEffects((prev) => {
                 const next = new Set(prev);
                 next.delete(effect);
-                console.log(`${effect} effect ended`); // 로그 추가
                 return next;
             });
+            
+            // 효과 종료 시 상태 되돌리기
+            if (effect === "slow") setSlowMotion(false);
+            if (effect === "shield") setShield(false);
+            
+            console.log(`${effect} effect ended`);
         }, duration);
     };
 
@@ -138,7 +148,7 @@ const FallingWordsGame: React.FC = () => {
                 break;
             case "slow":
                 setSlowMotion(true);
-                updateActiveEffects("slow", 8000); // 8초로 증가
+                updateActiveEffects("slow", 8000); // 8초 동안 느리게
                 break;
             case "clear":
                 setWords((curr) => curr.filter((w) => w.type === "normal"));
@@ -146,7 +156,7 @@ const FallingWordsGame: React.FC = () => {
                 break;
             case "shield":
                 setShield(true);
-                updateActiveEffects("shield", 5000); // 5초로 증가
+                updateActiveEffects("shield", 5000); // 5초 동안 보호
                 break;
             case "score":
                 setScore((prev) => prev + 200 * level);
@@ -158,6 +168,8 @@ const FallingWordsGame: React.FC = () => {
     useEffect(() => {
         if (gameOver) return;
 
+        let lifeLostInThisInterval = false;
+
         const moveWords = setInterval(() => {
             setWords((currentWords) => {
                 const updatedWords = currentWords.map((word) => ({
@@ -167,24 +179,32 @@ const FallingWordsGame: React.FC = () => {
 
                 const bottomThreshold = window.innerHeight - 150;
 
-                const remainingWords = updatedWords.filter((word) => {
-                    if (word.top > bottomThreshold) {
-                        // 단어가 바닥에 닿았을 때
-                        if (word.type !== "normal") return false;
-                        if (shield) return false;
+                // 바닥에 닿은 일반 단어가 있는지 확인
+                const bottomWords = updatedWords.filter(
+                    (word) => word.top > bottomThreshold && word.type === "normal"
+                );
+                
+                // 단어가 바닥에 닿고 쉴드가 없는 경우에만 라이프 감소
+                if (bottomWords.length > 0 && !shield && !lifeLostInThisInterval) {
+                    lifeLostInThisInterval = true;  // 이번 인터벌에서 이미 생명을 잃었음을 표시
+                    
+                    // 타이머를 사용하여 다음 인터벌에서 플래그 초기화
+                    setTimeout(() => {
+                        lifeLostInThisInterval = false;
+                    }, 500);
+                    
+                    setLives((prevLives) => {
+                        const newLives = Math.max(prevLives - 1, 0);
+                        if (newLives === 0) setGameOver(true);
+                        return newLives;
+                    });
+                    setCombo(0);
+                }
 
-                        setLives((prevLives) => {
-                            const newLives = Math.max(prevLives - 1, 0);
-                            if (newLives === 0) setGameOver(true);
-                            return newLives;
-                        });
-                        setCombo(0);
-                        return false;
-                    }
-                    return true;
-                });
-
-                return remainingWords;
+                // 바닥에 닿았거나 특수 아이템인 단어들은 제거
+                return updatedWords.filter(
+                    (word) => (word.top <= bottomThreshold || word.type !== "normal" || shield)
+                );
             });
         }, 16);
 
@@ -238,12 +258,13 @@ const FallingWordsGame: React.FC = () => {
                     if (matchedWord.type !== "normal") {
                         handleItemEffect(matchedWord.type);
                     } else {
+                        // 콤보 계산을 단순화하고 명확하게 수정
+                        const newCombo = combo + 1;
+                        setCombo(newCombo);
+                        
                         let wordScore = matchedWord.text.length * 10;
-                        setCombo((prev) => {
-                            const newCombo = prev + 1;
-                            wordScore *= 1 + Math.min(newCombo * 0.2, 2);
-                            return newCombo;
-                        });
+                        const comboMultiplier = 1 + Math.min(newCombo * 0.2, 2);
+                        wordScore *= comboMultiplier;
 
                         const timeSinceLastType = Date.now() - lastTypedTime;
                         if (timeSinceLastType < 500) wordScore *= 1.5;
