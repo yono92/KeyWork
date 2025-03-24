@@ -28,7 +28,7 @@ const LanguageToggle: React.FC<LanguageToggleProps> = ({
                 }
             `}
             aria-label={
-                language === "korean" ? "Switch to English" : "한국어로 전환"
+                language === "korean" ? "Switch to English" : "한국어 전환"
             }
         >
             <BsGlobe size={24} />
