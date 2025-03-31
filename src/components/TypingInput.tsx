@@ -339,67 +339,69 @@ const TypingInput: React.FC = () => {
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const value = e.target.value;
         const lastChar = value.slice(-1);
-
+    
         // 입력값이 비어있거나 백스페이스인 경우는 허용
         if (!value || value.length < input.length) {
             setInput(value);
             return;
         }
-
+    
         setIsValidInput(true);
-
+    
         // 스페이스바는 항상 허용
         if (lastChar === " ") {
             setInput(value);
             playKeyClickSound();
             return;
         }
-
+    
         // 마지막 문자 검증
         const isKoreanChar = /[\u3131-\u3163\uAC00-\uD7A3]/.test(lastChar);
-        const isEnglishOrSpecialChar = /^[\u0020-\u007E\u00A0-\u00FF]*$/.test(
-            lastChar
-        );
-
-        // 현재 언어와 입력값이 일치하지 않을 때 자동 전환
-        if (language === "korean" && !isKoreanChar && isEnglishOrSpecialChar) {
-            // 현재 진행 중인 텍스트가 있고 입력이 있는 경우에만 확인
-            if (input.length > 0) {
+        const isEnglishOrSpecialChar = /^[\u0020-\u007E\u00A0-\u00FF]*$/.test(lastChar);
+    
+        // 첫 입력 시 언어가 일치하지 않으면 경고만 표시하고 언어를 자동 전환하지 않음
+        if (input.length === 0) {
+            if ((language === "korean" && !isKoreanChar && isEnglishOrSpecialChar) ||
+                (language === "english" && isKoreanChar)) {
+                setIsValidInput(false);
+                return;
+            }
+        } 
+        // 이미 입력이 진행 중인 경우에만 언어 전환 여부 확인
+        else if (input.length > 0) {
+            if (language === "korean" && !isKoreanChar && isEnglishOrSpecialChar) {
                 const shouldSwitch = window.confirm(
                     "영어로 전환하시겠습니까? (현재 진행중인 내용은 저장되지 않습니다)"
                 );
                 if (!shouldSwitch) {
                     return;
                 }
-            }
-            setLanguage("english");
-            const randomQuote = getRandomQuote("english");
-            setText(randomQuote);
-            setInput("");
-            setStartTime(null);
-            return;
-        } else if (language === "english" && isKoreanChar) {
-            // 현재 진행 중인 텍스트가 있고 입력이 있는 경우에만 확인
-            if (input.length > 0) {
+                setLanguage("english");
+                const randomQuote = getRandomQuote("english");
+                setText(randomQuote);
+                setInput("");
+                setStartTime(null);
+                return;
+            } else if (language === "english" && isKoreanChar) {
                 const shouldSwitch = window.confirm(
                     "한글로 전환하시겠습니까? (현재 진행중인 내용은 저장되지 않습니다)"
                 );
                 if (!shouldSwitch) {
                     return;
                 }
+                setLanguage("korean");
+                const randomQuote = getRandomQuote("korean");
+                setText(randomQuote);
+                setInput("");
+                setStartTime(null);
+                return;
             }
-            setLanguage("korean");
-            const randomQuote = getRandomQuote("korean");
-            setText(randomQuote);
-            setInput("");
-            setStartTime(null);
-            return;
         }
-
+    
         if (input.length === 0 && startTime === null) {
             setStartTime(Date.now());
         }
-
+    
         playKeyClickSound();
         setInput(value);
     };
