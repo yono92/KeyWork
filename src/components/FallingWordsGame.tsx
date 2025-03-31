@@ -47,6 +47,9 @@ const FallingWordsGame: React.FC = () => {
         Math.max(2000 - level * 100, 300) * (slowMotion ? 1.5 : 1);
     const fallSpeed = Math.min(1 + level * 0.5, 10) * (slowMotion ? 0.5 : 1);
 
+    const lifeLostRef = useRef(false);
+    const activeTimersRef = useRef<Record<string, NodeJS.Timeout>>({});
+
     const getRandomWord = (): string => {
         // 반환 타입 명시
         const wordsList = wordsData[language];
@@ -58,13 +61,18 @@ const FallingWordsGame: React.FC = () => {
     };
 
     const updateActiveEffects = (effect: string, duration: number) => {
+        if (activeTimersRef.current[effect]) {
+            clearTimeout(activeTimersRef.current[effect]);
+        }
+        
         setActiveEffects((prev) => new Set(prev).add(effect));
         
         // 효과 시작 시 적용
         if (effect === "slow") setSlowMotion(true);
         if (effect === "shield") setShield(true);
         
-        setTimeout(() => {
+        // 새 타이머 저장
+        activeTimersRef.current[effect] = setTimeout(() => {
             setActiveEffects((prev) => {
                 const next = new Set(prev);
                 next.delete(effect);
@@ -75,6 +83,7 @@ const FallingWordsGame: React.FC = () => {
             if (effect === "slow") setSlowMotion(false);
             if (effect === "shield") setShield(false);
             
+            delete activeTimersRef.current[effect];
             console.log(`${effect} effect ended`);
         }, duration);
     };
@@ -144,11 +153,11 @@ const FallingWordsGame: React.FC = () => {
     const handleItemEffect = (type: Word["type"]) => {
         switch (type) {
             case "life":
-                setLives((prev) => Math.min(prev + 1));
+                setLives((prev) => Math.min(prev + 1, 5));
                 break;
             case "slow":
                 setSlowMotion(true);
-                updateActiveEffects("slow", 8000); // 8초 동안 느리게
+                updateActiveEffects("slow", 8000);
                 break;
             case "clear":
                 setWords((curr) => curr.filter((w) => w.type === "normal"));
@@ -156,7 +165,7 @@ const FallingWordsGame: React.FC = () => {
                 break;
             case "shield":
                 setShield(true);
-                updateActiveEffects("shield", 5000); // 5초 동안 보호
+                updateActiveEffects("shield", 5000);
                 break;
             case "score":
                 setScore((prev) => prev + 200 * level);
@@ -167,8 +176,6 @@ const FallingWordsGame: React.FC = () => {
 
     useEffect(() => {
         if (gameOver) return;
-
-        let lifeLostInThisInterval = false;
 
         const moveWords = setInterval(() => {
             setWords((currentWords) => {
@@ -185,12 +192,12 @@ const FallingWordsGame: React.FC = () => {
                 );
                 
                 // 단어가 바닥에 닿고 쉴드가 없는 경우에만 라이프 감소
-                if (bottomWords.length > 0 && !shield && !lifeLostInThisInterval) {
-                    lifeLostInThisInterval = true;  // 이번 인터벌에서 이미 생명을 잃었음을 표시
+                if (bottomWords.length > 0 && !shield && !lifeLostRef.current) {
+                    lifeLostRef.current = true;  // ref를 사용해 상태 저장
                     
                     // 타이머를 사용하여 다음 인터벌에서 플래그 초기화
                     setTimeout(() => {
-                        lifeLostInThisInterval = false;
+                        lifeLostRef.current = false;
                     }, 500);
                     
                     setLives((prevLives) => {
