@@ -12,6 +12,7 @@ const TypingInput: React.FC = () => {
     const darkMode = useTypingStore((state) => state.darkMode);
     const setText = useTypingStore((state) => state.setText);
     const [language, setLanguage] = useState<"korean" | "english">("korean");
+    const textInitializedRef = useRef<boolean>(false);
 
     const [input, setInput] = useState<string>("");
     const [startTime, setStartTime] = useState<number | null>(null);
@@ -239,19 +240,26 @@ const TypingInput: React.FC = () => {
         document.addEventListener("click", handleUserInteraction);
         document.addEventListener("keydown", handleUserInteraction);
 
-        // 컴포넌트 마운트 시 초기화
-        const initialRandomQuote = getRandomQuote("korean");
-        setText(initialRandomQuote);
-
-        if (inputRef.current) {
-            inputRef.current.focus();
-        }
-
         return () => {
             document.removeEventListener("click", handleUserInteraction);
             document.removeEventListener("keydown", handleUserInteraction);
         };
-    }, [setText, audioInitialized]);
+    }, [audioInitialized]);
+
+    // 텍스트 초기화를 위한 별도의 useEffect - 한 번만 실행되도록 함
+    useEffect(() => {
+        // 텍스트가 아직 초기화되지 않은 경우에만 초기화
+        if (!textInitializedRef.current) {
+            // 컴포넌트 마운트 시 텍스트 초기화 - 한 번만 실행됨
+            const initialRandomQuote = getRandomQuote("korean");
+            setText(initialRandomQuote);
+            textInitializedRef.current = true; // 초기화 완료 표시
+        }
+
+        if (inputRef.current) {
+            inputRef.current.focus();
+        }
+    }, [setText]); // setText만 의존성으로 설정
 
     // 정확도를 계산하는 useEffect
     useEffect(() => {
@@ -339,37 +347,47 @@ const TypingInput: React.FC = () => {
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const value = e.target.value;
         const lastChar = value.slice(-1);
-    
+
         // 입력값이 비어있거나 백스페이스인 경우는 허용
         if (!value || value.length < input.length) {
             setInput(value);
             return;
         }
-    
+
         setIsValidInput(true);
-    
+
         // 스페이스바는 항상 허용
         if (lastChar === " ") {
             setInput(value);
             playKeyClickSound();
             return;
         }
-    
+
         // 마지막 문자 검증
         const isKoreanChar = /[\u3131-\u3163\uAC00-\uD7A3]/.test(lastChar);
-        const isEnglishOrSpecialChar = /^[\u0020-\u007E\u00A0-\u00FF]*$/.test(lastChar);
-    
+        const isEnglishOrSpecialChar = /^[\u0020-\u007E\u00A0-\u00FF]*$/.test(
+            lastChar
+        );
+
         // 첫 입력 시 언어가 일치하지 않으면 경고만 표시하고 언어를 자동 전환하지 않음
         if (input.length === 0) {
-            if ((language === "korean" && !isKoreanChar && isEnglishOrSpecialChar) ||
-                (language === "english" && isKoreanChar)) {
+            if (
+                (language === "korean" &&
+                    !isKoreanChar &&
+                    isEnglishOrSpecialChar) ||
+                (language === "english" && isKoreanChar)
+            ) {
                 setIsValidInput(false);
                 return;
             }
-        } 
+        }
         // 이미 입력이 진행 중인 경우에만 언어 전환 여부 확인
         else if (input.length > 0) {
-            if (language === "korean" && !isKoreanChar && isEnglishOrSpecialChar) {
+            if (
+                language === "korean" &&
+                !isKoreanChar &&
+                isEnglishOrSpecialChar
+            ) {
                 const shouldSwitch = window.confirm(
                     "영어로 전환하시겠습니까? (현재 진행중인 내용은 저장되지 않습니다)"
                 );
@@ -397,11 +415,11 @@ const TypingInput: React.FC = () => {
                 return;
             }
         }
-    
+
         if (input.length === 0 && startTime === null) {
             setStartTime(Date.now());
         }
-    
+
         playKeyClickSound();
         setInput(value);
     };
