@@ -14,7 +14,6 @@ interface MainLayoutProps {
 
 // Props 타입을 컴포넌트에 적용
 const MainLayout: React.FC<MainLayoutProps> = ({ gameMode }) => {
-    const darkMode = useTypingStore((state) => state.darkMode);
     const setGameMode = useTypingStore((state) => state.setGameMode);
 
     // URL에서 받은 gameMode를 스토어에 동기화
@@ -23,7 +22,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ gameMode }) => {
     }, [gameMode, setGameMode]);
 
     return (
-        <div className={`${darkMode ? "dark" : ""} flex flex-col min-h-screen`}>
+        <div className="flex flex-col min-h-screen">
             <div className="flex-grow bg-gray-200 dark:bg-gray-900 text-gray-800 dark:text-gray-100">
                 <Header />
                 <main className="container mx-auto px-4 py-8">

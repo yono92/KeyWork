@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback } from "react";
+import React, { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import useTypingStore from "../store/store";
 import quotesData from "../data/quotes.json";
 import { calculateHangulAccuracy, countKeystrokes } from "../utils/hangulUtils";
@@ -12,7 +12,6 @@ const TypingInput: React.FC = () => {
     const darkMode = useTypingStore((state) => state.darkMode);
     const setText = useTypingStore((state) => state.setText);
     const [language, setLanguage] = useState<"korean" | "english">("korean");
-    const textInitializedRef = useRef<boolean>(false);
 
     const [input, setInput] = useState<string>("");
     const [startTime, setStartTime] = useState<number | null>(null);
@@ -25,13 +24,8 @@ const TypingInput: React.FC = () => {
     const inputRef = useRef<HTMLInputElement>(null);
     const [pressedKeys, setPressedKeys] = useState<string[]>([]);
     const [isMobile, setIsMobile] = useState<boolean>(false);
-    const [keyClickSound, setKeyClickSound] = useState<HTMLAudioElement | null>(
-        null
-    );
-    const [errorSound, setErrorSound] = useState<HTMLAudioElement | null>(null);
     const [isValidInput, setIsValidInput] = useState<boolean>(true);
-    const [audioContext, setAudioContext] = useState<AudioContext | null>(null);
-    const [audioInitialized, setAudioInitialized] = useState<boolean>(false);
+    const audioContextRef = useRef<AudioContext | null>(null);
     const isMuted = useTypingStore((state) => state.isMuted);
 
     const handleKeyDown = useCallback((e: KeyboardEvent) => {
@@ -70,173 +64,63 @@ const TypingInput: React.FC = () => {
         return quotesArray[randomIndex];
     };
 
-    const playSound = useCallback((sound: HTMLAudioElement | null) => {
-        if (!sound) return;
-
-        try {
-            // 소스가 설정되어 있는지 확인
-            if (!sound.src) {
-                console.error("Audio element has no source");
-                return;
-            }
-
-            // 재생 전 설정
-            sound.currentTime = 0;
-
-            // 소리 재생 시도
-            const playPromise = sound.play();
-
-            if (playPromise !== undefined) {
-                playPromise.catch((error) => {
-                    console.error("Error playing sound:", error.message);
-
-                    // 오디오 소스 다시 로드 시도
-                    if (error.message.includes("no supported sources")) {
-                        console.log("Attempting to reload audio source...");
-                        const currentSrc = sound.src;
-                        sound.src = currentSrc;
-                        sound.load();
-                    }
-                });
-            }
-        } catch (error) {
-            console.error("Unexpected error playing sound:", error);
-        }
-    }, []);
-
-    const createAudio = useCallback((url: string): HTMLAudioElement => {
-        // 단순화된 오디오 생성
-        const audio = new Audio();
-
-        // 전체 URL 경로 설정 (상대 경로 문제 해결)
-        if (url.startsWith("/")) {
-            audio.src = `${window.location.origin}${url}`;
-        } else {
-            audio.src = url;
-        }
-
-        // 디버깅을 위한 로그 추가
-        console.log("Creating audio with source:", audio.src);
-
-        audio.preload = "auto";
-        audio.volume = 0.5;
-
-        // 오류 처리 개선
-        audio.onerror = () => {
-            console.error(`Failed to load audio from: ${audio.src}`);
-        };
-
-        return audio;
-    }, []);
-
-    const initSounds = useCallback(() => {
-        try {
-            // 직접 public 폴더의 파일 경로 사용
-            const clickSound = createAudio("/sounds/keyclick.mp3");
-            setKeyClickSound(clickSound);
-
-            const errSound = createAudio("/sounds/error.mp3");
-            setErrorSound(errSound);
-
-            console.log("Audio initialization completed");
-        } catch (error) {
-            console.error("Failed to initialize audio:", error);
-        }
-    }, [createAudio]);
-
     const beep = useCallback(
         (frequency = 800, duration = 30, volume = 0.2) => {
             try {
-                // 오디오가 초기화되지 않았으면 초기화
-                if (!audioContext) {
+                if (!audioContextRef.current) {
                     const AudioContextClass =
                         window.AudioContext ||
                         (window as any).webkitAudioContext;
-                    if (!AudioContextClass) {
-                        console.error(
-                            "AudioContext not supported in this browser"
-                        );
-                        return;
-                    }
+                    if (!AudioContextClass) return;
 
-                    const newAudioContext = new AudioContextClass();
-                    setAudioContext(newAudioContext);
-                    setAudioInitialized(true);
-
-                    // 새로 생성된 컨텍스트로 비프음 생성
-                    const oscillator = newAudioContext.createOscillator();
-                    const gainNode = newAudioContext.createGain();
-
-                    oscillator.type = "sine";
-                    oscillator.frequency.setValueAtTime(
-                        frequency,
-                        newAudioContext.currentTime
-                    );
-                    gainNode.gain.setValueAtTime(
-                        volume,
-                        newAudioContext.currentTime
-                    );
-
-                    oscillator.connect(gainNode);
-                    gainNode.connect(newAudioContext.destination);
-
-                    oscillator.start();
-                    oscillator.stop(
-                        newAudioContext.currentTime + duration / 1000
-                    );
-
-                    return;
+                    audioContextRef.current = new AudioContextClass();
                 }
 
-                // 이미 초기화된 오디오 컨텍스트 사용
-                const oscillator = audioContext.createOscillator();
-                const gainNode = audioContext.createGain();
+                const ctx = audioContextRef.current;
+                const oscillator = ctx.createOscillator();
+                const gainNode = ctx.createGain();
 
                 oscillator.type = "sine";
-                oscillator.frequency.setValueAtTime(
-                    frequency,
-                    audioContext.currentTime
-                );
-                gainNode.gain.setValueAtTime(volume, audioContext.currentTime);
+                oscillator.frequency.setValueAtTime(frequency, ctx.currentTime);
+                gainNode.gain.setValueAtTime(volume, ctx.currentTime);
 
                 oscillator.connect(gainNode);
-                gainNode.connect(audioContext.destination);
+                gainNode.connect(ctx.destination);
 
                 oscillator.start();
-                oscillator.stop(audioContext.currentTime + duration / 1000);
-            } catch (error) {
-                console.error("Error playing beep:", error);
+                oscillator.stop(ctx.currentTime + duration / 1000);
+            } catch {
+                // beep 실패 시 무시
             }
         },
-        [audioContext]
+        []
     );
 
+    // 텍스트 초기화 (마운트 시 1회만)
     useEffect(() => {
-        const initAudio = () => {
+        const initialRandomQuote = getRandomQuote("korean");
+        setText(initialRandomQuote);
+
+        if (inputRef.current) {
+            inputRef.current.focus();
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    // AudioContext 초기화 (사용자 상호작용 시)
+    useEffect(() => {
+        const handleUserInteraction = () => {
+            if (audioContextRef.current) return;
             try {
                 const AudioContextClass =
                     window.AudioContext || (window as any).webkitAudioContext;
-                if (!AudioContextClass) {
-                    console.error("AudioContext not supported in this browser");
-                    return;
-                }
-
-                const newAudioContext = new AudioContextClass();
-                setAudioContext(newAudioContext);
-                setAudioInitialized(true);
-            } catch (error) {
-                console.error("Failed to initialize audio:", error);
+                if (!AudioContextClass) return;
+                audioContextRef.current = new AudioContextClass();
+            } catch {
+                // AudioContext 초기화 실패 시 무시
             }
         };
 
-        // 사용자 상호작용 이벤트 핸들러
-        const handleUserInteraction = () => {
-            if (!audioInitialized) {
-                initAudio();
-            }
-        };
-
-        // 이벤트 리스너 등록 (keypress 대신 keydown 사용)
         document.addEventListener("click", handleUserInteraction);
         document.addEventListener("keydown", handleUserInteraction);
 
@@ -244,26 +128,11 @@ const TypingInput: React.FC = () => {
             document.removeEventListener("click", handleUserInteraction);
             document.removeEventListener("keydown", handleUserInteraction);
         };
-    }, [audioInitialized]);
-
-    // 텍스트 초기화를 위한 별도의 useEffect - 한 번만 실행되도록 함
-    useEffect(() => {
-        // 텍스트가 아직 초기화되지 않은 경우에만 초기화
-        if (!textInitializedRef.current) {
-            // 컴포넌트 마운트 시 텍스트 초기화 - 한 번만 실행됨
-            const initialRandomQuote = getRandomQuote("korean");
-            setText(initialRandomQuote);
-            textInitializedRef.current = true; // 초기화 완료 표시
-        }
-
-        if (inputRef.current) {
-            inputRef.current.focus();
-        }
-    }, [setText]); // setText만 의존성으로 설정
+    }, []);
 
     // 정확도를 계산하는 useEffect
     useEffect(() => {
-        const progress = (input.length / text.length) * 100;
+        const progress = text.length > 0 ? (input.length / text.length) * 100 : 0;
         setProgress(progress);
 
         if (input.length > 0 && startTime !== null) {
@@ -304,7 +173,10 @@ const TypingInput: React.FC = () => {
 
     useEffect(() => {
         const checkMobile = () => {
-            setIsMobile(window.innerWidth <= 768); // Adjust this breakpoint as needed
+            setIsMobile(
+                window.innerWidth <= 768 ||
+                /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
+            );
         };
 
         checkMobile();
@@ -313,36 +185,10 @@ const TypingInput: React.FC = () => {
         return () => window.removeEventListener("resize", checkMobile);
     }, []);
 
-    useEffect(() => {
-        const checkMobile = () => {
-            setIsMobile(/iPhone|iPad|iPod|Android/i.test(navigator.userAgent));
-        };
-
-        checkMobile();
-    }, []);
-
-    // 키 클릭 사운드 함수 추가
-    // const playKeyClickSound = useCallback(() => {
-    //     beep(800, 30, 0.2); // 높은 주파수, 짧은 지속 시간
-    // }, [beep]);
-    // 키 클릭 사운드 함수 수정 - 오디오 파일 사용
     const playKeyClickSound = useCallback(() => {
         if (isMuted) return;
-
-        // beep 대신 오디오 파일 재생
-        if (keyClickSound) {
-            keyClickSound.currentTime = 0;
-            keyClickSound.volume = 0.5;
-            keyClickSound.play().catch((error) => {
-                console.error("Error playing key click sound:", error.message);
-                // 오디오 재생 실패 시 beep으로 폴백
-                beep(800, 30, 0.2);
-            });
-        } else {
-            // 오디오 파일이 로드되지 않았을 경우 beep 사용
-            beep(800, 30, 0.2);
-        }
-    }, [keyClickSound, beep, isMuted]);
+        beep(800, 30, 0.2);
+    }, [beep, isMuted]);
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const value = e.target.value;
@@ -501,7 +347,7 @@ const TypingInput: React.FC = () => {
         }
     };
 
-    const renderText = () => {
+    const renderedText = useMemo(() => {
         return text.split("").map((char, index) => {
             let className = "text-gray-400"; // 기본 스타일
 
@@ -519,7 +365,7 @@ const TypingInput: React.FC = () => {
                 </span>
             );
         });
-    };
+    }, [text, input]);
 
     return (
         <div className={`mt-10 w-full max-w-4xl mx-auto`}>
@@ -535,7 +381,7 @@ const TypingInput: React.FC = () => {
                         : "bg-white text-gray-900 border-gray-300"
                 }`}
             >
-                <div className="text-center mb-4">{renderText()}</div>
+                <div className="text-center mb-4">{renderedText}</div>
                 <input
                     ref={inputRef}
                     type="text"

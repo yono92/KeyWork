@@ -1,25 +1,26 @@
 export const getLevenshteinDistance = (a: string[], b: string[]): number => {
-    const matrix = Array(a.length + 1)
-        .fill(null)
-        .map(() => Array(b.length + 1).fill(0));
+    // 빈 배열 처리
+    if (a.length === 0) return b.length;
+    if (b.length === 0) return a.length;
 
-    for (let i = 0; i <= a.length; i++) {
-        matrix[i][0] = i;
-    }
-    for (let j = 0; j <= b.length; j++) {
-        matrix[0][j] = j;
-    }
+    // 짧은 배열을 열(column)로 사용하여 공간 최적화
+    const [short, long] = a.length < b.length ? [a, b] : [b, a];
 
-    for (let i = 1; i <= a.length; i++) {
-        for (let j = 1; j <= b.length; j++) {
-            const cost = a[i - 1] === b[j - 1] ? 0 : 1;
-            matrix[i][j] = Math.min(
-                matrix[i - 1][j] + 1, // 삽입
-                matrix[i][j - 1] + 1, // 삭제
-                matrix[i - 1][j - 1] + cost // 교체
+    let prev = Array.from({ length: short.length + 1 }, (_, i) => i);
+    let curr = new Array(short.length + 1);
+
+    for (let i = 1; i <= long.length; i++) {
+        curr[0] = i;
+        for (let j = 1; j <= short.length; j++) {
+            const cost = long[i - 1] === short[j - 1] ? 0 : 1;
+            curr[j] = Math.min(
+                prev[j] + 1,      // 삽입
+                curr[j - 1] + 1,  // 삭제
+                prev[j - 1] + cost // 교체
             );
         }
+        [prev, curr] = [curr, prev];
     }
 
-    return matrix[a.length][b.length];
+    return prev[short.length];
 };
