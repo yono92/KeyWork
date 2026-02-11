@@ -84,7 +84,6 @@ const FallingWordsGame: React.FC = () => {
             if (effect === "shield") setShield(false);
             
             delete activeTimersRef.current[effect];
-            console.log(`${effect} effect ended`);
         }, duration);
     };
 
@@ -160,7 +159,7 @@ const FallingWordsGame: React.FC = () => {
                 updateActiveEffects("slow", 8000);
                 break;
             case "clear":
-                setWords((curr) => curr.filter((w) => w.type === "normal"));
+                setWords((curr) => curr.filter((w) => w.type !== "normal"));
                 setScore((prev) => prev + 50 * level);
                 break;
             case "shield":
@@ -288,6 +287,10 @@ const FallingWordsGame: React.FC = () => {
     };
 
     const restartGame = (): void => {
+        // 활성 타이머 전체 정리
+        Object.values(activeTimersRef.current).forEach(clearTimeout);
+        activeTimersRef.current = {};
+
         setWords([]);
         setScore(0);
         setLevel(1);
@@ -341,7 +344,7 @@ const FallingWordsGame: React.FC = () => {
                     </div>
                     <div className="text-xl font-bold">Level: {level}</div>
                     <div className="text-xl font-bold">
-                        Life: {"❤️".repeat(lives)}
+                        Life: {"❤️".repeat(Math.max(lives, 0))}
                     </div>
                 </div>
 

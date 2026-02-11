@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React from "react";
 
 interface KeyboardProps {
     pressedKeys: string[];
@@ -6,148 +6,28 @@ interface KeyboardProps {
     darkMode: boolean;
 }
 
+const ENGLISH_LAYOUT = [
+    ["`", "1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "-", "=", "Backspace"],
+    ["Tab", "Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P", "[", "]", "\\"],
+    ["Caps", "A", "S", "D", "F", "G", "H", "J", "K", "L", ";", "'", "Enter"],
+    ["Shift-L", "Z", "X", "C", "V", "B", "N", "M", ",", ".", "/", "Shift-R"],
+    ["Ctrl-L", "Win", "Alt-L", "Space", "Alt-R", "Fn", "Ctrl-R"],
+];
+
+const KOREAN_LAYOUT = [
+    ["`", "1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "-", "=", "Backspace"],
+    ["Tab", "ㅂ", "ㅈ", "ㄷ", "ㄱ", "ㅅ", "ㅛ", "ㅕ", "ㅑ", "ㅐ", "ㅔ", "[", "]", "\\"],
+    ["Caps", "ㅁ", "ㄴ", "ㅇ", "ㄹ", "ㅎ", "ㅗ", "ㅓ", "ㅏ", "ㅣ", ";", "'", "Enter"],
+    ["Shift-L", "ㅋ", "ㅌ", "ㅊ", "ㅍ", "ㅠ", "ㅜ", "ㅡ", ",", ".", "/", "Shift-R"],
+    ["Ctrl-L", "Win", "Alt-L", "Space", "Alt-R", "Fn", "Ctrl-R"],
+];
+
 const Keyboard: React.FC<KeyboardProps> = ({
     pressedKeys = [],
     language = "english",
     darkMode = false,
 }) => {
-    const englishLayout = useMemo(
-        () => [
-            [
-                "`",
-                "1",
-                "2",
-                "3",
-                "4",
-                "5",
-                "6",
-                "7",
-                "8",
-                "9",
-                "0",
-                "-",
-                "=",
-                "Backspace",
-            ],
-            [
-                "Tab",
-                "Q",
-                "W",
-                "E",
-                "R",
-                "T",
-                "Y",
-                "U",
-                "I",
-                "O",
-                "P",
-                "[",
-                "]",
-                "\\",
-            ],
-            [
-                "Caps",
-                "A",
-                "S",
-                "D",
-                "F",
-                "G",
-                "H",
-                "J",
-                "K",
-                "L",
-                ";",
-                "'",
-                "Enter",
-            ],
-            [
-                "Shift-L",
-                "Z",
-                "X",
-                "C",
-                "V",
-                "B",
-                "N",
-                "M",
-                ",",
-                ".",
-                "/",
-                "Shift-R",
-            ],
-            ["Ctrl-L", "Win", "Alt-L", "Space", "Alt-R", "Fn", "Ctrl-R"],
-        ],
-        []
-    );
-
-    const koreanLayout = useMemo(
-        () => [
-            [
-                "`",
-                "1",
-                "2",
-                "3",
-                "4",
-                "5",
-                "6",
-                "7",
-                "8",
-                "9",
-                "0",
-                "-",
-                "=",
-                "Backspace",
-            ],
-            [
-                "Tab",
-                "ㅂ",
-                "ㅈ",
-                "ㄷ",
-                "ㄱ",
-                "ㅅ",
-                "ㅛ",
-                "ㅕ",
-                "ㅑ",
-                "ㅐ",
-                "ㅔ",
-                "[",
-                "]",
-                "\\",
-            ],
-            [
-                "Caps",
-                "ㅁ",
-                "ㄴ",
-                "ㅇ",
-                "ㄹ",
-                "ㅎ",
-                "ㅗ",
-                "ㅓ",
-                "ㅏ",
-                "ㅣ",
-                ";",
-                "'",
-                "Enter",
-            ],
-            [
-                "Shift-L",
-                "ㅋ",
-                "ㅌ",
-                "ㅊ",
-                "ㅍ",
-                "ㅠ",
-                "ㅜ",
-                "ㅡ",
-                ",",
-                ".",
-                "/",
-                "Shift-R",
-            ],
-            ["Ctrl-L", "Win", "Alt-L", "Space", "Alt-R", "Fn", "Ctrl-R"],
-        ],
-        []
-    );
-
-    const layout = language === "korean" ? koreanLayout : englishLayout;
+    const layout = language === "korean" ? KOREAN_LAYOUT : ENGLISH_LAYOUT;
 
     const getKeyClass = (key: string): string => {
         // 한글-영문 키 매핑 추가
