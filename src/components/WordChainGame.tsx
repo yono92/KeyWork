@@ -49,6 +49,8 @@ const WordChainGame: React.FC = () => {
     const gameStartTimeRef = useRef(Date.now());
     const maxComboRef = useRef(0);
     const wordsTypedRef = useRef(0);
+    const currentCharRef = useRef("");
+    const doAiTurnRef = useRef<(startChar: string) => void>(() => {});
 
     const playSound = useCallback((type: SoundType) => {
         if (isMuted) return;
@@ -207,6 +209,9 @@ const WordChainGame: React.FC = () => {
         setMessages((prev) => [...prev, { id: Date.now() + Math.random(), text, sender, isValid }]);
     };
 
+    // ref 동기화 (closure 문제 방지)
+    useEffect(() => { currentCharRef.current = currentChar; }, [currentChar]);
+
     const doAiTurn = useCallback((startChar: string) => {
         setIsAiTurn(true);
         setTimeout(() => {
@@ -231,6 +236,9 @@ const WordChainGame: React.FC = () => {
         }, 1000 + Math.random() * 500);
     }, [findAiWord, language, config.timeLimit, playSound]);
 
+    // doAiTurnRef 동기화
+    useEffect(() => { doAiTurnRef.current = doAiTurn; }, [doAiTurn]);
+
     // 타이머
     useEffect(() => {
         if (!gameStarted || gameOver || isPaused || isAiTurn) return;
@@ -247,8 +255,8 @@ const WordChainGame: React.FC = () => {
                             setGameOver(true);
                             playSound("gameOver");
                         } else {
-                            // AI가 단어를 대신 제시해서 게임 진행
-                            doAiTurn(currentChar);
+                            // ref로 최신 값 참조 (stale closure 방지)
+                            doAiTurnRef.current(currentCharRef.current);
                         }
                         return Math.max(newLives, 0);
                     });
@@ -261,7 +269,7 @@ const WordChainGame: React.FC = () => {
         return () => {
             if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
         };
-    }, [gameStarted, gameOver, isPaused, isAiTurn, config.timeLimit, playSound, currentChar, doAiTurn]);
+    }, [gameStarted, gameOver, isPaused, isAiTurn, config.timeLimit, playSound]);
 
     // 채팅 스크롤
     useEffect(() => {
@@ -326,7 +334,7 @@ const WordChainGame: React.FC = () => {
 
         // 점수 계산
         const timeBonus = timer / config.timeLimit;
-        const comboMultiplier = 1 + Math.min(newCombo * 0.2, 2);
+        const comboMultiplier = Math.min(1 + newCombo * 0.2, 2);
         const wordScore = Math.round(word.length * 10 * timeBonus * comboMultiplier);
         setScore((prev) => prev + wordScore);
 
@@ -397,7 +405,7 @@ const WordChainGame: React.FC = () => {
                         Score: <span className="tabular-nums">{score}</span>
                         {combo > 0 && (
                             <span className="ml-1 sm:ml-2 text-[10px] sm:text-sm text-sky-400">
-                                x{(1 + Math.min(combo * 0.2, 2)).toFixed(1)}
+                                x{Math.min(1 + combo * 0.2, 2).toFixed(1)}
                             </span>
                         )}
                     </div>

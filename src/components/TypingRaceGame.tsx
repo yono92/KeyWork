@@ -45,10 +45,28 @@ const TypingRaceGame: React.FC = () => {
     const totalCorrectRef = useRef(0);
     const gameStartTimeRef = useRef(Date.now());
 
+    // 유저 제스처로 AudioContext 초기화
+    const initAudioContext = useCallback(() => {
+        if (!audioContextRef.current) {
+            audioContextRef.current = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+        }
+    }, []);
+
+    // 유저 제스처 리스너
+    useEffect(() => {
+        const handler = () => initAudioContext();
+        window.addEventListener("click", handler, { once: true });
+        window.addEventListener("keydown", handler, { once: true });
+        return () => {
+            window.removeEventListener("click", handler);
+            window.removeEventListener("keydown", handler);
+        };
+    }, [initAudioContext]);
+
     const playSound = useCallback((type: SoundType) => {
         if (isMuted) return;
+        if (!audioContextRef.current) return;
         try {
-            if (!audioContextRef.current) audioContextRef.current = new AudioContext();
             const ctx = audioContextRef.current;
             if (ctx.state === "suspended") ctx.resume();
             const now = ctx.currentTime;
@@ -206,7 +224,7 @@ const TypingRaceGame: React.FC = () => {
         return () => {
             if (aiIntervalRef.current) clearInterval(aiIntervalRef.current);
         };
-    }, [gameStarted, gameOver, isPaused, sentence, config.aiWpm]);
+    }, [gameStarted, gameOver, isPaused, sentence, config.aiWpm, countdown]);
 
     // AI가 100% 도달 시
     useEffect(() => {
@@ -276,6 +294,13 @@ const TypingRaceGame: React.FC = () => {
 
         // 플레이어가 문장 완료
         if (val === sentence) {
+            // AI 진행 즉시 중지
+            if (aiIntervalRef.current) {
+                clearInterval(aiIntervalRef.current);
+                aiIntervalRef.current = null;
+            }
+            setAiProgress(0);
+
             totalCorrectRef.current += sentence.length;
             playSound("roundComplete");
             setPlayerScore((prev) => {
@@ -298,13 +323,12 @@ const TypingRaceGame: React.FC = () => {
         setInput((e.target as HTMLInputElement).value);
     };
 
-    const restartGame = (overrideDifficulty?: keyof typeof DIFFICULTY_CONFIG) => {
+    const restartGame = (overrideDifficulty?: keyof typeof DIFFICULTY_CONFIG, resetCountdown = true) => {
         if (overrideDifficulty) setDifficulty(overrideDifficulty);
         setPlayerScore(0);
         setAiScore(0);
         setRound(1);
         setGameOver(false);
-        setGameStarted(true);
         setIsPaused(false);
         setInput("");
         setAiProgress(0);
@@ -313,15 +337,18 @@ const TypingRaceGame: React.FC = () => {
         totalCharsRef.current = 0;
         totalCorrectRef.current = 0;
         gameStartTimeRef.current = Date.now();
-
-        // 문장 미리 세팅 + 카운트다운 시작
-        const s = quotesData[language][Math.floor(Math.random() * quotesData[language].length)];
-        setSentence(s);
         playerCharsTypedRef.current = 0;
         if (inputRef.current) {
             inputRef.current.value = "";
         }
-        setCountdown(3);
+
+        if (resetCountdown) {
+            setGameStarted(true);
+            // 문장 미리 세팅 + 카운트다운 시작
+            const s = quotesData[language][Math.floor(Math.random() * quotesData[language].length)];
+            setSentence(s);
+            setCountdown(3);
+        }
     };
 
     const aiWpm = config.aiWpm;
@@ -476,7 +503,7 @@ const TypingRaceGame: React.FC = () => {
                                 return (
                                     <button
                                         key={d}
-                                        onClick={() => { setDifficulty(d); restartGame(d); }}
+                                        onClick={() => { initAudioContext(); setDifficulty(d); restartGame(d); }}
                                         className={`px-4 py-2.5 sm:px-6 sm:py-3 rounded-xl border-2 transition-all duration-200 cursor-pointer ${colors[d]} ${
                                             darkMode ? "bg-white/[0.03]" : "bg-slate-50"
                                         }`}
@@ -557,7 +584,7 @@ const TypingRaceGame: React.FC = () => {
                                 {language === "korean" ? "다시 하기" : "Play Again"}
                             </button>
                             <button
-                                onClick={() => { restartGame(); setGameStarted(false); }}
+                                onClick={() => { restartGame(undefined, false); setGameStarted(false); }}
                                 className={`px-4 py-2.5 sm:px-6 sm:py-3 rounded-xl border-2 transition-all duration-200 font-medium text-sm sm:text-base ${
                                     darkMode
                                         ? "border-white/10 text-slate-300 hover:border-white/20 hover:bg-white/5"

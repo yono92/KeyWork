@@ -67,10 +67,16 @@ const TypingDefenseGame: React.FC = () => {
         return { enemyCount, spawnInterval, baseSpeed, isBossWave, bossHp };
     }, [config.spawnMul]);
 
+    const initAudioContext = useCallback(() => {
+        if (!audioContextRef.current) {
+            audioContextRef.current = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+        }
+    }, []);
+
     const playSound = useCallback((type: SoundType) => {
         if (isMuted) return;
+        if (!audioContextRef.current) return;
         try {
-            if (!audioContextRef.current) audioContextRef.current = new AudioContext();
             const ctx = audioContextRef.current;
             if (ctx.state === "suspended") ctx.resume();
             const now = ctx.currentTime;
@@ -80,12 +86,11 @@ const TypingDefenseGame: React.FC = () => {
                     const osc = ctx.createOscillator();
                     const gain = ctx.createGain();
                     osc.type = "sine";
-                    osc.frequency.setValueAtTime(660, now);
-                    osc.frequency.linearRampToValueAtTime(880, now + 0.06);
-                    gain.gain.setValueAtTime(0.15, now);
-                    gain.gain.linearRampToValueAtTime(0, now + 0.06);
+                    osc.frequency.setValueAtTime(800, now);
+                    gain.gain.setValueAtTime(0.2, now);
+                    gain.gain.linearRampToValueAtTime(0, now + 0.03);
                     osc.connect(gain).connect(ctx.destination);
-                    osc.start(now); osc.stop(now + 0.06);
+                    osc.start(now); osc.stop(now + 0.03);
                     break;
                 }
                 case "destroy": {
@@ -156,6 +161,17 @@ const TypingDefenseGame: React.FC = () => {
         } catch { /* ignore */ }
     }, [isMuted]);
 
+    // 유저 제스처로 AudioContext 초기화
+    useEffect(() => {
+        const handler = () => initAudioContext();
+        window.addEventListener("click", handler, { once: true });
+        window.addEventListener("keydown", handler, { once: true });
+        return () => {
+            window.removeEventListener("click", handler);
+            window.removeEventListener("keydown", handler);
+        };
+    }, [initAudioContext]);
+
     const getRandomWord = (): string => {
         const wordsList = wordsData[language];
         return wordsList[Math.floor(Math.random() * wordsList.length)];
@@ -214,29 +230,29 @@ const TypingDefenseGame: React.FC = () => {
 
         const moveInterval = setInterval(() => {
             setEnemies((current) => {
-                let baseDamaged = false;
+                let hitsInTick = 0;
 
                 const updated = current.map((enemy) => {
                     if (enemy.status !== "active") return enemy;
                     const newLeft = enemy.left + enemy.speed * (16 / 1000); // 16ms tick
                     if (newLeft >= 100) {
-                        baseDamaged = true;
+                        hitsInTick++;
                         return { ...enemy, left: 100, status: "destroyed" as const };
                     }
                     return { ...enemy, left: newLeft };
                 });
 
-                if (baseDamaged) {
-                    playSound("baseDamage");
+                if (hitsInTick > 0) {
+                    for (let i = 0; i < hitsInTick; i++) playSound("baseDamage");
                     setBaseHp((prev) => {
-                        const newHp = prev - 1;
+                        const newHp = prev - hitsInTick;
                         if (newHp <= 0) {
                             setGameOver(true);
                             playSound("gameOver");
                         }
                         return Math.max(newHp, 0);
                     });
-                    setWaveEnemiesLeft((prev) => Math.max(prev - 1, 0));
+                    setWaveEnemiesLeft((prev) => Math.max(prev - hitsInTick, 0));
                 }
 
                 return updated;
@@ -312,6 +328,7 @@ const TypingDefenseGame: React.FC = () => {
     };
 
     const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        initAudioContext();
         if (e.key !== "Enter") return;
         if (isComposingRef.current || e.nativeEvent.isComposing) return;
 
@@ -561,7 +578,7 @@ const TypingDefenseGame: React.FC = () => {
                                 return (
                                     <button
                                         key={d}
-                                        onClick={() => { setDifficulty(d); restartGame(d); }}
+                                        onClick={() => { initAudioContext(); setDifficulty(d); restartGame(d); }}
                                         className={`px-4 py-2.5 sm:px-6 sm:py-3 rounded-xl border-2 transition-all duration-200 cursor-pointer ${colors[d]} ${
                                             darkMode ? "bg-white/[0.03]" : "bg-slate-50"
                                         }`}
