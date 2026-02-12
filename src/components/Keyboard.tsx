@@ -178,6 +178,13 @@ const Keyboard: React.FC<KeyboardProps> = ({
             ${darkMode ? "bg-gray-800" : "bg-gray-200"}
         `}
         >
+            <div
+                className={`mb-3 text-xs font-semibold ${
+                    darkMode ? "text-gray-300" : "text-gray-600"
+                }`}
+            >
+                Layout: {platform === "mac" ? "macOS" : "Windows"}
+            </div>
             {layout.map((row, rowIndex) => (
                 <div
                     key={`row-${rowIndex}`}
