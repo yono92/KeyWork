@@ -3,8 +3,7 @@ import useTypingStore from "../store/store";
 import quotesData from "../data/quotes.json";
 import { calculateHangulAccuracy, countKeystrokes } from "../utils/hangulUtils";
 import Keyboard from "./Keyboard";
-import LanguageToggle from "./LanguageToggle";
-import MuteToggle from "./MuteToggle";
+import ProgressBar from "./ProgressBar";
 
 const normalizeCode = (code: string): string => {
     if (code.startsWith("Key")) return code.slice(3).toLowerCase();
@@ -40,12 +39,33 @@ const normalizeCode = (code: string): string => {
     return codeMap[code] || code.toLowerCase();
 };
 
+const MODIFIER_KEYS = [
+    "shiftleft",
+    "shiftright",
+    "controlleft",
+    "controlright",
+    "altleft",
+    "altright",
+    "metaleft",
+    "metaright",
+] as const;
+
+const syncModifierKeys = (keys: string[], e: KeyboardEvent): string[] => {
+    const next = keys.filter((key) => !MODIFIER_KEYS.includes(key as (typeof MODIFIER_KEYS)[number]));
+    if (e.shiftKey) next.push("shiftleft");
+    if (e.ctrlKey) next.push("controlleft");
+    if (e.altKey) next.push("altleft");
+    if (e.metaKey) next.push("metaleft");
+    return [...new Set(next)];
+};
+
 const TypingInput: React.FC = () => {
     const text = useTypingStore((state) => state.text);
     const setProgress = useTypingStore((state) => state.setProgress);
     const darkMode = useTypingStore((state) => state.darkMode);
     const setText = useTypingStore((state) => state.setText);
-    const [language, setLanguage] = useState<"korean" | "english">("korean");
+    const language = useTypingStore((state) => state.language);
+    const setLanguage = useTypingStore((state) => state.setLanguage);
 
     const [input, setInput] = useState<string>("");
     const [startTime, setStartTime] = useState<number | null>(null);
@@ -58,6 +78,7 @@ const TypingInput: React.FC = () => {
     const inputRef = useRef<HTMLInputElement>(null);
     const [pressedKeys, setPressedKeys] = useState<string[]>([]);
     const [isMobile, setIsMobile] = useState<boolean>(false);
+    const [isShortScreen, setIsShortScreen] = useState<boolean>(false);
     const [isValidInput, setIsValidInput] = useState<boolean>(true);
     const [platform, setPlatform] = useState<"mac" | "windows">("windows");
     const audioContextRef = useRef<AudioContext | null>(null);
@@ -65,30 +86,40 @@ const TypingInput: React.FC = () => {
 
     const handleKeyDown = useCallback((e: KeyboardEvent) => {
         const keyCode = normalizeCode(e.code);
-        setPressedKeys((prevKeys) => [...new Set([...prevKeys, keyCode])]);
+        setPressedKeys((prevKeys) => {
+            if (keyCode === "fn") {
+                return syncModifierKeys(prevKeys, e);
+            }
+            return syncModifierKeys([...new Set([...prevKeys, keyCode])], e);
+        });
     }, []);
-
-    const toggleLanguage = () => {
-        const newLanguage = language === "korean" ? "english" : "korean";
-        setLanguage(newLanguage);
-        const randomQuote = getRandomQuote(newLanguage);
-        setText(randomQuote);
-        setInput("");
-        setStartTime(null);
-    };
 
     const handleKeyUp = useCallback((e: KeyboardEvent) => {
         const keyCode = normalizeCode(e.code);
-        setPressedKeys((prevKeys) => prevKeys.filter((key) => key !== keyCode));
+        setPressedKeys((prevKeys) =>
+            syncModifierKeys(
+                prevKeys.filter((key) => key !== keyCode && key !== "fn"),
+                e
+            )
+        );
     }, []);
 
     useEffect(() => {
+        const handleWindowBlur = () => setPressedKeys([]);
+        const handleVisibilityChange = () => {
+            if (document.hidden) setPressedKeys([]);
+        };
+
         window.addEventListener("keydown", handleKeyDown);
         window.addEventListener("keyup", handleKeyUp);
+        window.addEventListener("blur", handleWindowBlur);
+        document.addEventListener("visibilitychange", handleVisibilityChange);
 
         return () => {
             window.removeEventListener("keydown", handleKeyDown);
             window.removeEventListener("keyup", handleKeyUp);
+            window.removeEventListener("blur", handleWindowBlur);
+            document.removeEventListener("visibilitychange", handleVisibilityChange);
         };
     }, [handleKeyDown, handleKeyUp]);
 
@@ -205,6 +236,7 @@ const TypingInput: React.FC = () => {
                 window.innerWidth <= 768 ||
                 /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
             );
+            setIsShortScreen(window.innerHeight <= 900);
         };
 
         checkMobile();
@@ -387,14 +419,18 @@ const TypingInput: React.FC = () => {
 
     const renderedText = useMemo(() => {
         return text.split("").map((char, index) => {
-            let className = "text-gray-400"; // 기본 스타일
+            let className = darkMode ? "text-slate-500" : "text-slate-400";
 
             if (index < input.length) {
                 if (input[index] === char) {
-                    className = "text-green-500 font-semibold"; // 올바르게 입력된 문자
+                    className = "text-emerald-400 dark:text-emerald-400";
                 } else {
-                    className = "text-red-500 font-semibold"; // 잘못 입력된 문자
+                    className = "text-rose-500 dark:text-rose-400";
                 }
+            } else if (index === input.length) {
+                className = darkMode
+                    ? "text-white underline decoration-sky-400 decoration-2 underline-offset-4"
+                    : "text-slate-800 underline decoration-sky-500 decoration-2 underline-offset-4";
             }
 
             return (
@@ -403,87 +439,131 @@ const TypingInput: React.FC = () => {
                 </span>
             );
         });
-    }, [text, input]);
+    }, [text, input, darkMode]);
+
+    const progressBarWidth = useMemo(() => {
+        const estimated = text.length * 16;
+        return Math.min(760, Math.max(260, estimated));
+    }, [text.length]);
 
     return (
-        <div className={`mt-10 w-full max-w-4xl mx-auto`}>
-            <LanguageToggle
-                language={language}
-                toggleLanguage={toggleLanguage}
-            />
-            <MuteToggle /> {/* 추가 */}
+        <div className="w-full max-w-4xl mx-auto animate-panel-in space-y-4 md:space-y-5">
+            {/* 타이핑 영역 */}
             <div
-                className={`p-4 border rounded-lg text-3xl font-semibold leading-relaxed tracking-wide ${
+                className={`px-6 py-6 md:px-8 md:py-8 rounded-2xl transition-all duration-300 ${
                     darkMode
-                        ? "bg-gray-800 text-gray-100 border-gray-700"
-                        : "bg-white text-gray-900 border-gray-300"
+                        ? "bg-white/[0.03] border border-white/[0.06]"
+                        : "bg-white/60 border border-sky-100/50 shadow-sm"
                 }`}
             >
-                <div className="text-center mb-4">{renderedText}</div>
+                <div className="text-center text-2xl md:text-3xl font-semibold leading-loose tracking-wide mb-6">
+                    {renderedText}
+                </div>
+                <ProgressBar trackWidth={progressBarWidth} className="mb-5" />
                 <input
                     ref={inputRef}
                     type="text"
                     value={input}
                     onChange={handleInputChange}
                     onKeyDown={handleKeyPress}
-                    className={`w-full p-2 text-xl border rounded transition-colors duration-200
-                ${
-                    darkMode
-                        ? "bg-gray-700 text-white"
-                        : "bg-gray-100 text-black"
-                }
-                ${
-                    isValidInput
-                        ? darkMode
-                            ? "border-gray-600"
-                            : "border-gray-300"
-                        : "border-red-500 animate-shake"
-                }
-                ${!isValidInput && "ring-2 ring-red-500"}
-            `}
+                    className={`w-full px-4 py-3.5 text-xl rounded-xl transition-all duration-200 outline-none
+                        ${
+                            darkMode
+                                ? "bg-white/[0.04] text-white placeholder-slate-600 border border-white/[0.08] focus:border-sky-500/50 focus:bg-white/[0.06]"
+                                : "bg-sky-50/50 text-slate-800 placeholder-slate-400 border border-sky-200/60 focus:border-sky-400 focus:bg-white"
+                        }
+                        ${
+                            isValidInput
+                                ? ""
+                                : "border-rose-500 ring-2 ring-rose-500/30 animate-shake"
+                        }
+                        focus:ring-2 focus:ring-sky-500/20
+                    `}
                     placeholder=""
                     autoFocus
                 />
                 {!isValidInput && (
-                    <p className="text-red-500 text-sm mt-1">
+                    <p className="text-rose-500 text-sm mt-2 ml-1">
                         {language === "korean"
                             ? "한글만 입력 가능합니다"
                             : "영문만 입력 가능합니다"}
                     </p>
                 )}
             </div>
+
+            {/* 키보드 */}
             {!isMobile && (
                 <Keyboard
                     pressedKeys={pressedKeys}
                     language={language}
                     darkMode={darkMode}
                     platform={platform}
+                    compact={isShortScreen}
                 />
             )}
-            <div className="mt-6 text-center grid grid-cols-2 gap-4">
-                <p className="text-lg text-gray-600">
-                    현재 타이핑 속도:{" "}
-                    <span className="text-xl font-bold">{typingSpeed}</span>{" "}
-                    타/분
-                </p>
-                <p className="text-lg text-gray-600">
-                    현재 정확도:{" "}
-                    <span className="text-xl font-bold">{accuracy}</span>%
-                </p>
-                <p className="text-lg text-gray-600">
-                    평균 타이핑 속도:{" "}
-                    <span className="text-xl font-bold">
-                        {allSpeeds.length > 0 ? averageSpeed : 0}
-                    </span>{" "}
-                    타/분
-                </p>
-                <p className="text-lg text-gray-600">
-                    평균 정확도:{" "}
-                    <span className="text-xl font-bold">
-                        {allAccuracies.length > 0 ? averageAccuracy : 0}
-                    </span>
-                    %
-                </p>
+
+            {/* 통계 카드 */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div className={`rounded-xl px-4 py-3.5 transition-all duration-300 ${
+                    darkMode
+                        ? "bg-white/[0.03] border border-white/[0.06]"
+                        : "bg-white/60 border border-sky-100/50"
+                }`}>
+                    <div className={`text-xs font-medium mb-1 ${darkMode ? "text-sky-400" : "text-sky-600"}`}>
+                        타이핑 속도
+                    </div>
+                    <div className="flex items-baseline gap-1">
+                        <span className={`text-2xl font-bold tabular-nums ${darkMode ? "text-white" : "text-slate-800"}`}>
+                            {typingSpeed}
+                        </span>
+                        <span className={`text-xs ${darkMode ? "text-slate-500" : "text-slate-400"}`}>타/분</span>
+                    </div>
+                </div>
+                <div className={`rounded-xl px-4 py-3.5 transition-all duration-300 ${
+                    darkMode
+                        ? "bg-white/[0.03] border border-white/[0.06]"
+                        : "bg-white/60 border border-sky-100/50"
+                }`}>
+                    <div className={`text-xs font-medium mb-1 ${darkMode ? "text-emerald-400" : "text-emerald-600"}`}>
+                        정확도
+                    </div>
+                    <div className="flex items-baseline gap-1">
+                        <span className={`text-2xl font-bold tabular-nums ${darkMode ? "text-white" : "text-slate-800"}`}>
+                            {accuracy}
+                        </span>
+                        <span className={`text-xs ${darkMode ? "text-slate-500" : "text-slate-400"}`}>%</span>
+                    </div>
+                </div>
+                <div className={`rounded-xl px-4 py-3.5 transition-all duration-300 ${
+                    darkMode
+                        ? "bg-white/[0.03] border border-white/[0.06]"
+                        : "bg-white/60 border border-sky-100/50"
+                }`}>
+                    <div className={`text-xs font-medium mb-1 ${darkMode ? "text-violet-400" : "text-violet-600"}`}>
+                        평균 속도
+                    </div>
+                    <div className="flex items-baseline gap-1">
+                        <span className={`text-2xl font-bold tabular-nums ${darkMode ? "text-white" : "text-slate-800"}`}>
+                            {allSpeeds.length > 0 ? averageSpeed : 0}
+                        </span>
+                        <span className={`text-xs ${darkMode ? "text-slate-500" : "text-slate-400"}`}>타/분</span>
+                    </div>
+                </div>
+                <div className={`rounded-xl px-4 py-3.5 transition-all duration-300 ${
+                    darkMode
+                        ? "bg-white/[0.03] border border-white/[0.06]"
+                        : "bg-white/60 border border-sky-100/50"
+                }`}>
+                    <div className={`text-xs font-medium mb-1 ${darkMode ? "text-amber-400" : "text-amber-600"}`}>
+                        평균 정확도
+                    </div>
+                    <div className="flex items-baseline gap-1">
+                        <span className={`text-2xl font-bold tabular-nums ${darkMode ? "text-white" : "text-slate-800"}`}>
+                            {allAccuracies.length > 0 ? averageAccuracy : 0}
+                        </span>
+                        <span className={`text-xs ${darkMode ? "text-slate-500" : "text-slate-400"}`}>%</span>
+                    </div>
+                </div>
             </div>
         </div>
     );
