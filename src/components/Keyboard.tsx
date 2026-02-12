@@ -1,10 +1,14 @@
 import React from "react";
 
+type KeyboardSize = "compact" | "normal" | "large";
+
 interface KeyboardProps {
     pressedKeys: string[];
     language: "english" | "korean";
     darkMode: boolean;
     platform: "mac" | "windows";
+    compact?: boolean;
+    size?: KeyboardSize;
 }
 
 const ENGLISH_LAYOUT_BASE = [
@@ -29,7 +33,10 @@ const Keyboard: React.FC<KeyboardProps> = ({
     language = "english",
     darkMode = false,
     platform = "windows",
+    compact = false,
+    size: sizeProp,
 }) => {
+    const size: KeyboardSize = sizeProp ?? (compact ? "compact" : "normal");
     const baseLayout = language === "korean" ? KOREAN_LAYOUT_BASE : ENGLISH_LAYOUT_BASE;
     const bottomRow = platform === "mac" ? MAC_BOTTOM_ROW : WINDOWS_BOTTOM_ROW;
     const layout = [...baseLayout, bottomRow];
@@ -47,7 +54,6 @@ const Keyboard: React.FC<KeyboardProps> = ({
         Win: ["metaleft"],
         "Alt-L": ["altleft"],
         "Alt-R": ["altright"],
-        Fn: ["fn"],
         "Option-L": ["altleft"],
         "Option-R": ["altright"],
         "Cmd-L": ["metaleft"],
@@ -84,13 +90,6 @@ const Keyboard: React.FC<KeyboardProps> = ({
             ㅜ: "n",
             ㅡ: "m",
         };
-        
-        let baseClass = `
-            flex items-center justify-center 
-            border rounded-md shadow-md cursor-pointer 
-            transition-all duration-100 ease-in-out 
-            text-sm font-bold
-        `;
 
         const isKeyPressed = () => {
             if (SPECIAL_KEY_MAP[key]) {
@@ -106,45 +105,54 @@ const Keyboard: React.FC<KeyboardProps> = ({
             return pressedKeys.includes(lowercaseKey);
         };
 
+        const pressed = isKeyPressed();
+
+        let baseClass = "flex items-center justify-center rounded-lg cursor-pointer transition-all duration-75 ease-out font-semibold select-none ";
+
         if (darkMode) {
-            baseClass += ` 
-                border-gray-600 
-                ${
-                    isKeyPressed()
-                        ? "bg-blue-700 text-white"
-                        : "bg-gray-700 text-gray-300 hover:bg-gray-600"
-                }
-            `;
+            if (pressed) {
+                baseClass += "bg-sky-500 text-white shadow-[0_0_12px_rgba(56,189,248,0.4)] border border-sky-400/50 scale-[0.97] ";
+            } else {
+                baseClass += "bg-[#1e2a3e] text-slate-300 border border-white/[0.06] hover:bg-[#253349] hover:text-white ";
+            }
         } else {
-            baseClass += ` 
-                border-gray-400 
-                ${
-                    isKeyPressed()
-                        ? "bg-blue-200 text-gray-800"
-                        : "bg-white text-gray-800 hover:bg-gray-100"
-                }
-            `;
+            if (pressed) {
+                baseClass += "bg-sky-400 text-white shadow-lg shadow-sky-400/30 border border-sky-300 scale-[0.97] ";
+            } else {
+                baseClass += "bg-white text-slate-700 border border-slate-200/80 shadow-sm hover:bg-slate-50 hover:shadow-md ";
+            }
         }
 
-        if (isKeyPressed()) {
-            baseClass += " transform translate-y-px shadow-sm";
-        }
+        const S = {
+            compact: {
+                key: "w-8 h-8 text-xs", wide: "w-16 h-8 text-[11px]", mid: "w-14 h-8 text-[11px]",
+                shift: "w-20 h-8 text-[11px]", space: "w-40 h-8 text-[11px]", cmd: "w-16 h-7 text-[10px]", mod: "w-12 h-7 text-[10px]",
+            },
+            normal: {
+                key: "w-9 h-9 text-sm", wide: "w-[4.5rem] h-9 text-xs", mid: "w-[3.75rem] h-9 text-xs",
+                shift: "w-[5.5rem] h-9 text-xs", space: "w-44 h-9 text-xs", cmd: "w-20 h-9 text-[11px]", mod: "w-14 h-9 text-[11px]",
+            },
+            large: {
+                key: "flex-1 h-14 text-base", wide: "flex-[1.7] h-14 text-sm", mid: "flex-[1.5] h-14 text-sm",
+                shift: "flex-[2] h-14 text-sm", space: "flex-[5] h-14 text-sm", cmd: "flex-[1.5] h-14 text-xs", mod: "flex-1 h-14 text-xs",
+            },
+        }[size];
 
         switch (key) {
             case "Backspace":
-                return baseClass + " w-24 h-12";
+            case "Enter":
+                return baseClass + S.wide;
             case "Tab":
             case "Caps":
-                return baseClass + " w-20 h-12";
-            case "Enter":
-                return baseClass + " w-24 h-12";
+                return baseClass + S.mid;
             case "Shift-L":
             case "Shift-R":
-                return baseClass + " w-28 h-12";
+                return baseClass + S.shift;
             case "Space":
-                return baseClass + " w-64 h-12";
+                return baseClass + S.space;
             case "Cmd-L":
             case "Cmd-R":
+                return baseClass + S.cmd;
             case "Option-L":
             case "Option-R":
             case "Ctrl-L":
@@ -153,16 +161,15 @@ const Keyboard: React.FC<KeyboardProps> = ({
             case "Alt-R":
             case "Win":
             case "Fn":
-                return baseClass + " w-20 h-12";
+                return baseClass + S.mod;
             default:
-                return baseClass + " w-12 h-12";
+                return baseClass + S.key;
         }
     };
 
     const renderKey = (key: string) => {
         const displayKey = key
             .replace(/-[LR]$/, "")
-            .replace("Cmd", "Command")
             .replace("Option", "Opt");
         return (
             <div key={key} className={getKeyClass(key)}>
@@ -171,24 +178,25 @@ const Keyboard: React.FC<KeyboardProps> = ({
         );
     };
 
+    const isLg = size === "large";
+    const wrapPad = { compact: "px-3 py-2.5", normal: "px-4 py-3", large: "px-8 py-5 w-full" }[size];
+    const rowGap = { compact: "gap-[3px] mb-[3px]", normal: "gap-1 mb-1", large: "gap-2 mb-2 w-full" }[size];
+
     return (
         <div
             className={`
-            flex flex-col items-center p-6 rounded-xl shadow-lg max-w-4xl mx-auto my-8
-            ${darkMode ? "bg-gray-800" : "bg-gray-200"}
-        `}
+                flex flex-col items-center ${wrapPad} rounded-2xl ${isLg ? "" : "mx-auto"}
+                ${
+                    darkMode
+                        ? "bg-white/[0.02] border border-white/[0.05]"
+                        : "bg-slate-50/50 border border-slate-200/40"
+                }
+            `}
         >
-            <div
-                className={`mb-3 text-xs font-semibold ${
-                    darkMode ? "text-gray-300" : "text-gray-600"
-                }`}
-            >
-                Layout: {platform === "mac" ? "macOS" : "Windows"}
-            </div>
             {layout.map((row, rowIndex) => (
                 <div
                     key={`row-${rowIndex}`}
-                    className="flex justify-center mb-2"
+                    className={`flex ${isLg ? "" : "justify-center"} ${rowGap}`}
                 >
                     {row.map(renderKey)}
                 </div>

@@ -3,6 +3,12 @@ import { create } from "zustand";
 // 게임 모드 타입 정의
 type GameMode = "practice" | "falling-words";
 
+// 난이도 타입 정의
+type Difficulty = "easy" | "normal" | "hard";
+const VALID_DIFFICULTIES: readonly Difficulty[] = ["easy", "normal", "hard"];
+const isValidDifficulty = (v: unknown): v is Difficulty =>
+    typeof v === "string" && VALID_DIFFICULTIES.includes(v as Difficulty);
+
 // 상태를 정의하는 인터페이스
 interface TypingState {
     // 기존 상태
@@ -24,10 +30,19 @@ interface TypingState {
     // 게임 모드 및 언어 변경 액션
     setGameMode: (mode: GameMode) => void;
     toggleLanguage: () => void;
+    setLanguage: (language: "korean" | "english") => void;
 
     // 음소거 관련 상태
     isMuted: boolean;
     toggleMute: () => void;
+
+    // 하이스코어
+    highScore: number;
+    setHighScore: (score: number) => void;
+
+    // 난이도
+    difficulty: Difficulty;
+    setDifficulty: (d: Difficulty) => void;
 }
 
 // Zustand를 사용해 전역 상태 스토어 생성
@@ -67,10 +82,32 @@ const useTypingStore = create<TypingState>((set) => ({
             localStorage.setItem("language", newLanguage);
             return { language: newLanguage };
         }),
+    setLanguage: (language: "korean" | "english") => {
+        localStorage.setItem("language", language);
+        set({ language });
+    },
 
     // 음소거 관련 상태
     isMuted: false,
     toggleMute: () => set((state) => ({ isMuted: !state.isMuted })),
+
+    // 하이스코어
+    highScore: Number(localStorage.getItem("highScore")) || 0,
+    setHighScore: (score: number) => {
+        localStorage.setItem("highScore", String(score));
+        set({ highScore: score });
+    },
+
+    // 난이도
+    difficulty: (() => {
+        const raw = localStorage.getItem("difficulty");
+        return isValidDifficulty(raw) ? raw : "normal";
+    })(),
+    setDifficulty: (d: Difficulty) => {
+        if (!isValidDifficulty(d)) return;
+        localStorage.setItem("difficulty", d);
+        set({ difficulty: d });
+    },
 }));
 
 export default useTypingStore;
