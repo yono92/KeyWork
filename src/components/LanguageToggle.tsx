@@ -3,35 +3,29 @@ import { BsGlobe } from "react-icons/bs";
 import useTypingStore from "../store/store";
 
 interface LanguageToggleProps {
-    language: "korean" | "english";
-    toggleLanguage: () => void;
+    className?: string;
 }
 
-const LanguageToggle: React.FC<LanguageToggleProps> = ({
-    language,
-    toggleLanguage,
-}) => {
-    const darkMode = useTypingStore((state) => state.darkMode);
+const LanguageToggle: React.FC<LanguageToggleProps> = ({ className = "" }) => {
+    const language = useTypingStore((state) => state.language);
+    const toggleLanguage = useTypingStore((state) => state.toggleLanguage);
 
     return (
         <button
             onClick={toggleLanguage}
-            className={`fixed bottom-4 right-20 
-                flex items-center gap-2 
-                p-3 rounded-full shadow-lg 
-                focus:outline-none
-                transition-colors duration-200
-                ${
-                    darkMode
-                        ? "bg-gray-700 text-gray-200 hover:bg-gray-600"
-                        : "bg-gray-300 text-gray-800 hover:bg-gray-400"
-                }
+            className={`${className}
+                w-9 h-9 flex items-center justify-center
+                rounded-lg focus:outline-none
+                transition-all duration-200 hover:-translate-y-0.5
+                text-slate-500 hover:text-sky-600
+                dark:text-slate-400 dark:hover:text-sky-400
+                hover:bg-sky-50 dark:hover:bg-white/5
             `}
             aria-label={
                 language === "korean" ? "Switch to English" : "한국어 전환"
             }
         >
-            <BsGlobe size={24} />
+            <BsGlobe size={16} />
         </button>
     );
 };

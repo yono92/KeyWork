@@ -5,6 +5,7 @@ interface KeyboardProps {
     language: "english" | "korean";
     darkMode: boolean;
     platform: "mac" | "windows";
+    compact?: boolean;
 }
 
 const ENGLISH_LAYOUT_BASE = [
@@ -29,6 +30,7 @@ const Keyboard: React.FC<KeyboardProps> = ({
     language = "english",
     darkMode = false,
     platform = "windows",
+    compact = false,
 }) => {
     const baseLayout = language === "korean" ? KOREAN_LAYOUT_BASE : ENGLISH_LAYOUT_BASE;
     const bottomRow = platform === "mac" ? MAC_BOTTOM_ROW : WINDOWS_BOTTOM_ROW;
@@ -47,7 +49,6 @@ const Keyboard: React.FC<KeyboardProps> = ({
         Win: ["metaleft"],
         "Alt-L": ["altleft"],
         "Alt-R": ["altright"],
-        Fn: ["fn"],
         "Option-L": ["altleft"],
         "Option-R": ["altright"],
         "Cmd-L": ["metaleft"],
@@ -84,13 +85,6 @@ const Keyboard: React.FC<KeyboardProps> = ({
             ㅜ: "n",
             ㅡ: "m",
         };
-        
-        let baseClass = `
-            flex items-center justify-center 
-            border rounded-md shadow-md cursor-pointer 
-            transition-all duration-100 ease-in-out 
-            text-sm font-bold
-        `;
 
         const isKeyPressed = () => {
             if (SPECIAL_KEY_MAP[key]) {
@@ -106,45 +100,40 @@ const Keyboard: React.FC<KeyboardProps> = ({
             return pressedKeys.includes(lowercaseKey);
         };
 
-        if (darkMode) {
-            baseClass += ` 
-                border-gray-600 
-                ${
-                    isKeyPressed()
-                        ? "bg-blue-700 text-white"
-                        : "bg-gray-700 text-gray-300 hover:bg-gray-600"
-                }
-            `;
-        } else {
-            baseClass += ` 
-                border-gray-400 
-                ${
-                    isKeyPressed()
-                        ? "bg-blue-200 text-gray-800"
-                        : "bg-white text-gray-800 hover:bg-gray-100"
-                }
-            `;
-        }
+        const pressed = isKeyPressed();
 
-        if (isKeyPressed()) {
-            baseClass += " transform translate-y-px shadow-sm";
+        let baseClass = "flex items-center justify-center rounded-lg cursor-pointer transition-all duration-75 ease-out font-semibold select-none ";
+
+        if (darkMode) {
+            if (pressed) {
+                baseClass += "bg-sky-500 text-white shadow-[0_0_12px_rgba(56,189,248,0.4)] border border-sky-400/50 scale-[0.97] ";
+            } else {
+                baseClass += "bg-[#1e2a3e] text-slate-300 border border-white/[0.06] hover:bg-[#253349] hover:text-white ";
+            }
+        } else {
+            if (pressed) {
+                baseClass += "bg-sky-400 text-white shadow-lg shadow-sky-400/30 border border-sky-300 scale-[0.97] ";
+            } else {
+                baseClass += "bg-white text-slate-700 border border-slate-200/80 shadow-sm hover:bg-slate-50 hover:shadow-md ";
+            }
         }
 
         switch (key) {
             case "Backspace":
-                return baseClass + " w-24 h-12";
+                return baseClass + (compact ? "w-16 h-8 text-[11px]" : "w-18 h-9 text-xs");
             case "Tab":
             case "Caps":
-                return baseClass + " w-20 h-12";
+                return baseClass + (compact ? "w-14 h-8 text-[11px]" : "w-15 h-9 text-xs");
             case "Enter":
-                return baseClass + " w-24 h-12";
+                return baseClass + (compact ? "w-16 h-8 text-[11px]" : "w-18 h-9 text-xs");
             case "Shift-L":
             case "Shift-R":
-                return baseClass + " w-28 h-12";
+                return baseClass + (compact ? "w-20 h-8 text-[11px]" : "w-22 h-9 text-xs");
             case "Space":
-                return baseClass + " w-64 h-12";
+                return baseClass + (compact ? "w-40 h-8 text-[11px]" : "w-44 h-9 text-xs");
             case "Cmd-L":
             case "Cmd-R":
+                return baseClass + (compact ? "w-16 h-7 text-[10px]" : "w-20 h-9 text-[11px]");
             case "Option-L":
             case "Option-R":
             case "Ctrl-L":
@@ -153,16 +142,15 @@ const Keyboard: React.FC<KeyboardProps> = ({
             case "Alt-R":
             case "Win":
             case "Fn":
-                return baseClass + " w-20 h-12";
+                return baseClass + (compact ? "w-12 h-7 text-[10px]" : "w-14 h-9 text-[11px]");
             default:
-                return baseClass + " w-12 h-12";
+                return baseClass + (compact ? "w-8 h-8 text-xs" : "w-9 h-9 text-sm");
         }
     };
 
     const renderKey = (key: string) => {
         const displayKey = key
             .replace(/-[LR]$/, "")
-            .replace("Cmd", "Command")
             .replace("Option", "Opt");
         return (
             <div key={key} className={getKeyClass(key)}>
@@ -174,21 +162,18 @@ const Keyboard: React.FC<KeyboardProps> = ({
     return (
         <div
             className={`
-            flex flex-col items-center p-6 rounded-xl shadow-lg max-w-4xl mx-auto my-8
-            ${darkMode ? "bg-gray-800" : "bg-gray-200"}
-        `}
+                flex flex-col items-center ${compact ? "px-3 py-2.5" : "px-4 py-3"} rounded-2xl max-w-4xl mx-auto
+                ${
+                    darkMode
+                        ? "bg-white/[0.02] border border-white/[0.05]"
+                        : "bg-slate-50/50 border border-slate-200/40"
+                }
+            `}
         >
-            <div
-                className={`mb-3 text-xs font-semibold ${
-                    darkMode ? "text-gray-300" : "text-gray-600"
-                }`}
-            >
-                Layout: {platform === "mac" ? "macOS" : "Windows"}
-            </div>
             {layout.map((row, rowIndex) => (
                 <div
                     key={`row-${rowIndex}`}
-                    className="flex justify-center mb-2"
+                    className={`flex justify-center ${compact ? "gap-[3px] mb-[3px]" : "gap-1 mb-1"}`}
                 >
                     {row.map(renderKey)}
                 </div>

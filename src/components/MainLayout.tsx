@@ -1,9 +1,7 @@
 import React, { useEffect } from "react";
 import Header from "./Header";
-import ProgressBar from "./ProgressBar";
 import TypingInput from "./TypingInput";
 import FallingWordsGame from "./FallingWordsGame";
-import DarkModeToggle from "./DarkModeToggle";
 import Footer from "./Footer";
 import useTypingStore from "../store/store";
 
@@ -22,24 +20,24 @@ const MainLayout: React.FC<MainLayoutProps> = ({ gameMode }) => {
     }, [gameMode, setGameMode]);
 
     return (
-        <div className="flex flex-col min-h-screen">
-            <div className="flex-grow bg-gray-200 dark:bg-gray-900 text-gray-800 dark:text-gray-100">
+        <div className="h-full min-h-0 flex flex-col gap-2.5 md:gap-3 text-gray-800 dark:text-gray-100">
+            <div className="rounded-2xl border border-sky-200/40 dark:border-sky-500/10 bg-white/80 dark:bg-[#162032]/80 backdrop-blur-xl shadow-lg shadow-sky-900/5 dark:shadow-black/20 animate-panel-in">
                 <Header />
-                <main className="container mx-auto px-4 py-8">
-                    <div className="max-w-4xl mx-auto">
-                        {gameMode === "falling-words" ? (
-                            <FallingWordsGame />
-                        ) : (
-                            <>
-                                <ProgressBar />
-                                <TypingInput />
-                            </>
-                        )}
-                    </div>
-                </main>
             </div>
-            <Footer />
-            <DarkModeToggle />
+
+            <main className="flex-1 min-h-0 rounded-2xl border border-sky-200/40 dark:border-sky-500/10 bg-white/80 dark:bg-[#162032]/80 backdrop-blur-xl shadow-lg shadow-sky-900/5 dark:shadow-black/20 overflow-y-auto overscroll-contain animate-panel-in">
+                <div className="w-full max-w-5xl mx-auto px-4 md:px-8 py-4 md:py-6">
+                    {gameMode === "falling-words" ? (
+                        <FallingWordsGame />
+                    ) : (
+                        <TypingInput />
+                    )}
+                </div>
+            </main>
+
+            <div className="rounded-2xl border border-sky-200/40 dark:border-sky-500/10 bg-white/80 dark:bg-[#162032]/80 backdrop-blur-xl shadow-lg shadow-sky-900/5 dark:shadow-black/20 animate-panel-in">
+                <Footer />
+            </div>
         </div>
     );
 };
