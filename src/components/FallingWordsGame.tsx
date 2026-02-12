@@ -48,7 +48,7 @@ const FallingWordsGame: React.FC = () => {
     const fallSpeed = Math.min(1 + level * 0.5, 10) * (slowMotion ? 0.5 : 1);
 
     const lifeLostRef = useRef(false);
-    const activeTimersRef = useRef<Record<string, NodeJS.Timeout>>({});
+    const activeTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
     const getRandomWord = (): string => {
         // 반환 타입 명시

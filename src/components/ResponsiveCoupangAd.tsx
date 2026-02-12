@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from "react";
 import useTypingStore from "../store/store";
-import CoupangAd from "./CoupangAd";
 
 interface AdSizeType {
     width: string;
@@ -40,13 +39,14 @@ const ResponsiveCoupangAd: React.FC = () => {
             }`}
             style={{ paddingBottom: "16px" }}
         >
-            <CoupangAd
-                type="image"
-                id="816810"
-                trackingCode="AF5436002"
-                width={adSize.width}
-                height={adSize.height}
-            />
+            <div
+                className={`flex items-center justify-center ${
+                    darkMode ? "bg-gray-900 text-gray-300" : "bg-gray-100 text-gray-600"
+                }`}
+                style={{ width: `${adSize.width}px`, height: `${adSize.height}px` }}
+            >
+                AD {adSize.width}x{adSize.height}
+            </div>
             <p
                 className={`mt-4 text-xs text-center px-2 ${
                     darkMode ? "text-gray-300" : "text-gray-500"

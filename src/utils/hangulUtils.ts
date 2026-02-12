@@ -32,7 +32,7 @@ export const countKeystrokes = (text: string): number => {
 
             // 한글 자모 입력에 가중치 부여 (실제 키보드 입력 패턴 반영)
             // 초성, 중성, 종성 각각에 대해 다른 가중치 적용
-            jamos.forEach((jamo, index) => {
+            jamos.forEach((_, index) => {
                 // 초성(0), 중성(1), 종성(2)에 따라 다른 가중치 적용
                 if (index === 0) {
                     // 초성 가중치
