@@ -214,11 +214,13 @@ const TypingInput: React.FC = () => {
     }, []);
 
     useEffect(() => {
-        const platformValue =
-            (navigator as Navigator & {
-                userAgentData?: { platform?: string };
-            }).userAgentData?.platform || navigator.platform || "";
-        setPlatform(/mac/i.test(platformValue) ? "mac" : "windows");
+        const uaDataPlatform = (navigator as Navigator & {
+            userAgentData?: { platform?: string };
+        }).userAgentData?.platform;
+        const platformValue = navigator.platform || "";
+        const userAgent = navigator.userAgent || "";
+        const detectSource = `${uaDataPlatform || ""} ${platformValue} ${userAgent}`;
+        setPlatform(/mac|iphone|ipad|ipod/i.test(detectSource) ? "mac" : "windows");
     }, []);
 
     const playKeyClickSound = useCallback(() => {
