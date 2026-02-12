@@ -1,11 +1,14 @@
 import React from "react";
 
+type KeyboardSize = "compact" | "normal" | "large";
+
 interface KeyboardProps {
     pressedKeys: string[];
     language: "english" | "korean";
     darkMode: boolean;
     platform: "mac" | "windows";
     compact?: boolean;
+    size?: KeyboardSize;
 }
 
 const ENGLISH_LAYOUT_BASE = [
@@ -31,7 +34,9 @@ const Keyboard: React.FC<KeyboardProps> = ({
     darkMode = false,
     platform = "windows",
     compact = false,
+    size: sizeProp,
 }) => {
+    const size: KeyboardSize = sizeProp ?? (compact ? "compact" : "normal");
     const baseLayout = language === "korean" ? KOREAN_LAYOUT_BASE : ENGLISH_LAYOUT_BASE;
     const bottomRow = platform === "mac" ? MAC_BOTTOM_ROW : WINDOWS_BOTTOM_ROW;
     const layout = [...baseLayout, bottomRow];
@@ -118,22 +123,36 @@ const Keyboard: React.FC<KeyboardProps> = ({
             }
         }
 
+        const S = {
+            compact: {
+                key: "w-8 h-8 text-xs", wide: "w-16 h-8 text-[11px]", mid: "w-14 h-8 text-[11px]",
+                shift: "w-20 h-8 text-[11px]", space: "w-40 h-8 text-[11px]", cmd: "w-16 h-7 text-[10px]", mod: "w-12 h-7 text-[10px]",
+            },
+            normal: {
+                key: "w-9 h-9 text-sm", wide: "w-18 h-9 text-xs", mid: "w-15 h-9 text-xs",
+                shift: "w-22 h-9 text-xs", space: "w-44 h-9 text-xs", cmd: "w-20 h-9 text-[11px]", mod: "w-14 h-9 text-[11px]",
+            },
+            large: {
+                key: "w-12 h-12 text-base", wide: "w-24 h-12 text-sm", mid: "w-20 h-12 text-sm",
+                shift: "w-28 h-12 text-sm", space: "w-60 h-12 text-sm", cmd: "w-24 h-11 text-xs", mod: "w-18 h-11 text-xs",
+            },
+        }[size];
+
         switch (key) {
             case "Backspace":
-                return baseClass + (compact ? "w-16 h-8 text-[11px]" : "w-18 h-9 text-xs");
+            case "Enter":
+                return baseClass + S.wide;
             case "Tab":
             case "Caps":
-                return baseClass + (compact ? "w-14 h-8 text-[11px]" : "w-15 h-9 text-xs");
-            case "Enter":
-                return baseClass + (compact ? "w-16 h-8 text-[11px]" : "w-18 h-9 text-xs");
+                return baseClass + S.mid;
             case "Shift-L":
             case "Shift-R":
-                return baseClass + (compact ? "w-20 h-8 text-[11px]" : "w-22 h-9 text-xs");
+                return baseClass + S.shift;
             case "Space":
-                return baseClass + (compact ? "w-40 h-8 text-[11px]" : "w-44 h-9 text-xs");
+                return baseClass + S.space;
             case "Cmd-L":
             case "Cmd-R":
-                return baseClass + (compact ? "w-16 h-7 text-[10px]" : "w-20 h-9 text-[11px]");
+                return baseClass + S.cmd;
             case "Option-L":
             case "Option-R":
             case "Ctrl-L":
@@ -142,9 +161,9 @@ const Keyboard: React.FC<KeyboardProps> = ({
             case "Alt-R":
             case "Win":
             case "Fn":
-                return baseClass + (compact ? "w-12 h-7 text-[10px]" : "w-14 h-9 text-[11px]");
+                return baseClass + S.mod;
             default:
-                return baseClass + (compact ? "w-8 h-8 text-xs" : "w-9 h-9 text-sm");
+                return baseClass + S.key;
         }
     };
 
@@ -159,10 +178,13 @@ const Keyboard: React.FC<KeyboardProps> = ({
         );
     };
 
+    const wrapPad = { compact: "px-3 py-2.5", normal: "px-4 py-3", large: "px-6 py-4" }[size];
+    const rowGap = { compact: "gap-[3px] mb-[3px]", normal: "gap-1 mb-1", large: "gap-1.5 mb-1.5" }[size];
+
     return (
         <div
             className={`
-                flex flex-col items-center ${compact ? "px-3 py-2.5" : "px-4 py-3"} rounded-2xl max-w-4xl mx-auto
+                flex flex-col items-center ${wrapPad} rounded-2xl mx-auto
                 ${
                     darkMode
                         ? "bg-white/[0.02] border border-white/[0.05]"
@@ -173,7 +195,7 @@ const Keyboard: React.FC<KeyboardProps> = ({
             {layout.map((row, rowIndex) => (
                 <div
                     key={`row-${rowIndex}`}
-                    className={`flex justify-center ${compact ? "gap-[3px] mb-[3px]" : "gap-1 mb-1"}`}
+                    className={`flex justify-center ${rowGap}`}
                 >
                     {row.map(renderKey)}
                 </div>

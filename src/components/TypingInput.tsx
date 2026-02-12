@@ -79,6 +79,7 @@ const TypingInput: React.FC = () => {
     const [pressedKeys, setPressedKeys] = useState<string[]>([]);
     const [isMobile, setIsMobile] = useState<boolean>(false);
     const [isShortScreen, setIsShortScreen] = useState<boolean>(false);
+    const [isLargeScreen, setIsLargeScreen] = useState<boolean>(false);
     const [isValidInput, setIsValidInput] = useState<boolean>(true);
     const [platform, setPlatform] = useState<"mac" | "windows">("windows");
     const audioContextRef = useRef<AudioContext | null>(null);
@@ -231,18 +232,19 @@ const TypingInput: React.FC = () => {
     }, [input, text, startTime, setProgress, language]);
 
     useEffect(() => {
-        const checkMobile = () => {
+        const checkScreen = () => {
             setIsMobile(
                 window.innerWidth <= 768 ||
                 /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
             );
             setIsShortScreen(window.innerHeight <= 900);
+            setIsLargeScreen(window.innerWidth >= 1440 && window.innerHeight >= 900);
         };
 
-        checkMobile();
-        window.addEventListener("resize", checkMobile);
+        checkScreen();
+        window.addEventListener("resize", checkScreen);
 
-        return () => window.removeEventListener("resize", checkMobile);
+        return () => window.removeEventListener("resize", checkScreen);
     }, []);
 
     useEffect(() => {
@@ -446,27 +448,29 @@ const TypingInput: React.FC = () => {
         return Math.min(760, Math.max(260, estimated));
     }, [text.length]);
 
+    const lg = isLargeScreen;
+
     return (
-        <div className="w-full max-w-4xl 2xl:max-w-5xl mx-auto animate-panel-in space-y-4 md:space-y-6 my-auto">
+        <div className={`w-full ${lg ? "max-w-6xl" : "max-w-4xl"} mx-auto animate-panel-in ${lg ? "space-y-8" : "space-y-4 md:space-y-6"} my-auto`}>
             {/* 타이핑 영역 */}
             <div
-                className={`px-6 py-6 md:px-8 md:py-8 rounded-2xl transition-all duration-300 ${
+                className={`${lg ? "px-12 py-10" : "px-6 py-6 md:px-8 md:py-8"} rounded-2xl transition-all duration-300 ${
                     darkMode
                         ? "bg-white/[0.03] border border-white/[0.06]"
                         : "bg-white/60 border border-sky-100/50 shadow-sm"
                 }`}
             >
-                <div className="text-center text-2xl md:text-3xl 2xl:text-4xl font-semibold leading-loose tracking-wide mb-6">
+                <div className={`text-center ${lg ? "text-4xl leading-relaxed mb-8" : "text-2xl md:text-3xl leading-loose mb-6"} font-semibold tracking-wide`}>
                     {renderedText}
                 </div>
-                <ProgressBar trackWidth={progressBarWidth} className="mb-5" />
+                <ProgressBar trackWidth={progressBarWidth} className={lg ? "mb-7" : "mb-5"} />
                 <input
                     ref={inputRef}
                     type="text"
                     value={input}
                     onChange={handleInputChange}
                     onKeyDown={handleKeyPress}
-                    className={`w-full px-4 py-3.5 text-xl 2xl:text-2xl rounded-xl transition-all duration-200 outline-none
+                    className={`w-full ${lg ? "px-5 py-4 text-2xl" : "px-4 py-3.5 text-xl"} rounded-xl transition-all duration-200 outline-none
                         ${
                             darkMode
                                 ? "bg-white/[0.04] text-white placeholder-slate-600 border border-white/[0.08] focus:border-sky-500/50 focus:bg-white/[0.06]"
@@ -498,70 +502,70 @@ const TypingInput: React.FC = () => {
                     language={language}
                     darkMode={darkMode}
                     platform={platform}
-                    compact={isShortScreen}
+                    size={lg ? "large" : isShortScreen ? "compact" : "normal"}
                 />
             )}
 
             {/* 통계 카드 */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 2xl:gap-4">
-                <div className={`rounded-xl px-4 py-3.5 transition-all duration-300 ${
+            <div className={`grid grid-cols-2 md:grid-cols-4 ${lg ? "gap-5" : "gap-3"}`}>
+                <div className={`rounded-xl ${lg ? "px-6 py-5" : "px-4 py-3.5"} transition-all duration-300 ${
                     darkMode
                         ? "bg-white/[0.03] border border-white/[0.06]"
                         : "bg-white/60 border border-sky-100/50"
                 }`}>
-                    <div className={`text-xs font-medium mb-1 ${darkMode ? "text-sky-400" : "text-sky-600"}`}>
+                    <div className={`${lg ? "text-sm mb-1.5" : "text-xs mb-1"} font-medium ${darkMode ? "text-sky-400" : "text-sky-600"}`}>
                         타이핑 속도
                     </div>
                     <div className="flex items-baseline gap-1">
-                        <span className={`text-2xl font-bold tabular-nums ${darkMode ? "text-white" : "text-slate-800"}`}>
+                        <span className={`${lg ? "text-3xl" : "text-2xl"} font-bold tabular-nums ${darkMode ? "text-white" : "text-slate-800"}`}>
                             {typingSpeed}
                         </span>
-                        <span className={`text-xs ${darkMode ? "text-slate-500" : "text-slate-400"}`}>타/분</span>
+                        <span className={`${lg ? "text-sm" : "text-xs"} ${darkMode ? "text-slate-500" : "text-slate-400"}`}>타/분</span>
                     </div>
                 </div>
-                <div className={`rounded-xl px-4 py-3.5 transition-all duration-300 ${
+                <div className={`rounded-xl ${lg ? "px-6 py-5" : "px-4 py-3.5"} transition-all duration-300 ${
                     darkMode
                         ? "bg-white/[0.03] border border-white/[0.06]"
                         : "bg-white/60 border border-sky-100/50"
                 }`}>
-                    <div className={`text-xs font-medium mb-1 ${darkMode ? "text-emerald-400" : "text-emerald-600"}`}>
+                    <div className={`${lg ? "text-sm mb-1.5" : "text-xs mb-1"} font-medium ${darkMode ? "text-emerald-400" : "text-emerald-600"}`}>
                         정확도
                     </div>
                     <div className="flex items-baseline gap-1">
-                        <span className={`text-2xl font-bold tabular-nums ${darkMode ? "text-white" : "text-slate-800"}`}>
+                        <span className={`${lg ? "text-3xl" : "text-2xl"} font-bold tabular-nums ${darkMode ? "text-white" : "text-slate-800"}`}>
                             {accuracy}
                         </span>
-                        <span className={`text-xs ${darkMode ? "text-slate-500" : "text-slate-400"}`}>%</span>
+                        <span className={`${lg ? "text-sm" : "text-xs"} ${darkMode ? "text-slate-500" : "text-slate-400"}`}>%</span>
                     </div>
                 </div>
-                <div className={`rounded-xl px-4 py-3.5 transition-all duration-300 ${
+                <div className={`rounded-xl ${lg ? "px-6 py-5" : "px-4 py-3.5"} transition-all duration-300 ${
                     darkMode
                         ? "bg-white/[0.03] border border-white/[0.06]"
                         : "bg-white/60 border border-sky-100/50"
                 }`}>
-                    <div className={`text-xs font-medium mb-1 ${darkMode ? "text-violet-400" : "text-violet-600"}`}>
+                    <div className={`${lg ? "text-sm mb-1.5" : "text-xs mb-1"} font-medium ${darkMode ? "text-violet-400" : "text-violet-600"}`}>
                         평균 속도
                     </div>
                     <div className="flex items-baseline gap-1">
-                        <span className={`text-2xl font-bold tabular-nums ${darkMode ? "text-white" : "text-slate-800"}`}>
+                        <span className={`${lg ? "text-3xl" : "text-2xl"} font-bold tabular-nums ${darkMode ? "text-white" : "text-slate-800"}`}>
                             {allSpeeds.length > 0 ? averageSpeed : 0}
                         </span>
-                        <span className={`text-xs ${darkMode ? "text-slate-500" : "text-slate-400"}`}>타/분</span>
+                        <span className={`${lg ? "text-sm" : "text-xs"} ${darkMode ? "text-slate-500" : "text-slate-400"}`}>타/분</span>
                     </div>
                 </div>
-                <div className={`rounded-xl px-4 py-3.5 transition-all duration-300 ${
+                <div className={`rounded-xl ${lg ? "px-6 py-5" : "px-4 py-3.5"} transition-all duration-300 ${
                     darkMode
                         ? "bg-white/[0.03] border border-white/[0.06]"
                         : "bg-white/60 border border-sky-100/50"
                 }`}>
-                    <div className={`text-xs font-medium mb-1 ${darkMode ? "text-amber-400" : "text-amber-600"}`}>
+                    <div className={`${lg ? "text-sm mb-1.5" : "text-xs mb-1"} font-medium ${darkMode ? "text-amber-400" : "text-amber-600"}`}>
                         평균 정확도
                     </div>
                     <div className="flex items-baseline gap-1">
-                        <span className={`text-2xl font-bold tabular-nums ${darkMode ? "text-white" : "text-slate-800"}`}>
+                        <span className={`${lg ? "text-3xl" : "text-2xl"} font-bold tabular-nums ${darkMode ? "text-white" : "text-slate-800"}`}>
                             {allAccuracies.length > 0 ? averageAccuracy : 0}
                         </span>
-                        <span className={`text-xs ${darkMode ? "text-slate-500" : "text-slate-400"}`}>%</span>
+                        <span className={`${lg ? "text-sm" : "text-xs"} ${darkMode ? "text-slate-500" : "text-slate-400"}`}>%</span>
                     </div>
                 </div>
             </div>
