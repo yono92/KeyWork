@@ -6,6 +6,40 @@ import Keyboard from "./Keyboard";
 import LanguageToggle from "./LanguageToggle";
 import MuteToggle from "./MuteToggle";
 
+const normalizeCode = (code: string): string => {
+    if (code.startsWith("Key")) return code.slice(3).toLowerCase();
+    if (code.startsWith("Digit")) return code.slice(5);
+
+    const codeMap: Record<string, string> = {
+        Backquote: "`",
+        Minus: "-",
+        Equal: "=",
+        BracketLeft: "[",
+        BracketRight: "]",
+        Backslash: "\\",
+        Semicolon: ";",
+        Quote: "'",
+        Comma: ",",
+        Period: ".",
+        Slash: "/",
+        Space: "space",
+        Enter: "enter",
+        Tab: "tab",
+        Backspace: "backspace",
+        CapsLock: "capslock",
+        ShiftLeft: "shiftleft",
+        ShiftRight: "shiftright",
+        ControlLeft: "controlleft",
+        ControlRight: "controlright",
+        AltLeft: "altleft",
+        AltRight: "altright",
+        MetaLeft: "metaleft",
+        MetaRight: "metaright",
+    };
+
+    return codeMap[code] || code.toLowerCase();
+};
+
 const TypingInput: React.FC = () => {
     const text = useTypingStore((state) => state.text);
     const setProgress = useTypingStore((state) => state.setProgress);
@@ -25,12 +59,12 @@ const TypingInput: React.FC = () => {
     const [pressedKeys, setPressedKeys] = useState<string[]>([]);
     const [isMobile, setIsMobile] = useState<boolean>(false);
     const [isValidInput, setIsValidInput] = useState<boolean>(true);
+    const [platform, setPlatform] = useState<"mac" | "windows">("windows");
     const audioContextRef = useRef<AudioContext | null>(null);
     const isMuted = useTypingStore((state) => state.isMuted);
 
     const handleKeyDown = useCallback((e: KeyboardEvent) => {
-        // Key 대신 Code를 사용
-        const keyCode = e.code.replace("Key", "").toLowerCase();
+        const keyCode = normalizeCode(e.code);
         setPressedKeys((prevKeys) => [...new Set([...prevKeys, keyCode])]);
     }, []);
 
@@ -44,7 +78,7 @@ const TypingInput: React.FC = () => {
     };
 
     const handleKeyUp = useCallback((e: KeyboardEvent) => {
-        const keyCode = e.code.replace("Key", "").toLowerCase();
+        const keyCode = normalizeCode(e.code);
         setPressedKeys((prevKeys) => prevKeys.filter((key) => key !== keyCode));
     }, []);
 
@@ -137,11 +171,9 @@ const TypingInput: React.FC = () => {
 
         if (input.length > 0 && startTime !== null) {
             const currentTime = Date.now();
-            // 시작 시간에 약간의 지연을 고려 (반응 시간 보정)
-            const adjustedStartTime = startTime + 500; // 500ms 지연 보정
             const timeElapsedInMinutes = Math.max(
-                0.1,
-                (currentTime - adjustedStartTime) / 60000
+                5 / 60,
+                (currentTime - startTime) / 60000
             );
 
             // 실제 키 입력 횟수를 계산
@@ -153,12 +185,8 @@ const TypingInput: React.FC = () => {
             // 짧은 시간 동안의 타수 계산 보정 (초기 타수가 비현실적으로 높게 나오는 것 방지)
             if (timeElapsedInMinutes < 0.2) {
                 // 12초 미만일 경우
-                calculatedSpeed = Math.min(calculatedSpeed, 1000);
+                calculatedSpeed = Math.min(calculatedSpeed, 700);
             }
-
-            // 언어별 보정 계수 적용
-            const languageMultiplier = language === "korean" ? 1.2 : 1.0; // 한글 가중치 상향 (1.1 -> 1.2)
-            calculatedSpeed = Math.round(calculatedSpeed * languageMultiplier);
 
             setTypingSpeed(calculatedSpeed);
 
@@ -183,6 +211,14 @@ const TypingInput: React.FC = () => {
         window.addEventListener("resize", checkMobile);
 
         return () => window.removeEventListener("resize", checkMobile);
+    }, []);
+
+    useEffect(() => {
+        const platformValue =
+            (navigator as Navigator & {
+                userAgentData?: { platform?: string };
+            }).userAgentData?.platform || navigator.platform || "";
+        setPlatform(/mac/i.test(platformValue) ? "mac" : "windows");
     }, []);
 
     const playKeyClickSound = useCallback(() => {
@@ -419,6 +455,7 @@ const TypingInput: React.FC = () => {
                     pressedKeys={pressedKeys}
                     language={language}
                     darkMode={darkMode}
+                    platform={platform}
                 />
             )}
             <div className="mt-6 text-center grid grid-cols-2 gap-4">

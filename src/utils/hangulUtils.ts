@@ -27,37 +27,15 @@ export const countKeystrokes = (text: string): number => {
         const char = text[i];
 
         if (isHangul(char)) {
-            // 한글 문자는 자모 분해하여 실제 키 입력 횟수 계산
-            const jamos = decomposeHangul(char);
-
-            // 한글 자모 입력에 가중치 부여 (실제 키보드 입력 패턴 반영)
-            // 초성, 중성, 종성 각각에 대해 다른 가중치 적용
-            jamos.forEach((_, index) => {
-                // 초성(0), 중성(1), 종성(2)에 따라 다른 가중치 적용
-                if (index === 0) {
-                    // 초성 가중치
-                    keystrokes += 1.2;
-                } else if (index === 1) {
-                    // 중성 가중치 (모음은 보통 2개 이상의 키 입력이 필요한 경우가 많음)
-                    keystrokes += 1.5;
-                } else {
-                    // 종성 가중치
-                    keystrokes += 1.3;
-                }
-            });
-
-            // 추가 보정: 한글 입력은 영문보다 복잡하므로 추가 가중치
-            keystrokes += 0.5;
-        } else if (char === " ") {
-            // 공백은 1회 키 입력
-            keystrokes += 1;
+            // 실제 입력 횟수에 가깝게 자모 개수 기준으로 계산
+            keystrokes += decomposeHangul(char).length;
         } else {
-            // 영문, 숫자, 특수문자 등은 1회 키 입력으로 계산
+            // 영문, 숫자, 공백, 특수문자 등은 1회 입력으로 계산
             keystrokes += 1;
         }
     }
 
-    return Math.round(keystrokes);
+    return keystrokes;
 };
 
 export const compareHangulJamo = (
