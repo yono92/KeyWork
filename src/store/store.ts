@@ -5,6 +5,9 @@ type GameMode = "practice" | "falling-words";
 
 // 난이도 타입 정의
 type Difficulty = "easy" | "normal" | "hard";
+const VALID_DIFFICULTIES: readonly Difficulty[] = ["easy", "normal", "hard"];
+const isValidDifficulty = (v: unknown): v is Difficulty =>
+    typeof v === "string" && VALID_DIFFICULTIES.includes(v as Difficulty);
 
 // 상태를 정의하는 인터페이스
 interface TypingState {
@@ -96,8 +99,12 @@ const useTypingStore = create<TypingState>((set) => ({
     },
 
     // 난이도
-    difficulty: (localStorage.getItem("difficulty") as Difficulty) || "normal",
+    difficulty: (() => {
+        const raw = localStorage.getItem("difficulty");
+        return isValidDifficulty(raw) ? raw : "normal";
+    })(),
     setDifficulty: (d: Difficulty) => {
+        if (!isValidDifficulty(d)) return;
         localStorage.setItem("difficulty", d);
         set({ difficulty: d });
     },

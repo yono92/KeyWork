@@ -64,6 +64,13 @@ const FallingWordsGame: React.FC = () => {
     const [scorePopups, setScorePopups] = useState<ScorePopup[]>([]);
     const [isPaused, setIsPaused] = useState<boolean>(false);
 
+    // 게임 시작 전 난이도 변경 시 라이프 동기화
+    useEffect(() => {
+        if (words.length === 0 && !gameOver) {
+            setLives(DIFFICULTY_CONFIG[difficulty].lives);
+        }
+    }, [difficulty, words.length, gameOver]);
+
     const gameAreaRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
     const isComposingRef = useRef(false);
