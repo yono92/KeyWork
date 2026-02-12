@@ -338,15 +338,19 @@ const FallingWordsGame: React.FC = () => {
     useEffect(() => {
         if (gameOver || isPaused) return;
 
+        const BASE_HEIGHT = 600; // 기준 높이 (13인치 기준)
+
         const moveWords = setInterval(() => {
             setWords((currentWords) => {
-                const gameAreaHeight = gameAreaRef.current?.offsetHeight ?? 600;
+                const gameAreaHeight = gameAreaRef.current?.offsetHeight ?? BASE_HEIGHT;
                 const bottomThreshold = gameAreaHeight - 80;
+                // 큰 화면에서 낙하 시간이 늘어나지 않도록 높이 비율로 속도 보정
+                const heightScale = gameAreaHeight / BASE_HEIGHT;
 
                 const updatedWords = currentWords.map((word) => {
                     // matched/missed 상태인 단어는 위치 업데이트 안 함
                     if (word.status !== "falling") return word;
-                    return { ...word, top: word.top + fallSpeed };
+                    return { ...word, top: word.top + fallSpeed * heightScale };
                 });
 
                 // 바닥에 닿은 falling 상태의 일반 단어 확인
