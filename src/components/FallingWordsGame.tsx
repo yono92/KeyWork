@@ -495,7 +495,7 @@ const FallingWordsGame: React.FC = () => {
                     }
 
                     let wordScore = matchedWord.text.length * 10;
-                    const comboMultiplier = 1 + Math.min(newCombo * 0.2, 2);
+                    const comboMultiplier = Math.min(1 + newCombo * 0.2, 2);
                     wordScore *= comboMultiplier;
 
                     if (timeSinceLastType < 500) wordScore *= 1.5;
@@ -656,7 +656,7 @@ const FallingWordsGame: React.FC = () => {
                         )}
                         {combo > 0 && (
                             <span className="ml-1 sm:ml-2 text-[10px] sm:text-sm text-sky-400">
-                                x{(1 + Math.min(combo * 0.2, 2)).toFixed(1)}
+                                x{Math.min(1 + combo * 0.2, 2).toFixed(1)}
                             </span>
                         )}
                     </div>
