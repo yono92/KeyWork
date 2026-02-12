@@ -84,7 +84,8 @@ const FallingWordsGame: React.FC = () => {
 
     const spawnInterval =
         Math.max(2000 - level * 100, 300) * (slowMotion ? 1.5 : 1) * config.spawnMul;
-    const fallSpeed = Math.min(1 + level * 0.5, 10) * (slowMotion ? 0.5 : 1) * config.speedMul;
+    // 바닥 도달 시간(초): 레벨 1 ≈ 6.7초, 레벨이 올라갈수록 빨라짐, 최소 1초
+    const fallSeconds = Math.max(10 / (1 + level * 0.5), 1) * (slowMotion ? 2 : 1) / config.speedMul;
 
     const lifeLostRef = useRef(false);
     const activeTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
@@ -338,19 +339,16 @@ const FallingWordsGame: React.FC = () => {
     useEffect(() => {
         if (gameOver || isPaused) return;
 
-        const BASE_HEIGHT = 600; // 기준 높이 (13인치 기준)
-
         const moveWords = setInterval(() => {
             setWords((currentWords) => {
-                const gameAreaHeight = gameAreaRef.current?.offsetHeight ?? BASE_HEIGHT;
+                const gameAreaHeight = gameAreaRef.current?.offsetHeight ?? 600;
                 const bottomThreshold = gameAreaHeight - 80;
-                // 큰 화면에서 낙하 시간이 늘어나지 않도록 높이 비율로 속도 보정
-                const heightScale = gameAreaHeight / BASE_HEIGHT;
+                // 게임 영역 높이 기반 속도: 어떤 화면이든 동일한 시간에 바닥 도달
+                const speed = gameAreaHeight / (fallSeconds * 60);
 
                 const updatedWords = currentWords.map((word) => {
-                    // matched/missed 상태인 단어는 위치 업데이트 안 함
                     if (word.status !== "falling") return word;
-                    return { ...word, top: word.top + fallSpeed * heightScale };
+                    return { ...word, top: word.top + speed };
                 });
 
                 // 바닥에 닿은 falling 상태의 일반 단어 확인
@@ -388,7 +386,7 @@ const FallingWordsGame: React.FC = () => {
         }, 16);
 
         return () => clearInterval(moveWords);
-    }, [fallSpeed, gameOver, isPaused, shield, playSound]);
+    }, [fallSeconds, gameOver, isPaused, shield, playSound]);
 
     // matched/missed 단어 일정 시간 후 제거
     useEffect(() => {
