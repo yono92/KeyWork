@@ -1,7 +1,7 @@
 import { create } from "zustand";
 
 // 게임 모드 타입 정의
-type GameMode = "practice" | "falling-words";
+type GameMode = "practice" | "falling-words" | "typing-defense" | "typing-race" | "dictation" | "word-chain";
 
 // 난이도 타입 정의
 type Difficulty = "easy" | "normal" | "hard";
@@ -18,7 +18,7 @@ interface TypingState {
     input: string;
 
     // 게임 모드 및 언어 상태
-    gameMode: "practice" | "falling-words";
+    gameMode: GameMode;
     language: "korean" | "english";
 
     // 기존 액션
@@ -43,6 +43,10 @@ interface TypingState {
     // 난이도
     difficulty: Difficulty;
     setDifficulty: (d: Difficulty) => void;
+
+    // 모바일 메뉴
+    mobileMenuOpen: boolean;
+    setMobileMenuOpen: (open: boolean) => void;
 }
 
 // Zustand를 사용해 전역 상태 스토어 생성
@@ -108,6 +112,10 @@ const useTypingStore = create<TypingState>((set) => ({
         localStorage.setItem("difficulty", d);
         set({ difficulty: d });
     },
+
+    // 모바일 메뉴
+    mobileMenuOpen: false,
+    setMobileMenuOpen: (open: boolean) => set({ mobileMenuOpen: open }),
 }));
 
 export default useTypingStore;

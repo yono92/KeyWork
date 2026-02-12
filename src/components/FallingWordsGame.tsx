@@ -33,9 +33,9 @@ const ITEM_TYPES = {
 type SoundType = "match" | "combo" | "item" | "lifeLost" | "levelUp" | "gameOver";
 
 const DIFFICULTY_CONFIG = {
-    easy:   { spawnMul: 1.5, speedMul: 0.7, lives: 5, scorePerLevel: 400 },
+    easy:   { spawnMul: 1.5, speedMul: 0.7, lives: 3, scorePerLevel: 400 },
     normal: { spawnMul: 1.0, speedMul: 1.0, lives: 3, scorePerLevel: 500 },
-    hard:   { spawnMul: 0.7, speedMul: 1.3, lives: 2, scorePerLevel: 600 },
+    hard:   { spawnMul: 0.7, speedMul: 1.3, lives: 3, scorePerLevel: 600 },
 } as const;
 
 const FallingWordsGame: React.FC = () => {
@@ -495,7 +495,7 @@ const FallingWordsGame: React.FC = () => {
                     }
 
                     let wordScore = matchedWord.text.length * 10;
-                    const comboMultiplier = 1 + Math.min(newCombo * 0.2, 2);
+                    const comboMultiplier = Math.min(1 + newCombo * 0.2, 2);
                     wordScore *= comboMultiplier;
 
                     if (timeSinceLastType < 500) wordScore *= 1.5;
@@ -530,14 +530,15 @@ const FallingWordsGame: React.FC = () => {
         }
     };
 
-    const restartGame = (): void => {
+    const restartGame = (overrideDifficulty?: keyof typeof DIFFICULTY_CONFIG): void => {
+        const d = overrideDifficulty ?? difficulty;
         Object.values(activeTimersRef.current).forEach(clearTimeout);
         activeTimersRef.current = {};
 
         setWords([]);
         setScore(0);
         setLevel(1);
-        setLives(DIFFICULTY_CONFIG[difficulty].lives);
+        setLives(DIFFICULTY_CONFIG[d].lives);
         setGameOver(false);
         setGameStarted(true);
         setLevelUp(false);
@@ -575,7 +576,7 @@ const FallingWordsGame: React.FC = () => {
     }, [isPaused, gameOver]);
 
     const renderActiveEffects = () => (
-        <div className="absolute top-14 right-4 flex gap-2">
+        <div className="absolute top-11 sm:top-14 right-2 sm:right-4 flex gap-2">
             {Array.from(activeEffects).map((effect) => (
                 <div
                     key={effect}
@@ -639,37 +640,37 @@ const FallingWordsGame: React.FC = () => {
     return (
         <div
             ref={gameAreaRef}
-            className="relative w-full flex-1 min-h-[400px] rounded-2xl overflow-hidden border border-sky-200/40 dark:border-sky-500/10"
+            className="relative w-full flex-1 min-h-[280px] sm:min-h-[400px] rounded-2xl overflow-hidden border border-sky-200/40 dark:border-sky-500/10"
         >
             <div className={`absolute inset-0 ${darkMode ? "bg-[#0e1825]" : "bg-gradient-to-b from-sky-50/80 to-white"}`}>
                 {/* 상단 스코어바 */}
-                <div className={`absolute top-0 left-0 right-0 flex justify-between items-center px-5 py-3 backdrop-blur-sm border-b z-10 ${
+                <div className={`absolute top-0 left-0 right-0 flex justify-between items-center px-2.5 py-2 sm:px-5 sm:py-3 backdrop-blur-sm border-b z-10 ${
                     darkMode ? "bg-white/[0.04] border-white/[0.06]" : "bg-white/70 border-sky-100/50"
                 }`}>
-                    <div className={`text-lg font-bold ${darkMode ? "text-white" : "text-slate-800"}`}>
+                    <div className={`text-xs sm:text-lg font-bold ${darkMode ? "text-white" : "text-slate-800"}`}>
                         Score: <span className="tabular-nums">{score}</span>
                         {highScore > 0 && (
-                            <span className={`ml-2 text-xs font-medium ${darkMode ? "text-slate-500" : "text-slate-400"}`}>
+                            <span className={`ml-1 sm:ml-2 text-[10px] sm:text-xs font-medium ${darkMode ? "text-slate-500" : "text-slate-400"}`}>
                                 Best: <span className="tabular-nums">{highScore}</span>
                             </span>
                         )}
                         {combo > 0 && (
-                            <span className="ml-2 text-sm text-sky-400">
-                                x{(1 + Math.min(combo * 0.2, 2)).toFixed(1)}
+                            <span className="ml-1 sm:ml-2 text-[10px] sm:text-sm text-sky-400">
+                                x{Math.min(1 + combo * 0.2, 2).toFixed(1)}
                             </span>
                         )}
                     </div>
-                    <span className={`px-2 py-0.5 text-xs font-bold rounded-md ${
+                    <span className={`px-1.5 sm:px-2 py-0.5 text-[10px] sm:text-xs font-bold rounded-md ${
                         difficulty === "easy" ? "bg-emerald-500/20 text-emerald-400"
                         : difficulty === "normal" ? "bg-sky-500/20 text-sky-400"
                         : "bg-rose-500/20 text-rose-400"
                     }`}>
                         {difficulty === "easy" ? "Easy" : difficulty === "normal" ? "Normal" : "Hard"}
                     </span>
-                    <div className={`text-lg font-bold ${darkMode ? "text-white" : "text-slate-800"}`}>
+                    <div className={`text-xs sm:text-lg font-bold ${darkMode ? "text-white" : "text-slate-800"}`}>
                         Lv.<span className="tabular-nums">{level}</span>
                     </div>
-                    <div className={`text-lg font-bold ${darkMode ? "text-white" : "text-slate-800"}`}>
+                    <div className={`text-sm sm:text-lg font-bold ${darkMode ? "text-white" : "text-slate-800"}`}>
                         {"❤️".repeat(Math.max(lives, 0))}
                         {"🖤".repeat(Math.max(config.lives - lives, 0))}
                     </div>
@@ -679,9 +680,9 @@ const FallingWordsGame: React.FC = () => {
 
                 {/* 콤보 표시 */}
                 {combo >= 3 && (
-                    <div className="absolute top-14 left-5 z-10">
+                    <div className="absolute top-11 sm:top-14 left-2 sm:left-5 z-10">
                         <div
-                            className={`text-lg font-bold ${
+                            className={`text-sm sm:text-lg font-bold ${
                                 combo >= 10
                                     ? "text-amber-400"
                                     : combo >= 5
@@ -698,10 +699,10 @@ const FallingWordsGame: React.FC = () => {
                 {/* 레벨업 */}
                 {levelUp && (
                     <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center z-20">
-                        <div className="text-4xl font-bold text-amber-400 animate-bounce">
+                        <div className="text-2xl sm:text-4xl font-bold text-amber-400 animate-bounce">
                             Level Up! 🎯
                         </div>
-                        <div className="text-lg text-sky-400 mt-2">
+                        <div className="text-sm sm:text-lg text-sky-400 mt-2">
                             Next goal:{" "}
                             {getLevelRequirements(level + 1).scoreNeeded} points
                         </div>
@@ -712,7 +713,7 @@ const FallingWordsGame: React.FC = () => {
                 {scorePopups.map((popup) => (
                     <div
                         key={popup.id}
-                        className="absolute animate-score-popup z-20 text-lg font-bold text-sky-400"
+                        className="absolute animate-score-popup z-20 text-sm sm:text-lg font-bold text-sky-400"
                         style={{ left: `${popup.left}px`, top: `${popup.top}px` }}
                     >
                         {popup.text}
@@ -725,7 +726,7 @@ const FallingWordsGame: React.FC = () => {
                     return (
                         <div
                             key={word.id}
-                            className={`absolute text-lg font-bold flex items-center gap-1.5 ${getWordAnimClass(word)} ${
+                            className={`absolute text-sm sm:text-lg font-bold flex items-center gap-1 sm:gap-1.5 ${getWordAnimClass(word)} ${
                                 word.type === "normal"
                                     ? darkMode
                                         ? "text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)]"
@@ -768,7 +769,7 @@ const FallingWordsGame: React.FC = () => {
                 })}
 
                 {/* 하단 입력 영역 */}
-                <div className={`absolute bottom-0 left-0 right-0 p-4 backdrop-blur-sm border-t ${
+                <div className={`absolute bottom-0 left-0 right-0 p-2.5 sm:p-4 backdrop-blur-sm border-t ${
                     darkMode ? "bg-white/[0.04] border-white/[0.06]" : "bg-white/70 border-sky-100/50"
                 }`}>
                     <input
@@ -780,7 +781,7 @@ const FallingWordsGame: React.FC = () => {
                         onCompositionStart={handleCompositionStart}
                         onCompositionEnd={handleCompositionEnd}
                         disabled={!gameStarted || isPaused || gameOver}
-                        className={`w-full px-4 py-3 text-lg rounded-xl outline-none transition-all duration-200 border-2 ${
+                        className={`w-full px-3 py-2 text-base sm:px-4 sm:py-3 sm:text-lg rounded-xl outline-none transition-all duration-200 border-2 ${
                             darkMode
                                 ? "bg-white/[0.04] text-white border-white/[0.08] focus:border-sky-500/50 focus:bg-white/[0.06]"
                                 : "bg-white text-slate-800 border-sky-200/60 focus:border-sky-400"
@@ -796,16 +797,16 @@ const FallingWordsGame: React.FC = () => {
             {/* 난이도 선택 오버레이 */}
             {!gameStarted && !gameOver && (
                 <div className="absolute inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm z-30">
-                    <div className={`text-center px-10 py-8 rounded-2xl border animate-panel-in ${
+                    <div className={`text-center px-5 py-5 sm:px-10 sm:py-8 rounded-2xl border animate-panel-in ${
                         darkMode ? "bg-[#162032] border-white/10" : "bg-white border-sky-100"
-                    } shadow-2xl min-w-[320px]`}>
-                        <h2 className={`text-3xl font-bold mb-1 ${darkMode ? "text-white" : "text-slate-800"}`}>
+                    } shadow-2xl w-full max-w-xs sm:max-w-sm mx-4`}>
+                        <h2 className={`text-xl sm:text-3xl font-bold mb-1 ${darkMode ? "text-white" : "text-slate-800"}`}>
                             {language === "korean" ? "소나기 모드" : "Falling Words"}
                         </h2>
-                        <p className={`text-sm mb-6 ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
+                        <p className={`text-sm mb-4 sm:mb-6 ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
                             {language === "korean" ? "난이도를 선택하세요" : "Select difficulty"}
                         </p>
-                        <div className="flex flex-col gap-3">
+                        <div className="flex flex-col gap-2.5 sm:gap-3">
                             {(["easy", "normal", "hard"] as const).map((d) => {
                                 const colors = {
                                     easy: "border-emerald-500/30 hover:border-emerald-400 hover:bg-emerald-500/10",
@@ -818,24 +819,22 @@ const FallingWordsGame: React.FC = () => {
                                     hard: "text-rose-400",
                                 };
                                 const descriptions = {
-                                    easy: language === "korean" ? "느린 속도, 라이프 5개" : "Slow speed, 5 lives",
+                                    easy: language === "korean" ? "느린 속도, 라이프 3개" : "Slow speed, 3 lives",
                                     normal: language === "korean" ? "보통 속도, 라이프 3개" : "Normal speed, 3 lives",
-                                    hard: language === "korean" ? "빠른 속도, 라이프 2개" : "Fast speed, 2 lives",
+                                    hard: language === "korean" ? "빠른 속도, 라이프 3개" : "Fast speed, 3 lives",
                                 };
                                 return (
                                     <button
                                         key={d}
                                         onClick={() => {
                                             setDifficulty(d);
-                                            restartGame();
-                                            setGameStarted(true);
-                                            inputRef.current?.focus();
+                                            restartGame(d);
                                         }}
-                                        className={`px-6 py-3 rounded-xl border-2 transition-all duration-200 cursor-pointer ${colors[d]} ${
+                                        className={`px-4 py-2.5 sm:px-6 sm:py-3 rounded-xl border-2 transition-all duration-200 cursor-pointer ${colors[d]} ${
                                             darkMode ? "bg-white/[0.03]" : "bg-slate-50"
                                         }`}
                                     >
-                                        <div className={`text-lg font-bold ${labelColors[d]}`}>
+                                        <div className={`text-base sm:text-lg font-bold ${labelColors[d]}`}>
                                             {d === "easy" ? "Easy" : d === "normal" ? "Normal" : "Hard"}
                                         </div>
                                         <div className={`text-xs mt-0.5 ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
@@ -853,8 +852,8 @@ const FallingWordsGame: React.FC = () => {
             {isPaused && !gameOver && (
                 <div className="absolute inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm z-30">
                     <div className="text-center">
-                        <h2 className="text-5xl font-bold text-white mb-4">PAUSED</h2>
-                        <p className="text-lg text-slate-300">
+                        <h2 className="text-3xl sm:text-5xl font-bold text-white mb-4">PAUSED</h2>
+                        <p className="text-sm sm:text-lg text-slate-300">
                             {language === "korean" ? "ESC를 눌러 계속" : "Press ESC to continue"}
                         </p>
                     </div>
@@ -865,12 +864,12 @@ const FallingWordsGame: React.FC = () => {
             {gameOver && (
                 <div className="absolute inset-0 flex items-center justify-center bg-black/70 backdrop-blur-sm z-30">
                     <div
-                        className={`text-center px-10 py-8 rounded-2xl border animate-panel-in ${
+                        className={`text-center px-5 py-5 sm:px-10 sm:py-8 rounded-2xl border animate-panel-in ${
                             darkMode ? "bg-[#162032] border-white/10" : "bg-white border-sky-100"
-                        } shadow-2xl min-w-[320px]`}
+                        } shadow-2xl w-full max-w-xs sm:max-w-sm mx-4`}
                     >
                         <h2
-                            className={`text-3xl font-bold mb-1 ${
+                            className={`text-xl sm:text-3xl font-bold mb-1 ${
                                 darkMode ? "text-white" : "text-slate-800"
                             }`}
                         >
@@ -904,16 +903,16 @@ const FallingWordsGame: React.FC = () => {
                             <p>{language === "korean" ? "플레이 시간" : "Play time"}: <span className="font-medium tabular-nums">{formatPlayTime(Date.now() - gameStartTimeRef.current)}</span></p>
                         </div>
 
-                        <div className="flex gap-3 justify-center">
+                        <div className="flex flex-col sm:flex-row gap-2.5 sm:gap-3 justify-center">
                             <button
-                                onClick={restartGame}
-                                className="px-8 py-3 bg-gradient-to-r from-sky-500 to-cyan-500 text-white rounded-xl hover:shadow-lg hover:shadow-sky-500/25 transition-all duration-200 font-medium"
+                                onClick={() => restartGame()}
+                                className="px-5 py-2.5 sm:px-8 sm:py-3 bg-gradient-to-r from-sky-500 to-cyan-500 text-white rounded-xl hover:shadow-lg hover:shadow-sky-500/25 transition-all duration-200 font-medium text-sm sm:text-base"
                             >
                                 {language === "korean" ? "다시 하기" : "Play Again"}
                             </button>
                             <button
                                 onClick={() => { restartGame(); setGameStarted(false); }}
-                                className={`px-6 py-3 rounded-xl border-2 transition-all duration-200 font-medium ${
+                                className={`px-4 py-2.5 sm:px-6 sm:py-3 rounded-xl border-2 transition-all duration-200 font-medium text-sm sm:text-base ${
                                     darkMode
                                         ? "border-white/10 text-slate-300 hover:border-white/20 hover:bg-white/5"
                                         : "border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50"
