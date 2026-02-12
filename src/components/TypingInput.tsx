@@ -444,14 +444,15 @@ const TypingInput: React.FC = () => {
     }, [text, input, darkMode]);
 
     const progressBarWidth = useMemo(() => {
-        const estimated = text.length * 16;
-        return Math.min(760, Math.max(260, estimated));
-    }, [text.length]);
+        const estimated = text.length * (isLargeScreen ? 22 : 16);
+        const maxW = isLargeScreen ? 1100 : 760;
+        return Math.min(maxW, Math.max(260, estimated));
+    }, [text.length, isLargeScreen]);
 
     const lg = isLargeScreen;
 
     return (
-        <div className={`w-full ${lg ? "max-w-6xl" : "max-w-4xl"} mx-auto animate-panel-in ${lg ? "space-y-8" : "space-y-4 md:space-y-6"} my-auto`}>
+        <div className={`w-full ${lg ? "" : "max-w-4xl mx-auto"} animate-panel-in ${lg ? "space-y-8" : "space-y-4 md:space-y-6"} my-auto`}>
             {/* 타이핑 영역 */}
             <div
                 className={`${lg ? "px-12 py-10" : "px-6 py-6 md:px-8 md:py-8"} rounded-2xl transition-all duration-300 ${
