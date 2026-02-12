@@ -23,6 +23,22 @@ const App: React.FC = () => {
                                     path="/falling-words"
                                     element={<MainLayout gameMode="falling-words" />}
                                 />
+                                <Route
+                                    path="/typing-defense"
+                                    element={<MainLayout gameMode="typing-defense" />}
+                                />
+                                <Route
+                                    path="/typing-race"
+                                    element={<MainLayout gameMode="typing-race" />}
+                                />
+                                <Route
+                                    path="/dictation"
+                                    element={<MainLayout gameMode="dictation" />}
+                                />
+                                <Route
+                                    path="/word-chain"
+                                    element={<MainLayout gameMode="word-chain" />}
+                                />
                                 <Route path="/" element={<Navigate to="/practice" />} />
                             </Routes>
                         </div>

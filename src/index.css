@@ -164,4 +164,51 @@
     .animate-word-float {
         animation: wordFloat 3s ease-in-out infinite;
     }
+
+    /* 채팅 말풍선 등장 */
+    @keyframes chatBubbleIn {
+        from {
+            opacity: 0;
+            transform: translateY(10px) scale(0.95);
+        }
+        to {
+            opacity: 1;
+            transform: none;
+        }
+    }
+    .animate-chat-bubble {
+        animation: chatBubbleIn 300ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+    }
+
+    /* 카운트다운 팝 */
+    @keyframes countdownPop {
+        0% {
+            opacity: 0;
+            transform: scale(2);
+        }
+        50% {
+            opacity: 1;
+            transform: scale(0.9);
+        }
+        100% {
+            opacity: 1;
+            transform: scale(1);
+        }
+    }
+
+    /* 적 파괴 */
+    @keyframes enemyDestroy {
+        0% {
+            opacity: 1;
+            transform: scale(1);
+        }
+        100% {
+            opacity: 0;
+            transform: scale(1.5);
+        }
+    }
+    .animate-enemy-destroy {
+        animation: enemyDestroy 300ms ease-out forwards;
+        pointer-events: none;
+    }
 }
