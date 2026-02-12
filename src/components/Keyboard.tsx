@@ -129,8 +129,8 @@ const Keyboard: React.FC<KeyboardProps> = ({
                 shift: "w-20 h-8 text-[11px]", space: "w-40 h-8 text-[11px]", cmd: "w-16 h-7 text-[10px]", mod: "w-12 h-7 text-[10px]",
             },
             normal: {
-                key: "w-9 h-9 text-sm", wide: "w-18 h-9 text-xs", mid: "w-15 h-9 text-xs",
-                shift: "w-22 h-9 text-xs", space: "w-44 h-9 text-xs", cmd: "w-20 h-9 text-[11px]", mod: "w-14 h-9 text-[11px]",
+                key: "w-9 h-9 text-sm", wide: "w-[4.5rem] h-9 text-xs", mid: "w-[3.75rem] h-9 text-xs",
+                shift: "w-[5.5rem] h-9 text-xs", space: "w-44 h-9 text-xs", cmd: "w-20 h-9 text-[11px]", mod: "w-14 h-9 text-[11px]",
             },
             large: {
                 key: "flex-1 h-14 text-base", wide: "flex-[1.7] h-14 text-sm", mid: "flex-[1.5] h-14 text-sm",
