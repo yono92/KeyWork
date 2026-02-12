@@ -642,7 +642,7 @@ const FallingWordsGame: React.FC = () => {
     return (
         <div
             ref={gameAreaRef}
-            className="relative w-full h-[calc(100vh-220px)] min-h-[400px] rounded-2xl overflow-hidden border border-sky-200/40 dark:border-sky-500/10"
+            className="relative w-full flex-1 min-h-[400px] rounded-2xl overflow-hidden border border-sky-200/40 dark:border-sky-500/10"
         >
             <div className={`absolute inset-0 ${darkMode ? "bg-[#0e1825]" : "bg-gradient-to-b from-sky-50/80 to-white"}`}>
                 {/* 상단 스코어바 */}

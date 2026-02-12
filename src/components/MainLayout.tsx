@@ -26,7 +26,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ gameMode }) => {
             </div>
 
             <main className="flex-1 min-h-0 rounded-2xl border border-sky-200/40 dark:border-sky-500/10 bg-white/80 dark:bg-[#162032]/80 backdrop-blur-xl shadow-lg shadow-sky-900/5 dark:shadow-black/20 overflow-y-auto overscroll-contain animate-panel-in">
-                <div className="w-full max-w-5xl mx-auto px-4 md:px-8 py-4 md:py-6">
+                <div className="w-full max-w-5xl 2xl:max-w-6xl mx-auto px-4 md:px-8 py-4 md:py-6 min-h-full flex flex-col">
                     {gameMode === "falling-words" ? (
                         <FallingWordsGame />
                     ) : (
