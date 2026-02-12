@@ -133,8 +133,8 @@ const Keyboard: React.FC<KeyboardProps> = ({
                 shift: "w-22 h-9 text-xs", space: "w-44 h-9 text-xs", cmd: "w-20 h-9 text-[11px]", mod: "w-14 h-9 text-[11px]",
             },
             large: {
-                key: "w-12 h-12 text-base", wide: "w-24 h-12 text-sm", mid: "w-20 h-12 text-sm",
-                shift: "w-28 h-12 text-sm", space: "w-60 h-12 text-sm", cmd: "w-24 h-11 text-xs", mod: "w-18 h-11 text-xs",
+                key: "flex-1 h-14 text-base", wide: "flex-[1.7] h-14 text-sm", mid: "flex-[1.5] h-14 text-sm",
+                shift: "flex-[2] h-14 text-sm", space: "flex-[5] h-14 text-sm", cmd: "flex-[1.5] h-14 text-xs", mod: "flex-1 h-14 text-xs",
             },
         }[size];
 
@@ -178,13 +178,14 @@ const Keyboard: React.FC<KeyboardProps> = ({
         );
     };
 
-    const wrapPad = { compact: "px-3 py-2.5", normal: "px-4 py-3", large: "px-6 py-4" }[size];
-    const rowGap = { compact: "gap-[3px] mb-[3px]", normal: "gap-1 mb-1", large: "gap-1.5 mb-1.5" }[size];
+    const isLg = size === "large";
+    const wrapPad = { compact: "px-3 py-2.5", normal: "px-4 py-3", large: "px-8 py-5 w-full" }[size];
+    const rowGap = { compact: "gap-[3px] mb-[3px]", normal: "gap-1 mb-1", large: "gap-2 mb-2 w-full" }[size];
 
     return (
         <div
             className={`
-                flex flex-col items-center ${wrapPad} rounded-2xl mx-auto
+                flex flex-col items-center ${wrapPad} rounded-2xl ${isLg ? "" : "mx-auto"}
                 ${
                     darkMode
                         ? "bg-white/[0.02] border border-white/[0.05]"
@@ -195,7 +196,7 @@ const Keyboard: React.FC<KeyboardProps> = ({
             {layout.map((row, rowIndex) => (
                 <div
                     key={`row-${rowIndex}`}
-                    className={`flex justify-center ${rowGap}`}
+                    className={`flex ${isLg ? "" : "justify-center"} ${rowGap}`}
                 >
                     {row.map(renderKey)}
                 </div>
