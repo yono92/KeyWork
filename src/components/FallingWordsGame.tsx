@@ -33,9 +33,9 @@ const ITEM_TYPES = {
 type SoundType = "match" | "combo" | "item" | "lifeLost" | "levelUp" | "gameOver";
 
 const DIFFICULTY_CONFIG = {
-    easy:   { spawnMul: 1.5, speedMul: 0.7, lives: 5, scorePerLevel: 400 },
+    easy:   { spawnMul: 1.5, speedMul: 0.7, lives: 3, scorePerLevel: 400 },
     normal: { spawnMul: 1.0, speedMul: 1.0, lives: 3, scorePerLevel: 500 },
-    hard:   { spawnMul: 0.7, speedMul: 1.3, lives: 2, scorePerLevel: 600 },
+    hard:   { spawnMul: 0.7, speedMul: 1.3, lives: 3, scorePerLevel: 600 },
 } as const;
 
 const FallingWordsGame: React.FC = () => {
@@ -530,14 +530,15 @@ const FallingWordsGame: React.FC = () => {
         }
     };
 
-    const restartGame = (): void => {
+    const restartGame = (overrideDifficulty?: keyof typeof DIFFICULTY_CONFIG): void => {
+        const d = overrideDifficulty ?? difficulty;
         Object.values(activeTimersRef.current).forEach(clearTimeout);
         activeTimersRef.current = {};
 
         setWords([]);
         setScore(0);
         setLevel(1);
-        setLives(DIFFICULTY_CONFIG[difficulty].lives);
+        setLives(DIFFICULTY_CONFIG[d].lives);
         setGameOver(false);
         setGameStarted(true);
         setLevelUp(false);
@@ -818,18 +819,16 @@ const FallingWordsGame: React.FC = () => {
                                     hard: "text-rose-400",
                                 };
                                 const descriptions = {
-                                    easy: language === "korean" ? "느린 속도, 라이프 5개" : "Slow speed, 5 lives",
+                                    easy: language === "korean" ? "느린 속도, 라이프 3개" : "Slow speed, 3 lives",
                                     normal: language === "korean" ? "보통 속도, 라이프 3개" : "Normal speed, 3 lives",
-                                    hard: language === "korean" ? "빠른 속도, 라이프 2개" : "Fast speed, 2 lives",
+                                    hard: language === "korean" ? "빠른 속도, 라이프 3개" : "Fast speed, 3 lives",
                                 };
                                 return (
                                     <button
                                         key={d}
                                         onClick={() => {
                                             setDifficulty(d);
-                                            restartGame();
-                                            setGameStarted(true);
-                                            inputRef.current?.focus();
+                                            restartGame(d);
                                         }}
                                         className={`px-6 py-3 rounded-xl border-2 transition-all duration-200 cursor-pointer ${colors[d]} ${
                                             darkMode ? "bg-white/[0.03]" : "bg-slate-50"
@@ -906,7 +905,7 @@ const FallingWordsGame: React.FC = () => {
 
                         <div className="flex gap-3 justify-center">
                             <button
-                                onClick={restartGame}
+                                onClick={() => restartGame()}
                                 className="px-8 py-3 bg-gradient-to-r from-sky-500 to-cyan-500 text-white rounded-xl hover:shadow-lg hover:shadow-sky-500/25 transition-all duration-200 font-medium"
                             >
                                 {language === "korean" ? "다시 하기" : "Play Again"}
