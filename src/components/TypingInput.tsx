@@ -447,7 +447,7 @@ const TypingInput: React.FC = () => {
     }, [text.length]);
 
     return (
-        <div className="w-full max-w-4xl mx-auto animate-panel-in space-y-4 md:space-y-5">
+        <div className="w-full max-w-4xl 2xl:max-w-5xl mx-auto animate-panel-in space-y-4 md:space-y-6 my-auto">
             {/* 타이핑 영역 */}
             <div
                 className={`px-6 py-6 md:px-8 md:py-8 rounded-2xl transition-all duration-300 ${
@@ -456,7 +456,7 @@ const TypingInput: React.FC = () => {
                         : "bg-white/60 border border-sky-100/50 shadow-sm"
                 }`}
             >
-                <div className="text-center text-2xl md:text-3xl font-semibold leading-loose tracking-wide mb-6">
+                <div className="text-center text-2xl md:text-3xl 2xl:text-4xl font-semibold leading-loose tracking-wide mb-6">
                     {renderedText}
                 </div>
                 <ProgressBar trackWidth={progressBarWidth} className="mb-5" />
@@ -466,7 +466,7 @@ const TypingInput: React.FC = () => {
                     value={input}
                     onChange={handleInputChange}
                     onKeyDown={handleKeyPress}
-                    className={`w-full px-4 py-3.5 text-xl rounded-xl transition-all duration-200 outline-none
+                    className={`w-full px-4 py-3.5 text-xl 2xl:text-2xl rounded-xl transition-all duration-200 outline-none
                         ${
                             darkMode
                                 ? "bg-white/[0.04] text-white placeholder-slate-600 border border-white/[0.08] focus:border-sky-500/50 focus:bg-white/[0.06]"
@@ -503,7 +503,7 @@ const TypingInput: React.FC = () => {
             )}
 
             {/* 통계 카드 */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 2xl:gap-4">
                 <div className={`rounded-xl px-4 py-3.5 transition-all duration-300 ${
                     darkMode
                         ? "bg-white/[0.03] border border-white/[0.06]"
