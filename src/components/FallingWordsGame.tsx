@@ -63,13 +63,7 @@ const FallingWordsGame: React.FC = () => {
     const [lastTypedTime, setLastTypedTime] = useState<number>(0);
     const [scorePopups, setScorePopups] = useState<ScorePopup[]>([]);
     const [isPaused, setIsPaused] = useState<boolean>(false);
-
-    // 게임 시작 전 난이도 변경 시 라이프 동기화
-    useEffect(() => {
-        if (words.length === 0 && !gameOver) {
-            setLives(DIFFICULTY_CONFIG[difficulty].lives);
-        }
-    }, [difficulty, words.length, gameOver]);
+    const [gameStarted, setGameStarted] = useState<boolean>(false);
 
     const gameAreaRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
@@ -84,7 +78,8 @@ const FallingWordsGame: React.FC = () => {
 
     const spawnInterval =
         Math.max(2000 - level * 100, 300) * (slowMotion ? 1.5 : 1) * config.spawnMul;
-    const fallSpeed = Math.min(1 + level * 0.5, 10) * (slowMotion ? 0.5 : 1) * config.speedMul;
+    // 바닥 도달 시간(초): 레벨 1 ≈ 6.7초, 레벨이 올라갈수록 빨라짐, 최소 1초
+    const fallSeconds = Math.max(10 / (1 + level * 0.5), 1) * (slowMotion ? 2 : 1) / config.speedMul;
 
     const lifeLostRef = useRef(false);
     const activeTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
@@ -336,17 +331,18 @@ const FallingWordsGame: React.FC = () => {
 
     // 단어 낙하 루프
     useEffect(() => {
-        if (gameOver || isPaused) return;
+        if (!gameStarted || gameOver || isPaused) return;
 
         const moveWords = setInterval(() => {
             setWords((currentWords) => {
                 const gameAreaHeight = gameAreaRef.current?.offsetHeight ?? 600;
                 const bottomThreshold = gameAreaHeight - 80;
+                // 게임 영역 높이 기반 속도: 어떤 화면이든 동일한 시간에 바닥 도달
+                const speed = gameAreaHeight / (fallSeconds * 60);
 
                 const updatedWords = currentWords.map((word) => {
-                    // matched/missed 상태인 단어는 위치 업데이트 안 함
                     if (word.status !== "falling") return word;
-                    return { ...word, top: word.top + fallSpeed };
+                    return { ...word, top: word.top + speed };
                 });
 
                 // 바닥에 닿은 falling 상태의 일반 단어 확인
@@ -384,7 +380,7 @@ const FallingWordsGame: React.FC = () => {
         }, 16);
 
         return () => clearInterval(moveWords);
-    }, [fallSpeed, gameOver, isPaused, shield, playSound]);
+    }, [fallSeconds, gameStarted, gameOver, isPaused, shield, playSound]);
 
     // matched/missed 단어 일정 시간 후 제거
     useEffect(() => {
@@ -400,16 +396,16 @@ const FallingWordsGame: React.FC = () => {
 
     // 단어 스폰 루프
     useEffect(() => {
-        if (gameOver || isPaused) return;
+        if (!gameStarted || gameOver || isPaused) return;
 
         const spawn = setInterval(spawnWord, spawnInterval);
         return () => clearInterval(spawn);
-    }, [spawnWord, spawnInterval, gameOver, isPaused]);
+    }, [spawnWord, spawnInterval, gameStarted, gameOver, isPaused]);
 
     // ESC 키로 일시정지/재개
     useEffect(() => {
         const handleEsc = (e: KeyboardEvent) => {
-            if (e.key === "Escape" && !gameOver) {
+            if (e.key === "Escape" && gameStarted && !gameOver) {
                 setIsPaused((prev) => !prev);
             }
         };
@@ -543,6 +539,7 @@ const FallingWordsGame: React.FC = () => {
         setLevel(1);
         setLives(DIFFICULTY_CONFIG[difficulty].lives);
         setGameOver(false);
+        setGameStarted(true);
         setLevelUp(false);
         setCombo(0);
         setSlowMotion(false);
@@ -662,28 +659,13 @@ const FallingWordsGame: React.FC = () => {
                             </span>
                         )}
                     </div>
-                    <div className="flex items-center gap-1">
-                        {(["easy", "normal", "hard"] as const).map((d) => (
-                            <button
-                                key={d}
-                                onClick={() => { if (!gameOver && words.length > 0) return; setDifficulty(d); }}
-                                disabled={!gameOver && words.length > 0}
-                                className={`px-2 py-0.5 text-xs font-bold rounded-md transition-all duration-150 ${
-                                    difficulty === d
-                                        ? d === "easy"
-                                            ? "bg-emerald-500 text-white shadow-sm"
-                                            : d === "normal"
-                                            ? "bg-sky-500 text-white shadow-sm"
-                                            : "bg-rose-500 text-white shadow-sm"
-                                        : darkMode
-                                        ? "text-slate-400 hover:text-white hover:bg-white/10"
-                                        : "text-slate-400 hover:text-slate-700 hover:bg-slate-100"
-                                } ${!gameOver && words.length > 0 ? "opacity-40 cursor-not-allowed" : "cursor-pointer"}`}
-                            >
-                                {d === "easy" ? "Easy" : d === "normal" ? "Normal" : "Hard"}
-                            </button>
-                        ))}
-                    </div>
+                    <span className={`px-2 py-0.5 text-xs font-bold rounded-md ${
+                        difficulty === "easy" ? "bg-emerald-500/20 text-emerald-400"
+                        : difficulty === "normal" ? "bg-sky-500/20 text-sky-400"
+                        : "bg-rose-500/20 text-rose-400"
+                    }`}>
+                        {difficulty === "easy" ? "Easy" : difficulty === "normal" ? "Normal" : "Hard"}
+                    </span>
                     <div className={`text-lg font-bold ${darkMode ? "text-white" : "text-slate-800"}`}>
                         Lv.<span className="tabular-nums">{level}</span>
                     </div>
@@ -797,7 +779,7 @@ const FallingWordsGame: React.FC = () => {
                         onKeyDown={handleKeyDown}
                         onCompositionStart={handleCompositionStart}
                         onCompositionEnd={handleCompositionEnd}
-                        disabled={isPaused || gameOver}
+                        disabled={!gameStarted || isPaused || gameOver}
                         className={`w-full px-4 py-3 text-lg rounded-xl outline-none transition-all duration-200 border-2 ${
                             darkMode
                                 ? "bg-white/[0.04] text-white border-white/[0.08] focus:border-sky-500/50 focus:bg-white/[0.06]"
@@ -810,6 +792,62 @@ const FallingWordsGame: React.FC = () => {
                     />
                 </div>
             </div>
+
+            {/* 난이도 선택 오버레이 */}
+            {!gameStarted && !gameOver && (
+                <div className="absolute inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm z-30">
+                    <div className={`text-center px-10 py-8 rounded-2xl border animate-panel-in ${
+                        darkMode ? "bg-[#162032] border-white/10" : "bg-white border-sky-100"
+                    } shadow-2xl min-w-[320px]`}>
+                        <h2 className={`text-3xl font-bold mb-1 ${darkMode ? "text-white" : "text-slate-800"}`}>
+                            {language === "korean" ? "소나기 모드" : "Falling Words"}
+                        </h2>
+                        <p className={`text-sm mb-6 ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
+                            {language === "korean" ? "난이도를 선택하세요" : "Select difficulty"}
+                        </p>
+                        <div className="flex flex-col gap-3">
+                            {(["easy", "normal", "hard"] as const).map((d) => {
+                                const colors = {
+                                    easy: "border-emerald-500/30 hover:border-emerald-400 hover:bg-emerald-500/10",
+                                    normal: "border-sky-500/30 hover:border-sky-400 hover:bg-sky-500/10",
+                                    hard: "border-rose-500/30 hover:border-rose-400 hover:bg-rose-500/10",
+                                };
+                                const labelColors = {
+                                    easy: "text-emerald-400",
+                                    normal: "text-sky-400",
+                                    hard: "text-rose-400",
+                                };
+                                const descriptions = {
+                                    easy: language === "korean" ? "느린 속도, 라이프 5개" : "Slow speed, 5 lives",
+                                    normal: language === "korean" ? "보통 속도, 라이프 3개" : "Normal speed, 3 lives",
+                                    hard: language === "korean" ? "빠른 속도, 라이프 2개" : "Fast speed, 2 lives",
+                                };
+                                return (
+                                    <button
+                                        key={d}
+                                        onClick={() => {
+                                            setDifficulty(d);
+                                            restartGame();
+                                            setGameStarted(true);
+                                            inputRef.current?.focus();
+                                        }}
+                                        className={`px-6 py-3 rounded-xl border-2 transition-all duration-200 cursor-pointer ${colors[d]} ${
+                                            darkMode ? "bg-white/[0.03]" : "bg-slate-50"
+                                        }`}
+                                    >
+                                        <div className={`text-lg font-bold ${labelColors[d]}`}>
+                                            {d === "easy" ? "Easy" : d === "normal" ? "Normal" : "Hard"}
+                                        </div>
+                                        <div className={`text-xs mt-0.5 ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
+                                            {descriptions[d]}
+                                        </div>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* 일시정지 오버레이 */}
             {isPaused && !gameOver && (
@@ -866,12 +904,24 @@ const FallingWordsGame: React.FC = () => {
                             <p>{language === "korean" ? "플레이 시간" : "Play time"}: <span className="font-medium tabular-nums">{formatPlayTime(Date.now() - gameStartTimeRef.current)}</span></p>
                         </div>
 
-                        <button
-                            onClick={restartGame}
-                            className="px-8 py-3 bg-gradient-to-r from-sky-500 to-cyan-500 text-white rounded-xl hover:shadow-lg hover:shadow-sky-500/25 transition-all duration-200 font-medium"
-                        >
-                            {language === "korean" ? "다시 하기" : "Play Again"}
-                        </button>
+                        <div className="flex gap-3 justify-center">
+                            <button
+                                onClick={restartGame}
+                                className="px-8 py-3 bg-gradient-to-r from-sky-500 to-cyan-500 text-white rounded-xl hover:shadow-lg hover:shadow-sky-500/25 transition-all duration-200 font-medium"
+                            >
+                                {language === "korean" ? "다시 하기" : "Play Again"}
+                            </button>
+                            <button
+                                onClick={() => { restartGame(); setGameStarted(false); }}
+                                className={`px-6 py-3 rounded-xl border-2 transition-all duration-200 font-medium ${
+                                    darkMode
+                                        ? "border-white/10 text-slate-300 hover:border-white/20 hover:bg-white/5"
+                                        : "border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50"
+                                }`}
+                            >
+                                {language === "korean" ? "난이도 변경" : "Change Difficulty"}
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}
