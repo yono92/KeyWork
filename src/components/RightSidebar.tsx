@@ -1,6 +1,5 @@
 import React from "react";
 import useTypingStore from "../store/store";
-import ResponsiveCoupangAd from "./ResponsiveCoupangAd";
 
 const RightSidebar: React.FC = () => {
     const darkMode = useTypingStore((state) => state.darkMode);
