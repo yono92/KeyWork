@@ -5,9 +5,9 @@ import quotesData from "../data/quotes.json";
 type SoundType = "correct" | "wrong" | "win" | "lose" | "roundComplete" | "countdown" | "go";
 
 const DIFFICULTY_CONFIG = {
-    easy:   { aiWpm: 40, totalRounds: 5 },
-    normal: { aiWpm: 60, totalRounds: 5 },
-    hard:   { aiWpm: 80, totalRounds: 5 },
+    easy:   { aiWpm: 20, totalRounds: 5 },
+    normal: { aiWpm: 35, totalRounds: 5 },
+    hard:   { aiWpm: 55, totalRounds: 5 },
 } as const;
 
 const TypingRaceGame: React.FC = () => {

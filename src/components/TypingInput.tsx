@@ -1,12 +1,11 @@
 import React, { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import useTypingStore from "../store/store";
-import quotesData from "../data/quotes.json";
 import proverbsData from "../data/proverbs.json";
 import { calculateHangulAccuracy, countKeystrokes } from "../utils/hangulUtils";
 import Keyboard from "./Keyboard";
 import ProgressBar from "./ProgressBar";
 
-type TextSource = "quotes" | "proverbs" | "longtext";
+type TextSource = "proverbs" | "longtext";
 
 type AudioContextClass = typeof AudioContext;
 
@@ -96,7 +95,7 @@ const TypingInput: React.FC = () => {
     const audioContextRef = useRef<AudioContext | null>(null);
     const initializedRef = useRef(false);
     const isMuted = useTypingStore((state) => state.isMuted);
-    const [textSource, setTextSource] = useState<TextSource>("quotes");
+    const [textSource, setTextSource] = useState<TextSource>("proverbs");
     const [isLoadingText, setIsLoadingText] = useState(false);
     const [wikiTitle, setWikiTitle] = useState<string | null>(null);
 
@@ -139,12 +138,6 @@ const TypingInput: React.FC = () => {
         };
     }, [handleKeyDown, handleKeyUp]);
 
-    const getRandomQuote = (language: "korean" | "english") => {
-        const quotesArray = quotesData[language];
-        const randomIndex = Math.floor(Math.random() * quotesArray.length);
-        return quotesArray[randomIndex];
-    };
-
     const getRandomProverb = (language: "korean" | "english") => {
         const arr = proverbsData[language];
         return arr[Math.floor(Math.random() * arr.length)];
@@ -159,10 +152,6 @@ const TypingInput: React.FC = () => {
     }, []);
 
     const loadText = useCallback(async (source: TextSource, lang: "korean" | "english") => {
-        if (source === "quotes") {
-            setWikiTitle(null);
-            return getRandomQuote(lang);
-        }
         if (source === "proverbs") {
             setWikiTitle(null);
             return getRandomProverb(lang);
@@ -512,7 +501,6 @@ const TypingInput: React.FC = () => {
     const lg = isLargeScreen;
 
     const tabs: { key: TextSource; label: string }[] = [
-        { key: "quotes", label: "문장" },
         { key: "proverbs", label: "속담" },
         { key: "longtext", label: "장문" },
     ];
