@@ -47,7 +47,7 @@ const fetchCandidatesByStart = async (apiKey: string, start: string): Promise<st
             q: start,
             req_type: "xml",
             part: "word",
-            method: "include",
+            method: "start",
             num: "100",
             start: String((page - 1) * 100 + 1),
             advanced: "y",

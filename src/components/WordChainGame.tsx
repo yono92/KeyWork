@@ -24,9 +24,9 @@ const KOREAN_START_POOL = ["가", "나", "다", "라", "마", "바", "사", "아
 const HANGUL_WORD_REGEX = /^[가-힣]{2,}$/;
 
 const DIFFICULTY_CONFIG = {
-    easy:   { timeLimit: 15, lives: 3 },
-    normal: { timeLimit: 10, lives: 3 },
-    hard:   { timeLimit: 7,  lives: 3 },
+    easy:   { timeLimit: 20, lives: 3 },
+    normal: { timeLimit: 15, lives: 3 },
+    hard:   { timeLimit: 10, lives: 3 },
 } as const;
 
 const WordChainGame: React.FC = () => {
