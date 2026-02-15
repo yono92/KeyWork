@@ -223,29 +223,38 @@ const WordChainGame: React.FC = () => {
         try {
             const query = encodeURIComponent(starts.join(","));
             const response = await fetch(`/api/krdict/candidates?starts=${query}`);
-            if (!response.ok) return [];
+            if (!response.ok) {
+                console.error("[끝말잇기] candidates API 실패:", response.status, response.statusText);
+                return [];
+            }
 
             const data: unknown = await response.json();
             if (typeof data === "object" && data !== null && "words" in data) {
                 const words = (data as KrdictCandidatesResult).words ?? [];
                 return Array.isArray(words) ? words : [];
             }
+            console.error("[끝말잇기] candidates API 응답 형식 오류:", data);
             return [];
-        } catch {
+        } catch (err) {
+            console.error("[끝말잇기] candidates API 예외:", err);
             return [];
         }
     }, []);
 
     const findAiWord = useCallback(async (startChar: string): Promise<string | null> => {
         const validStarts = getStartChars(startChar);
-        const words = await fetchKrdictCandidates(validStarts);
-        const apiCandidates = words.filter((w) => {
-            const first = getFirstChar(w);
-            return validStarts.includes(first) && !usedWordsRef.current.has(w.toLowerCase());
-        });
-
-        if (apiCandidates.length === 0) return null;
-        return apiCandidates[Math.floor(Math.random() * apiCandidates.length)];
+        // 최대 2회 재시도
+        for (let attempt = 0; attempt < 2; attempt++) {
+            const words = await fetchKrdictCandidates(validStarts);
+            const apiCandidates = words.filter((w) => {
+                const first = getFirstChar(w);
+                return validStarts.includes(first) && !usedWordsRef.current.has(w.toLowerCase());
+            });
+            if (apiCandidates.length > 0) {
+                return apiCandidates[Math.floor(Math.random() * apiCandidates.length)];
+            }
+        }
+        return null;
     }, [fetchKrdictCandidates]);
 
     const addMessage = (
@@ -461,16 +470,18 @@ const WordChainGame: React.FC = () => {
         }
         initialAiWordTimeoutRef.current = setTimeout(async () => {
             let firstWord: string | null = null;
-            // Pick a single random start character to avoid Vercel function timeout
-            // (14 chars × 3 pages = 42 sequential krdict calls ≈ 40s, exceeds 10s limit).
-            const randomStart = KOREAN_START_POOL[Math.floor(Math.random() * KOREAN_START_POOL.length)];
-            const starters = await fetchKrdictCandidates([randomStart]);
-            if (starters.length > 0) {
-                firstWord = starters[Math.floor(Math.random() * starters.length)];
+            // 최대 3번 다른 시작 글자로 재시도
+            const shuffledPool = [...KOREAN_START_POOL].sort(() => Math.random() - 0.5);
+            for (let i = 0; i < Math.min(3, shuffledPool.length); i++) {
+                const starters = await fetchKrdictCandidates([shuffledPool[i]]);
+                if (starters.length > 0) {
+                    firstWord = starters[Math.floor(Math.random() * starters.length)];
+                    break;
+                }
             }
 
             if (!firstWord) {
-                addMessage("사전 연결 실패", "ai", false);
+                addMessage("사전 연결 실패 — 다시 시도해주세요", "ai", false);
                 setGameOver(true);
                 setPlayerWon(true);
                 setIsAiTurn(false);
