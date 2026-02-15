@@ -90,8 +90,7 @@ const TypingInput: React.FC = () => {
     const [isMobile, setIsMobile] = useState<boolean>(false);
     const [isShortScreen, setIsShortScreen] = useState<boolean>(false);
     const [isLargeScreen, setIsLargeScreen] = useState<boolean>(false);
-    const [isValidInput, setIsValidInput] = useState<boolean>(true);
-    const [platform, setPlatform] = useState<"mac" | "windows">("windows");
+const [platform, setPlatform] = useState<"mac" | "windows">("windows");
     const audioContextRef = useRef<AudioContext | null>(null);
     const initializedRef = useRef(false);
     const isMuted = useTypingStore((state) => state.isMuted);
@@ -324,62 +323,11 @@ const TypingInput: React.FC = () => {
             return;
         }
 
-        setIsValidInput(true);
-
         // 스페이스바는 항상 허용
         if (lastChar === " ") {
             setInput(value);
             playKeyClickSound();
             return;
-        }
-
-        // 마지막 문자 검증
-        const isKoreanChar = /[\u3131-\u3163\uAC00-\uD7A3]/.test(lastChar);
-        const isEnglishOrSpecialChar = /^[\u0020-\u007E\u00A0-\u00FF]*$/.test(
-            lastChar
-        );
-
-        // 첫 입력 시 언어가 일치하지 않으면 경고만 표시하고 언어를 자동 전환하지 않음
-        if (input.length === 0) {
-            if (
-                (language === "korean" &&
-                    !isKoreanChar &&
-                    isEnglishOrSpecialChar) ||
-                (language === "english" && isKoreanChar)
-            ) {
-                setIsValidInput(false);
-                return;
-            }
-        }
-        // 이미 입력이 진행 중인 경우에만 언어 전환 여부 확인
-        else if (input.length > 0) {
-            if (
-                language === "korean" &&
-                !isKoreanChar &&
-                isEnglishOrSpecialChar
-            ) {
-                const shouldSwitch = window.confirm(
-                    "영어로 전환하시겠습니까? (현재 진행중인 내용은 저장되지 않습니다)"
-                );
-                if (!shouldSwitch) {
-                    return;
-                }
-                setLanguage("english");
-                setInput("");
-                setStartTime(null);
-                return;
-            } else if (language === "english" && isKoreanChar) {
-                const shouldSwitch = window.confirm(
-                    "한글로 전환하시겠습니까? (현재 진행중인 내용은 저장되지 않습니다)"
-                );
-                if (!shouldSwitch) {
-                    return;
-                }
-                setLanguage("korean");
-                setInput("");
-                setStartTime(null);
-                return;
-            }
         }
 
         if (input.length === 0 && startTime === null) {
@@ -575,24 +523,12 @@ const TypingInput: React.FC = () => {
                                 ? "bg-white/[0.04] text-white placeholder-slate-600 border border-white/[0.08] focus:border-sky-500/50 focus:bg-white/[0.06]"
                                 : "bg-sky-50/50 text-slate-800 placeholder-slate-400 border border-sky-200/60 focus:border-sky-400 focus:bg-white"
                         }
-                        ${
-                            isValidInput
-                                ? ""
-                                : "border-rose-500 ring-2 ring-rose-500/30 animate-shake"
-                        }
                         focus:ring-2 focus:ring-sky-500/20
                     `}
                     placeholder=""
                     autoFocus
                     disabled={isLoadingText}
                 />
-                {!isValidInput && (
-                    <p className="text-rose-500 text-sm mt-2 ml-1">
-                        {language === "korean"
-                            ? "한글만 입력 가능합니다"
-                            : "영문만 입력 가능합니다"}
-                    </p>
-                )}
             </div>
 
             {/* 키보드 */}
