@@ -1,4 +1,4 @@
-import HomePage from "./page";
+import HomePage from "../../app/page";
 
 describe("app/page", () => {
     it("redirects to /practice", () => {

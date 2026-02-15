@@ -1,6 +1,7 @@
 import "@testing-library/jest-dom/vitest";
 import { vi } from "vitest";
 
+/* eslint-disable no-var */
 declare global {
     var __TEST_PATHNAME__: string | undefined;
 }

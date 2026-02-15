@@ -1,24 +1,24 @@
 import React from "react";
 import { render, screen } from "@testing-library/react";
-import MainLayout from "./MainLayout";
-import useTypingStore from "../store/store";
+import MainLayout from "../../src/components/MainLayout";
+import useTypingStore from "../../src/store/store";
 
-vi.mock("./TypingInput", () => ({
+vi.mock("../../src/components/TypingInput", () => ({
     default: () => <div data-testid="typing-input" />,
 }));
-vi.mock("./FallingWordsGame", () => ({
+vi.mock("../../src/components/FallingWordsGame", () => ({
     default: () => <div data-testid="falling-words" />,
 }));
-vi.mock("./TypingDefenseGame", () => ({
+vi.mock("../../src/components/TypingDefenseGame", () => ({
     default: () => <div data-testid="typing-defense" />,
 }));
-vi.mock("./TypingRaceGame", () => ({
+vi.mock("../../src/components/TypingRaceGame", () => ({
     default: () => <div data-testid="typing-race" />,
 }));
-vi.mock("./DictationGame", () => ({
+vi.mock("../../src/components/DictationGame", () => ({
     default: () => <div data-testid="dictation" />,
 }));
-vi.mock("./WordChainGame", () => ({
+vi.mock("../../src/components/WordChainGame", () => ({
     default: () => <div data-testid="word-chain" />,
 }));
 

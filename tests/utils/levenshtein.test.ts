@@ -1,4 +1,4 @@
-import { getLevenshteinDistance } from "./levenshtein";
+import { getLevenshteinDistance } from "../../src/utils/levenshtein";
 
 describe("getLevenshteinDistance", () => {
     it("returns 0 for equal arrays", () => {

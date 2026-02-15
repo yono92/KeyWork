@@ -1,12 +1,12 @@
 import React from "react";
 import { render } from "@testing-library/react";
-import DictationGame from "./DictationGame";
-import FallingWordsGame from "./FallingWordsGame";
-import TypingDefenseGame from "./TypingDefenseGame";
-import TypingInput from "./TypingInput";
-import TypingRaceGame from "./TypingRaceGame";
-import WordChainGame from "./WordChainGame";
-import useTypingStore from "../store/store";
+import DictationGame from "../../src/components/DictationGame";
+import FallingWordsGame from "../../src/components/FallingWordsGame";
+import TypingDefenseGame from "../../src/components/TypingDefenseGame";
+import TypingInput from "../../src/components/TypingInput";
+import TypingRaceGame from "../../src/components/TypingRaceGame";
+import WordChainGame from "../../src/components/WordChainGame";
+import useTypingStore from "../../src/store/store";
 
 describe("game components smoke", () => {
     beforeEach(() => {
