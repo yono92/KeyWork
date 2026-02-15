@@ -9,6 +9,12 @@ interface ChatMessage {
     text: string;
     sender: "player" | "ai";
     isValid: boolean;
+    definition?: string | null;
+}
+
+interface KrdictValidationResult {
+    exists: boolean;
+    definition: string | null;
 }
 
 const DIFFICULTY_CONFIG = {
@@ -39,6 +45,7 @@ const WordChainGame: React.FC = () => {
     const [currentChar, setCurrentChar] = useState(""); // 현재 시작해야 하는 글자
     const [isAiTurn, setIsAiTurn] = useState(false);
     const [playerWon, setPlayerWon] = useState(false);
+    const [isValidatingWord, setIsValidatingWord] = useState(false);
 
     const inputRef = useRef<HTMLInputElement>(null);
     const chatContainerRef = useRef<HTMLDivElement>(null);
@@ -192,6 +199,36 @@ const WordChainGame: React.FC = () => {
         );
     };
 
+    const validateWordWithKrdict = useCallback(async (word: string): Promise<KrdictValidationResult | null> => {
+        if (language !== "korean") return null;
+
+        try {
+            const response = await fetch(`/api/krdict/validate?word=${encodeURIComponent(word)}`);
+            if (!response.ok) return null;
+
+            const data: unknown = await response.json();
+            if (
+                typeof data === "object" &&
+                data !== null &&
+                "exists" in data &&
+                "definition" in data &&
+                typeof (data as { exists: unknown }).exists === "boolean"
+            ) {
+                const parsed = data as { exists: boolean; definition: unknown };
+                return {
+                    exists: parsed.exists,
+                    definition:
+                        typeof parsed.definition === "string" && parsed.definition.trim()
+                            ? parsed.definition.trim()
+                            : null,
+                };
+            }
+            return null;
+        } catch {
+            return null;
+        }
+    }, [language]);
+
     const findAiWord = useCallback((startChar: string): string | null => {
         const wordsList = wordsData[language] as string[];
         const validStarts = getStartChars(startChar);
@@ -205,8 +242,16 @@ const WordChainGame: React.FC = () => {
         return candidates[Math.floor(Math.random() * candidates.length)];
     }, [language]);
 
-    const addMessage = (text: string, sender: "player" | "ai", isValid: boolean) => {
-        setMessages((prev) => [...prev, { id: Date.now() + Math.random(), text, sender, isValid }]);
+    const addMessage = (
+        text: string,
+        sender: "player" | "ai",
+        isValid: boolean,
+        definition: string | null = null
+    ) => {
+        setMessages((prev) => [
+            ...prev,
+            { id: Date.now() + Math.random(), text, sender, isValid, definition },
+        ]);
     };
 
     // ref 동기화 (closure 문제 방지)
@@ -214,7 +259,7 @@ const WordChainGame: React.FC = () => {
 
     const doAiTurn = useCallback((startChar: string) => {
         setIsAiTurn(true);
-        setTimeout(() => {
+        setTimeout(async () => {
             const aiWord = findAiWord(startChar);
             if (!aiWord) {
                 // AI가 단어를 못 찾음 → 플레이어 승리
@@ -227,14 +272,21 @@ const WordChainGame: React.FC = () => {
             }
 
             usedWordsRef.current.add(aiWord.toLowerCase());
-            addMessage(aiWord, "ai", true);
+            let aiDefinition: string | null = null;
+            if (language === "korean") {
+                const validation = await validateWordWithKrdict(aiWord);
+                if (validation?.exists) {
+                    aiDefinition = validation.definition;
+                }
+            }
+            addMessage(aiWord, "ai", true, aiDefinition);
             playSound("aiTurn");
             setCurrentChar(getLastChar(aiWord));
             setTimer(config.timeLimit);
             setIsAiTurn(false);
             if (inputRef.current) inputRef.current.focus();
         }, 1000 + Math.random() * 500);
-    }, [findAiWord, language, config.timeLimit, playSound]);
+    }, [findAiWord, language, config.timeLimit, playSound, validateWordWithKrdict]);
 
     // doAiTurnRef 동기화
     useEffect(() => { doAiTurnRef.current = doAiTurn; }, [doAiTurn]);
@@ -293,8 +345,8 @@ const WordChainGame: React.FC = () => {
         if (!isPaused && !gameOver && !isAiTurn && inputRef.current) inputRef.current.focus();
     }, [isPaused, gameOver, isAiTurn]);
 
-    const handleSubmit = () => {
-        if (isComposingRef.current || !input.trim() || isAiTurn) return;
+    const handleSubmit = async () => {
+        if (isComposingRef.current || !input.trim() || isAiTurn || isValidatingWord) return;
 
         const word = input.trim();
         setInput("");
@@ -308,7 +360,22 @@ const WordChainGame: React.FC = () => {
             return;
         }
 
-        if (!isValidWord(word)) {
+        let isWordValid = isValidWord(word);
+        let definition: string | null = null;
+
+        if (language === "korean") {
+            setIsValidatingWord(true);
+            const krdictResult = await validateWordWithKrdict(word);
+            setIsValidatingWord(false);
+
+            // API result has priority when reachable; fallback to local list on failures.
+            if (krdictResult) {
+                isWordValid = krdictResult.exists;
+                definition = krdictResult.definition;
+            }
+        }
+
+        if (!isWordValid) {
             addMessage(word, "player", false);
             playSound("wrong");
             setCombo(0);
@@ -324,7 +391,7 @@ const WordChainGame: React.FC = () => {
 
         // 유효한 단어
         usedWordsRef.current.add(word.toLowerCase());
-        addMessage(word, "player", true);
+        addMessage(word, "player", true, definition);
         playSound("submit");
         wordsTypedRef.current++;
 
@@ -346,7 +413,7 @@ const WordChainGame: React.FC = () => {
 
     const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
         if (e.key === "Enter" && !isComposingRef.current && !e.nativeEvent.isComposing) {
-            handleSubmit();
+            void handleSubmit();
         }
     };
 
@@ -376,11 +443,18 @@ const WordChainGame: React.FC = () => {
         wordsTypedRef.current = 0;
 
         // AI가 먼저 시작
-        setTimeout(() => {
+        setTimeout(async () => {
             const wordsList = wordsData[language] as string[];
             const firstWord = wordsList[Math.floor(Math.random() * wordsList.length)];
             usedWordsRef.current.add(firstWord.toLowerCase());
-            addMessage(firstWord, "ai", true);
+            let firstDefinition: string | null = null;
+            if (language === "korean") {
+                const validation = await validateWordWithKrdict(firstWord);
+                if (validation?.exists) {
+                    firstDefinition = validation.definition;
+                }
+            }
+            addMessage(firstWord, "ai", true, firstDefinition);
             setCurrentChar(getLastChar(firstWord));
             setTimer(cfg.timeLimit);
             if (inputRef.current) inputRef.current.focus();
@@ -472,6 +546,11 @@ const WordChainGame: React.FC = () => {
                             }`}>
                                 {msg.sender === "ai" && <span className="mr-1.5">🤖</span>}
                                 {msg.text}
+                                {msg.isValid && msg.definition && (
+                                    <div className="mt-1 text-[11px] sm:text-xs opacity-90">
+                                        {language === "korean" ? `의미: ${msg.definition}` : `Definition: ${msg.definition}`}
+                                    </div>
+                                )}
                             </div>
                         </div>
                     ))}
@@ -499,7 +578,7 @@ const WordChainGame: React.FC = () => {
                             onKeyDown={handleKeyDown}
                             onCompositionStart={handleCompositionStart}
                             onCompositionEnd={handleCompositionEnd}
-                            disabled={!gameStarted || isPaused || gameOver || isAiTurn}
+                            disabled={!gameStarted || isPaused || gameOver || isAiTurn || isValidatingWord}
                             className={`flex-1 px-3 py-2 text-base sm:px-4 sm:py-3 sm:text-lg rounded-xl outline-none transition-all duration-200 border-2 ${
                                 darkMode
                                     ? "bg-white/[0.04] text-white border-white/[0.08] focus:border-sky-500/50 focus:bg-white/[0.06]"
@@ -522,11 +601,11 @@ const WordChainGame: React.FC = () => {
                             autoComplete="off"
                         />
                         <button
-                            onClick={handleSubmit}
-                            disabled={!gameStarted || isPaused || gameOver || isAiTurn || !input.trim()}
+                            onClick={() => void handleSubmit()}
+                            disabled={!gameStarted || isPaused || gameOver || isAiTurn || isValidatingWord || !input.trim()}
                             className="px-4 py-2 sm:px-6 sm:py-3 bg-gradient-to-r from-sky-500 to-cyan-500 text-white rounded-xl hover:shadow-lg hover:shadow-sky-500/25 transition-all duration-200 font-medium text-sm sm:text-base disabled:opacity-50"
                         >
-                            Enter
+                            {isValidatingWord ? (language === "korean" ? "검증중..." : "Checking...") : "Enter"}
                         </button>
                     </div>
                 </div>
