@@ -37,6 +37,8 @@ const DIFFICULTY_CONFIG = {
     normal: { spawnMul: 1.0, speedMul: 1.0, lives: 3, scorePerLevel: 500 },
     hard:   { spawnMul: 0.7, speedMul: 1.3, lives: 3, scorePerLevel: 600 },
 } as const;
+const KOREAN_START_POOL = ["가", "나", "다", "라", "마", "바", "사", "아", "자", "차", "카", "타", "파", "하"];
+const HANGUL_WORD_REGEX = /^[\uAC00-\uD7A3]{2,}$/;
 
 const FallingWordsGame: React.FC = () => {
     const darkMode = useTypingStore((state) => state.darkMode);
@@ -64,6 +66,7 @@ const FallingWordsGame: React.FC = () => {
     const [scorePopups, setScorePopups] = useState<ScorePopup[]>([]);
     const [isPaused, setIsPaused] = useState<boolean>(false);
     const [gameStarted, setGameStarted] = useState<boolean>(false);
+    const [koreanWords, setKoreanWords] = useState<string[]>([]);
 
     const gameAreaRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
@@ -187,14 +190,56 @@ const FallingWordsGame: React.FC = () => {
         }
     }, [isMuted]);
 
-    const getRandomWord = (): string => {
+    const fetchKoreanWords = useCallback(async () => {
+        if (language !== "korean") return;
+        try {
+            const starts = encodeURIComponent(KOREAN_START_POOL.join(","));
+            const response = await fetch(`/api/krdict/candidates?starts=${starts}&num=220`);
+            if (!response.ok) return;
+            const data: unknown = await response.json();
+            if (
+                typeof data === "object" &&
+                data !== null &&
+                "words" in data &&
+                Array.isArray((data as { words: unknown }).words)
+            ) {
+                const words = ((data as { words: string[] }).words ?? [])
+                    .map((w) => w.trim())
+                    .filter((w) => HANGUL_WORD_REGEX.test(w));
+                if (words.length > 0) {
+                    setKoreanWords([...new Set(words)]);
+                }
+            }
+        } catch {
+            // ignore
+        }
+    }, [language]);
+
+    useEffect(() => {
+        if (language === "korean") {
+            void fetchKoreanWords();
+        }
+    }, [language, fetchKoreanWords]);
+
+    const getRandomWord = useCallback((): string => {
+        if (language === "korean") {
+            if (koreanWords.length === 0) {
+                void fetchKoreanWords();
+                return "";
+            }
+            if (koreanWords.length < 50) {
+                void fetchKoreanWords();
+            }
+            return koreanWords[Math.floor(Math.random() * koreanWords.length)];
+        }
+
         const wordsList = wordsData[language];
         if (!Array.isArray(wordsList) || wordsList.length === 0) {
             console.error("Invalid words data structure");
             return "";
         }
         return wordsList[Math.floor(Math.random() * wordsList.length)];
-    };
+    }, [language, koreanWords, fetchKoreanWords]);
 
     const updateActiveEffects = (effect: string, duration: number) => {
         if (activeTimersRef.current[effect]) {
@@ -286,7 +331,7 @@ const FallingWordsGame: React.FC = () => {
                 return [...curr, newWord];
             });
         }
-    }, [gameOver, isPaused, language, level]);
+    }, [gameOver, isPaused, level, getRandomWord]);
 
     const getItemEmoji = (type: Word["type"]) => {
         switch (type) {
@@ -550,6 +595,9 @@ const FallingWordsGame: React.FC = () => {
         setIsPaused(false);
         clearInput();
         setLastTypedTime(0);
+        if (language === "korean" && koreanWords.length === 0) {
+            void fetchKoreanWords();
+        }
 
         // 통계 리셋
         totalWordsTypedRef.current = 0;
