@@ -22,7 +22,9 @@ const LanguageToggle: React.FC<LanguageToggleProps> = ({ className = "" }) => {
                 hover:bg-sky-50 dark:hover:bg-white/5
             `}
             aria-label={
-                language === "korean" ? "Switch to English" : "한국어 전환"
+                language === "korean"
+                    ? "Switch to English"
+                    : "Switch to Korean"
             }
         >
             <BsGlobe size={16} />
