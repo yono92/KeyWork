@@ -447,7 +447,7 @@ const WordChainGame: React.FC = () => {
         setGameOver(false);
         setGameStarted(true);
         setIsPaused(false);
-        setIsAiTurn(false);
+        setIsAiTurn(true);
         aiTurnPendingRef.current = false;
         setPlayerWon(false);
         usedWordsRef.current.clear();
@@ -485,6 +485,7 @@ const WordChainGame: React.FC = () => {
             addMessage(firstWord, "ai", true, firstDefinition);
             setCurrentChar(getLastChar(firstWord));
             setTimer(cfg.timeLimit);
+            setIsAiTurn(false);
             if (inputRef.current) inputRef.current.focus();
         }, 500);
     }, [fetchKrdictCandidates, validateWordWithKrdict]);
