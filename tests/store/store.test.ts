@@ -1,4 +1,4 @@
-import useTypingStore from "./store";
+import useTypingStore from "../../src/store/store";
 
 describe("useTypingStore", () => {
     beforeEach(() => {

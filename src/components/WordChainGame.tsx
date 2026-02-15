@@ -1,6 +1,5 @@
 ﻿import React, { useState, useEffect, useCallback, useRef } from "react";
 import useTypingStore from "../store/store";
-import wordsData from "../data/wordchain-dict.json";
 
 type SoundType = "submit" | "wrong" | "aiTurn" | "lifeLost" | "gameOver" | "win";
 
@@ -17,6 +16,13 @@ interface KrdictValidationResult {
     definition: string | null;
 }
 
+interface KrdictCandidatesResult {
+    words: string[];
+}
+
+const KOREAN_START_POOL = ["가", "나", "다", "라", "마", "바", "사", "아", "자", "차", "카", "타", "파", "하"];
+const HANGUL_WORD_REGEX = /^[가-힣]{2,}$/;
+
 const DIFFICULTY_CONFIG = {
     easy:   { timeLimit: 15, lives: 3 },
     normal: { timeLimit: 10, lives: 3 },
@@ -26,6 +32,7 @@ const DIFFICULTY_CONFIG = {
 const WordChainGame: React.FC = () => {
     const darkMode = useTypingStore((s) => s.darkMode);
     const language = useTypingStore((s) => s.language);
+    const setLanguage = useTypingStore((s) => s.setLanguage);
     const isMuted = useTypingStore((s) => s.isMuted);
 
     const config = DIFFICULTY_CONFIG.normal;
@@ -40,7 +47,7 @@ const WordChainGame: React.FC = () => {
     const [timer, setTimer] = useState<number>(config.timeLimit);
     const [input, setInput] = useState("");
     const [messages, setMessages] = useState<ChatMessage[]>([]);
-    const [currentChar, setCurrentChar] = useState(""); // ?꾩옱 ?쒖옉?댁빞 ?섎뒗 湲??
+    const [currentChar, setCurrentChar] = useState("");
     const [isAiTurn, setIsAiTurn] = useState(false);
     const [playerWon, setPlayerWon] = useState(false);
     const [isValidatingWord, setIsValidatingWord] = useState(false);
@@ -51,6 +58,9 @@ const WordChainGame: React.FC = () => {
     const audioContextRef = useRef<AudioContext | null>(null);
     const usedWordsRef = useRef<Set<string>>(new Set());
     const timerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+    const aiTurnTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const initialAiWordTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const aiTurnPendingRef = useRef(false);
     const gameStartTimeRef = useRef(Date.now());
     const maxComboRef = useRef(0);
     const wordsTypedRef = useRef(0);
@@ -144,8 +154,6 @@ const WordChainGame: React.FC = () => {
     }, [isMuted]);
 
     const getStartChars = (lastChar: string): string[] => {
-        if (language !== "korean") return [lastChar.toLowerCase()];
-
         // Two-sound rule candidates (ASCII-safe unicode escapes).
         const dueum: Record<string, string[]> = {
             "\uB77C": ["\uB098"], // 라 -> 나
@@ -172,19 +180,9 @@ const WordChainGame: React.FC = () => {
         return [...new Set(chars)];
     };
 
-    const getLastChar = (word: string): string => {
-        if (language === "korean") {
-            return word[word.length - 1];
-        }
-        return word[word.length - 1].toLowerCase();
-    };
+    const getLastChar = (word: string): string => word[word.length - 1];
 
-    const getFirstChar = (word: string): string => {
-        if (language === "korean") {
-            return word[0];
-        }
-        return word[0].toLowerCase();
-    };
+    const getFirstChar = (word: string): string => word[0];
 
     const isChainValid = (lastChar: string, nextWord: string): boolean => {
         const validStarts = getStartChars(lastChar);
@@ -192,16 +190,7 @@ const WordChainGame: React.FC = () => {
         return validStarts.includes(firstChar);
     };
 
-    const isValidWord = (word: string): boolean => {
-        const wordsList = wordsData[language] as string[];
-        return wordsList.some((w) =>
-            language === "korean" ? w === word : w.toLowerCase() === word.toLowerCase()
-        );
-    };
-
     const validateWordWithKrdict = useCallback(async (word: string): Promise<KrdictValidationResult | null> => {
-        if (language !== "korean") return null;
-
         try {
             const response = await fetch(`/api/krdict/validate?word=${encodeURIComponent(word)}`);
             if (!response.ok) return null;
@@ -227,20 +216,37 @@ const WordChainGame: React.FC = () => {
         } catch {
             return null;
         }
-    }, [language]);
+    }, []);
 
-    const findAiWord = useCallback((startChar: string): string | null => {
-        const wordsList = wordsData[language] as string[];
+    const fetchKrdictCandidates = useCallback(async (starts: string[]): Promise<string[]> => {
+        if (starts.length === 0) return [];
+        try {
+            const query = encodeURIComponent(starts.join(","));
+            const response = await fetch(`/api/krdict/candidates?starts=${query}`);
+            if (!response.ok) return [];
+
+            const data: unknown = await response.json();
+            if (typeof data === "object" && data !== null && "words" in data) {
+                const words = (data as KrdictCandidatesResult).words ?? [];
+                return Array.isArray(words) ? words : [];
+            }
+            return [];
+        } catch {
+            return [];
+        }
+    }, []);
+
+    const findAiWord = useCallback(async (startChar: string): Promise<string | null> => {
         const validStarts = getStartChars(startChar);
-
-        const candidates = wordsList.filter((w) => {
+        const words = await fetchKrdictCandidates(validStarts);
+        const apiCandidates = words.filter((w) => {
             const first = getFirstChar(w);
             return validStarts.includes(first) && !usedWordsRef.current.has(w.toLowerCase());
         });
 
-        if (candidates.length === 0) return null;
-        return candidates[Math.floor(Math.random() * candidates.length)];
-    }, [language]);
+        if (apiCandidates.length === 0) return null;
+        return apiCandidates[Math.floor(Math.random() * apiCandidates.length)];
+    }, [fetchKrdictCandidates]);
 
     const addMessage = (
         text: string,
@@ -254,51 +260,54 @@ const WordChainGame: React.FC = () => {
         ]);
     };
 
-    // ref ?숆린??(closure 臾몄젣 諛⑹?)
+    // Keep latest currentChar for timer callback.
     useEffect(() => { currentCharRef.current = currentChar; }, [currentChar]);
 
     const doAiTurn = useCallback((startChar: string) => {
+        if (aiTurnPendingRef.current) return;
+        aiTurnPendingRef.current = true;
         setIsAiTurn(true);
-        setTimeout(async () => {
-            const aiWord = findAiWord(startChar);
+        if (aiTurnTimeoutRef.current) {
+            clearTimeout(aiTurnTimeoutRef.current);
+        }
+        aiTurnTimeoutRef.current = setTimeout(async () => {
+            const aiWord = await findAiWord(startChar);
             if (!aiWord) {
-                // AI媛 ?⑥뼱瑜?紐?李얠쓬 ???뚮젅?댁뼱 ?밸━
-                addMessage(language === "korean" ? "...단어가 없어." : "...I give up", "ai", true);
+                addMessage("...단어가 없어.", "ai", true);
                 setPlayerWon(true);
                 setGameOver(true);
                 playSound("win");
                 setIsAiTurn(false);
+                aiTurnPendingRef.current = false;
                 return;
             }
 
             usedWordsRef.current.add(aiWord.toLowerCase());
             let aiDefinition: string | null = null;
-            if (language === "korean") {
-                const validation = await validateWordWithKrdict(aiWord);
-                if (validation?.exists) {
-                    aiDefinition = validation.definition;
-                }
+            const validation = await validateWordWithKrdict(aiWord);
+            if (validation?.exists) {
+                aiDefinition = validation.definition;
             }
             addMessage(aiWord, "ai", true, aiDefinition);
             playSound("aiTurn");
             setCurrentChar(getLastChar(aiWord));
             setTimer(config.timeLimit);
             setIsAiTurn(false);
+            aiTurnPendingRef.current = false;
             if (inputRef.current) inputRef.current.focus();
         }, 1000 + Math.random() * 500);
-    }, [findAiWord, language, config.timeLimit, playSound, validateWordWithKrdict]);
+    }, [findAiWord, config.timeLimit, playSound, validateWordWithKrdict]);
 
-    // doAiTurnRef ?숆린??
+    // Keep latest AI function for timer callback.
     useEffect(() => { doAiTurnRef.current = doAiTurn; }, [doAiTurn]);
 
-    // ??대㉧
+    // Main timer.
     useEffect(() => {
         if (!gameStarted || gameOver || isPaused || isAiTurn) return;
 
         timerIntervalRef.current = setInterval(() => {
             setTimer((prev) => {
                 if (prev <= 1) {
-                    // ?쒓컙 珥덇낵 ???쇱씠??媛먯냼 + AI媛 媛숈? 湲?먮줈 ?⑥뼱瑜??쒖떆
                     playSound("lifeLost");
                     setCombo(0);
                     setLives((l) => {
@@ -307,7 +316,6 @@ const WordChainGame: React.FC = () => {
                             setGameOver(true);
                             playSound("gameOver");
                         } else {
-                            // ref濡?理쒖떊 媛?李몄“ (stale closure 諛⑹?)
                             doAiTurnRef.current(currentCharRef.current);
                         }
                         return Math.max(newLives, 0);
@@ -323,14 +331,14 @@ const WordChainGame: React.FC = () => {
         };
     }, [gameStarted, gameOver, isPaused, isAiTurn, config.timeLimit, playSound]);
 
-    // 梨꾪똿 ?ㅽ겕濡?
+    // Auto scroll chat.
     useEffect(() => {
         if (chatContainerRef.current) {
             chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
         }
     }, [messages]);
 
-    // ESC ?쇱떆?뺤?
+    // Pause with ESC.
     useEffect(() => {
         const handleEsc = (e: KeyboardEvent) => {
             if (e.key === "Escape" && gameStarted && !gameOver) {
@@ -352,7 +360,7 @@ const WordChainGame: React.FC = () => {
         setInput("");
         if (inputRef.current) inputRef.current.value = "";
 
-        // ?곌껐 洹쒖튃 寃利?(?먯쓬踰뺤튃 ?ы븿)
+        // Validate chain rule first.
         if (currentChar && !isChainValid(currentChar, word)) {
             addMessage(word, "player", false);
             playSound("wrong");
@@ -360,20 +368,28 @@ const WordChainGame: React.FC = () => {
             return;
         }
 
-        let isWordValid = isValidWord(word);
+        if (!HANGUL_WORD_REGEX.test(word)) {
+            addMessage(word, "player", false);
+            playSound("wrong");
+            setCombo(0);
+            return;
+        }
+
+        let isWordValid = false;
         let definition: string | null = null;
 
-        if (language === "korean") {
-            setIsValidatingWord(true);
-            const krdictResult = await validateWordWithKrdict(word);
-            setIsValidatingWord(false);
+        setIsValidatingWord(true);
+        const krdictResult = await validateWordWithKrdict(word);
+        setIsValidatingWord(false);
 
-            // API result has priority when reachable; fallback to local list on failures.
-            if (krdictResult) {
-                isWordValid = krdictResult.exists;
-                definition = krdictResult.definition;
-            }
+        if (!krdictResult) {
+            addMessage("사전 연결 오류", "player", false);
+            playSound("wrong");
+            setCombo(0);
+            return;
         }
+        isWordValid = krdictResult.exists;
+        definition = krdictResult.definition;
 
         if (!isWordValid) {
             addMessage(word, "player", false);
@@ -389,7 +405,6 @@ const WordChainGame: React.FC = () => {
             return;
         }
 
-        // ?좏슚???⑥뼱
         usedWordsRef.current.add(word.toLowerCase());
         addMessage(word, "player", true, definition);
         playSound("submit");
@@ -399,13 +414,11 @@ const WordChainGame: React.FC = () => {
         setCombo(newCombo);
         if (newCombo > maxComboRef.current) maxComboRef.current = newCombo;
 
-        // ?먯닔 怨꾩궛
         const timeBonus = timer / config.timeLimit;
         const comboMultiplier = Math.min(1 + newCombo * 0.2, 2);
         const wordScore = Math.round(word.length * 10 * timeBonus * comboMultiplier);
         setScore((prev) => prev + wordScore);
 
-        // AI ??
         const nextChar = getLastChar(word);
         setCurrentChar(nextChar);
         doAiTurn(nextChar);
@@ -435,34 +448,59 @@ const WordChainGame: React.FC = () => {
         setGameStarted(true);
         setIsPaused(false);
         setIsAiTurn(false);
+        aiTurnPendingRef.current = false;
         setPlayerWon(false);
         usedWordsRef.current.clear();
         gameStartTimeRef.current = Date.now();
         maxComboRef.current = 0;
         wordsTypedRef.current = 0;
 
-        // AI媛 癒쇱? ?쒖옉
-        setTimeout(async () => {
-            const wordsList = wordsData[language] as string[];
-            const firstWord = wordsList[Math.floor(Math.random() * wordsList.length)];
+        // AI starts first.
+        if (initialAiWordTimeoutRef.current) {
+            clearTimeout(initialAiWordTimeoutRef.current);
+        }
+        initialAiWordTimeoutRef.current = setTimeout(async () => {
+            let firstWord: string | null = null;
+            const starters = await fetchKrdictCandidates(KOREAN_START_POOL);
+            if (starters.length > 0) {
+                firstWord = starters[Math.floor(Math.random() * starters.length)];
+            }
+
+            if (!firstWord) {
+                addMessage("사전 연결 실패", "ai", false);
+                setGameOver(true);
+                setPlayerWon(true);
+                setIsAiTurn(false);
+                return;
+            }
             usedWordsRef.current.add(firstWord.toLowerCase());
             let firstDefinition: string | null = null;
-            if (language === "korean") {
-                const validation = await validateWordWithKrdict(firstWord);
-                if (validation?.exists) {
-                    firstDefinition = validation.definition;
-                }
+            const validation = await validateWordWithKrdict(firstWord);
+            if (validation?.exists) {
+                firstDefinition = validation.definition;
             }
             addMessage(firstWord, "ai", true, firstDefinition);
             setCurrentChar(getLastChar(firstWord));
             setTimer(cfg.timeLimit);
             if (inputRef.current) inputRef.current.focus();
         }, 500);
-    }, [language, validateWordWithKrdict]);
+    }, [fetchKrdictCandidates, validateWordWithKrdict]);
 
     useEffect(() => {
+        if (language !== "korean") {
+            setLanguage("korean");
+            return;
+        }
         restartGame();
-    }, [restartGame]);
+    }, [language, restartGame, setLanguage]);
+
+    useEffect(() => {
+        return () => {
+            if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+            if (aiTurnTimeoutRef.current) clearTimeout(aiTurnTimeoutRef.current);
+            if (initialAiWordTimeoutRef.current) clearTimeout(initialAiWordTimeoutRef.current);
+        };
+    }, []);
 
     const formatPlayTime = (ms: number) => {
         const totalSec = Math.floor(ms / 1000);
@@ -474,7 +512,7 @@ const WordChainGame: React.FC = () => {
     return (
         <div className="relative w-full flex-1 min-h-[280px] sm:min-h-[400px] rounded-2xl overflow-hidden border border-sky-200/40 dark:border-sky-500/10">
             <div className={`absolute inset-0 flex flex-col ${darkMode ? "bg-[#0e1825]" : "bg-gradient-to-b from-sky-50/80 to-white"}`}>
-                {/* ?곷떒 諛?*/}
+                {/* Top bar */}
                 <div className={`flex justify-between items-center px-2.5 py-2 sm:px-5 sm:py-3 backdrop-blur-sm border-b z-10 ${
                     darkMode ? "bg-white/[0.04] border-white/[0.06]" : "bg-white/70 border-sky-100/50"
                 }`}>
@@ -487,21 +525,21 @@ const WordChainGame: React.FC = () => {
                         )}
                     </div>
                     <div className="flex items-center gap-1.5 sm:gap-3">
-                        {/* ??대㉧ */}
+                        {/* Timer */}
                         <div className={`text-xs sm:text-lg font-bold tabular-nums ${
                             timer <= 3 ? "text-rose-400 animate-pulse" : darkMode ? "text-white" : "text-slate-800"
                         }`}>
-                            ?깍툘 {timer}s
+                            ⏱ {timer}s
                         </div>
-                        {/* ?쇱씠??*/}
+                        {/* Lives */}
                         <div className={`text-sm sm:text-lg ${darkMode ? "text-white" : "text-slate-800"}`}>
-                            {"?ㅿ툘".repeat(Math.max(lives, 0))}
-                            {"?뼡".repeat(Math.max(config.lives - lives, 0))}
+                            {"❤️".repeat(Math.max(lives, 0))}
+                            {"🖤".repeat(Math.max(config.lives - lives, 0))}
                         </div>
                     </div>
                 </div>
 
-                {/* ?꾩옱 湲???뚰듃 */}
+                {/* Current start character hint */}
                 {currentChar && gameStarted && !gameOver && (
                     <div className="flex justify-center py-2">
                         <span className={`px-4 py-1.5 rounded-full text-sm font-medium ${
@@ -509,19 +547,16 @@ const WordChainGame: React.FC = () => {
                         }`}>
                             {(() => {
                                 const chars = getStartChars(currentChar);
-                                if (language === "korean") {
-                                    if (chars.length > 1) {
-                                        return `"${chars.join('" ?먮뒗 "')}"(??濡??쒖옉?섎뒗 ?⑥뼱`;
-                                    }
-                                    return `"${currentChar}"(??濡??쒖옉?섎뒗 ?⑥뼱`;
+                                if (chars.length > 1) {
+                                    return `"${chars.join('" 또는 "')}"로 시작하는 단어`;
                                 }
-                                return `Word starting with "${currentChar}"`;
+                                return `"${currentChar}"로 시작하는 단어`;
                             })()}
                         </span>
                     </div>
                 )}
 
-                {/* 梨꾪똿 ?곸뿭 */}
+                {/* Chat area */}
                 <div
                     ref={chatContainerRef}
                     className="flex-1 overflow-y-auto px-4 py-3 space-y-2"
@@ -532,6 +567,11 @@ const WordChainGame: React.FC = () => {
                             className={`flex ${msg.sender === "player" ? "justify-end" : "justify-start"} animate-chat-bubble`}
                         >
                             <div className="max-w-[78%]">
+                                <div className={`mb-1 text-[10px] font-semibold uppercase tracking-wide ${
+                                    darkMode ? "text-slate-400" : "text-slate-500"
+                                }`}>
+                                    {msg.sender === "ai" ? "상대" : "나"}
+                                </div>
                                 <div className={`px-4 py-2.5 rounded-2xl text-sm font-medium ${
                                     msg.sender === "ai"
                                         ? darkMode
@@ -541,7 +581,6 @@ const WordChainGame: React.FC = () => {
                                             ? "bg-gradient-to-r from-sky-500 to-cyan-500 text-white rounded-br-md"
                                             : "bg-rose-500/80 text-white rounded-br-md line-through"
                                 }`}>
-                                    {msg.sender === "ai" && <span className="mr-1.5">?쨼</span>}
                                     {msg.text}
                                 </div>
                                 {msg.isValid && msg.definition && (
@@ -551,7 +590,7 @@ const WordChainGame: React.FC = () => {
                                             : "bg-sky-50/80 border-sky-200 text-slate-700"
                                     }`}>
                                         <span className="font-semibold text-sky-400 mr-1">
-                                            {language === "korean" ? "의미" : "Definition"}
+                                            의미
                                         </span>
                                         <span>{msg.definition}</span>
                                     </div>
@@ -564,13 +603,13 @@ const WordChainGame: React.FC = () => {
                             <div className={`px-4 py-2.5 rounded-2xl rounded-bl-md text-sm ${
                                 darkMode ? "bg-white/[0.08] text-white" : "bg-slate-100 text-slate-800"
                             }`}>
-                                ?쨼 <span className="animate-pulse">...</span>
+                                상대 입력 중 <span className="animate-pulse">...</span>
                             </div>
                         </div>
                     )}
                 </div>
 
-                {/* ?섎떒 ?낅젰 */}
+                {/* Input area */}
                 <div className={`p-2.5 sm:p-4 backdrop-blur-sm border-t ${
                     darkMode ? "bg-white/[0.04] border-white/[0.06]" : "bg-white/70 border-sky-100/50"
                 }`}>
@@ -591,17 +630,17 @@ const WordChainGame: React.FC = () => {
                             } focus:ring-2 focus:ring-sky-500/20 disabled:opacity-50`}
                             placeholder={
                                 isAiTurn
-                                    ? (language === "korean" ? "AI 李⑤??낅땲??.." : "AI's turn...")
-                                    : currentChar
-                                        ? (language === "korean"
+                                    ? "상대 차례입니다..."
+                                    : isValidatingWord
+                                        ? "단어 검증 중..."
+                                        : currentChar
                                             ? (() => {
                                                 const chars = getStartChars(currentChar);
                                                 return chars.length > 1
-                                                    ? `"${chars.join('" / "')}"(??濡??쒖옉?섎뒗 ?⑥뼱 ?낅젰`
-                                                    : `"${currentChar}"(??濡??쒖옉?섎뒗 ?⑥뼱 ?낅젰`;
+                                                    ? `"${chars.join('" / "')}"로 시작하는 단어 입력`
+                                                    : `"${currentChar}"로 시작하는 단어 입력`;
                                             })()
-                                            : `Type a word starting with "${currentChar}"`)
-                                        : (language === "korean" ? "?⑥뼱瑜??낅젰?섏꽭??.." : "Type a word...")
+                                            : "단어를 입력하세요..."
                             }
                             autoComplete="off"
                         />
@@ -610,38 +649,36 @@ const WordChainGame: React.FC = () => {
                             disabled={!gameStarted || isPaused || gameOver || isAiTurn || isValidatingWord || !input.trim()}
                             className="px-4 py-2 sm:px-6 sm:py-3 bg-gradient-to-r from-sky-500 to-cyan-500 text-white rounded-xl hover:shadow-lg hover:shadow-sky-500/25 transition-all duration-200 font-medium text-sm sm:text-base disabled:opacity-50"
                         >
-                            {isValidatingWord ? (language === "korean" ? "寃利앹쨷..." : "Checking...") : "Enter"}
+                            {isValidatingWord ? "검증중..." : "입력"}
                         </button>
                     </div>
                 </div>
             </div>
 
 
-            {/* ?쇱떆?뺤? */}
+            {/* Pause overlay */}
             {isPaused && !gameOver && (
                 <div className="absolute inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm z-30">
                     <div className="text-center">
                         <h2 className="text-3xl sm:text-5xl font-bold text-white mb-4">PAUSED</h2>
                         <p className="text-sm sm:text-lg text-slate-300">
-                            {language === "korean" ? "ESC瑜??뚮윭 怨꾩냽" : "Press ESC to continue"}
+                            ESC를 눌러 계속
                         </p>
                     </div>
                 </div>
             )}
 
-            {/* 寃뚯엫 ?ㅻ쾭 */}
+            {/* Game over overlay */}
             {gameOver && (
                 <div className="absolute inset-0 flex items-center justify-center bg-black/70 backdrop-blur-sm z-30">
                     <div className={`text-center px-5 py-5 sm:px-10 sm:py-8 rounded-2xl border animate-panel-in ${
                         darkMode ? "bg-[#162032] border-white/10" : "bg-white border-sky-100"
                     } shadow-2xl w-full max-w-xs sm:max-w-sm mx-4`}>
                         <h2 className={`text-xl sm:text-3xl font-bold mb-1 ${darkMode ? "text-white" : "text-slate-800"}`}>
-                            {playerWon
-                                ? (language === "korean" ? "?밸━!" : "You Win!")
-                                : (language === "korean" ? "Game Over!" : "Game Over!")}
+                            {playerWon ? "승리!" : "게임 오버"}
                         </h2>
                         {playerWon && (
-                            <p className="text-amber-400 font-bold text-sm mb-3 animate-bounce">?룇</p>
+                            <p className="text-amber-400 font-bold text-sm mb-3 animate-bounce">★</p>
                         )}
 
                         <div className={`border-t border-b py-3 my-3 ${darkMode ? "border-white/10" : "border-slate-200"}`}>
@@ -651,9 +688,9 @@ const WordChainGame: React.FC = () => {
                         </div>
 
                         <div className={`text-sm space-y-1.5 mb-5 ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
-                            <p>Words typed: <span className="font-medium tabular-nums">{wordsTypedRef.current}</span></p>
-                            <p>Max combo: <span className="font-medium tabular-nums">{maxComboRef.current}</span></p>
-                            <p>Play time: <span className="font-medium tabular-nums">{formatPlayTime(Date.now() - gameStartTimeRef.current)}</span></p>
+                            <p>입력 단어 수: <span className="font-medium tabular-nums">{wordsTypedRef.current}</span></p>
+                            <p>최대 콤보: <span className="font-medium tabular-nums">{maxComboRef.current}</span></p>
+                            <p>플레이 시간: <span className="font-medium tabular-nums">{formatPlayTime(Date.now() - gameStartTimeRef.current)}</span></p>
                         </div>
 
                         <div className="flex flex-col sm:flex-row gap-2.5 sm:gap-3 justify-center">
@@ -661,7 +698,7 @@ const WordChainGame: React.FC = () => {
                                 onClick={() => restartGame()}
                                 className="px-5 py-2.5 sm:px-8 sm:py-3 bg-gradient-to-r from-sky-500 to-cyan-500 text-white rounded-xl hover:shadow-lg hover:shadow-sky-500/25 transition-all duration-200 font-medium text-sm sm:text-base"
                             >
-                                {language === "korean" ? "?ㅼ떆 ?섍린" : "Play Again"}
+                                다시 하기
                             </button>
                         </div>
                     </div>
