@@ -4,9 +4,9 @@
     "version": "0.0.0",
     "type": "module",
     "scripts": {
-        "predev": "node -e \"try{require('fs').rmSync('.next',{recursive:true,force:true})}catch(e){}\"",
+        "predev": "node -e \"import('fs').then(f=>f.rmSync('.next',{recursive:true,force:true})).catch(()=>{})\"",
         "dev": "next dev",
-        "reset:cache": "node -e \"try{require('fs').rmSync('.next',{recursive:true,force:true});console.log('Cleared .next cache')}catch(e){}\"",
+        "reset:cache": "node -e \"import('fs').then(f=>{f.rmSync('.next',{recursive:true,force:true});console.log('Cleared .next cache')}).catch(()=>{})\"",
         "build": "next build",
         "build:prod": "NODE_ENV=production next build",
         "start": "next start",
