@@ -20,11 +20,6 @@ const NAV_ITEMS = [
         shortLabel: { korean: "\uB099\uD558", english: "Falling" },
     },
     {
-        id: "typing-defense",
-        label: { korean: "\uD0C0\uC774\uD551 \uB514\uD39C\uC2A4", english: "Typing Defense" },
-        shortLabel: { korean: "\uB514\uD39C\uC2A4", english: "Defense" },
-    },
-    {
         id: "typing-race",
         label: { korean: "\uD0C0\uC774\uD551 \uB808\uC774\uC2A4", english: "Typing Race" },
         shortLabel: { korean: "\uB808\uC774\uC2A4", english: "Race" },

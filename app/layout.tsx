@@ -13,8 +13,15 @@ export default function RootLayout({
     children: ReactNode;
 }>) {
     return (
-        <html lang="ko">
-            <body>{children}</body>
+        <html lang="ko" suppressHydrationWarning>
+            <body>
+                <script
+                    dangerouslySetInnerHTML={{
+                        __html: `try{if(localStorage.getItem('darkMode')==='true')document.documentElement.classList.add('dark')}catch(e){}`,
+                    }}
+                />
+                {children}
+            </body>
         </html>
     );
 }

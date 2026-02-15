@@ -362,6 +362,38 @@ const WordChainGame: React.FC = () => {
         if (!isPaused && !gameOver && !isAiTurn && inputRef.current) inputRef.current.focus();
     }, [isPaused, gameOver, isAiTurn]);
 
+    // Prevent backspace browser navigation and auto-focus input.
+    useEffect(() => {
+        if (!gameStarted || gameOver) return;
+
+        const handleGlobalKeyDown = (e: KeyboardEvent) => {
+            // 백스페이스 뒤로가기 방지
+            if (
+                e.key === "Backspace" &&
+                !(e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement)
+            ) {
+                e.preventDefault();
+            }
+            // 키 입력 시 자동으로 인풋 포커스
+            if (
+                !isPaused &&
+                !isAiTurn &&
+                !isValidatingWord &&
+                inputRef.current &&
+                document.activeElement !== inputRef.current &&
+                !e.ctrlKey &&
+                !e.metaKey &&
+                !e.altKey &&
+                e.key !== "Escape"
+            ) {
+                inputRef.current.focus();
+            }
+        };
+
+        window.addEventListener("keydown", handleGlobalKeyDown);
+        return () => window.removeEventListener("keydown", handleGlobalKeyDown);
+    }, [gameStarted, gameOver, isPaused, isAiTurn, isValidatingWord]);
+
     const handleSubmit = async () => {
         if (isComposingRef.current || !input.trim() || isAiTurn || isValidatingWord) return;
 
@@ -439,6 +471,24 @@ const WordChainGame: React.FC = () => {
         }
     };
 
+    const handlePass = () => {
+        if (isAiTurn || isValidatingWord || gameOver || !gameStarted || isPaused) return;
+        playSound("lifeLost");
+        setCombo(0);
+        setInput("");
+        addMessage("(패스)", "player", false);
+        setLives((l) => {
+            const newLives = l - 1;
+            if (newLives <= 0) {
+                setGameOver(true);
+                playSound("gameOver");
+            } else {
+                doAiTurn(currentChar);
+            }
+            return Math.max(newLives, 0);
+        });
+    };
+
     const handleCompositionStart = () => { isComposingRef.current = true; };
     const handleCompositionEnd = (e: React.CompositionEvent<HTMLInputElement>) => {
         isComposingRef.current = false;
@@ -483,7 +533,7 @@ const WordChainGame: React.FC = () => {
             if (!firstWord) {
                 addMessage("사전 연결 실패 — 다시 시도해주세요", "ai", false);
                 setGameOver(true);
-                setPlayerWon(true);
+                setPlayerWon(false);
                 setIsAiTurn(false);
                 return;
             }
@@ -659,6 +709,18 @@ const WordChainGame: React.FC = () => {
                             }
                             autoComplete="off"
                         />
+                        <button
+                            onClick={handlePass}
+                            disabled={!gameStarted || isPaused || gameOver || isAiTurn || isValidatingWord}
+                            title="단어를 모를 때 패스 (목숨 -1)"
+                            className={`px-3 py-2 sm:px-4 sm:py-3 rounded-xl font-medium text-sm sm:text-base transition-all duration-200 border-2 disabled:opacity-50 ${
+                                darkMode
+                                    ? "border-white/10 text-slate-400 hover:border-rose-500/30 hover:text-rose-400"
+                                    : "border-slate-200 text-slate-500 hover:border-rose-300 hover:text-rose-500"
+                            }`}
+                        >
+                            패스
+                        </button>
                         <button
                             onClick={() => void handleSubmit()}
                             disabled={!gameStarted || isPaused || gameOver || isAiTurn || isValidatingWord || !input.trim()}

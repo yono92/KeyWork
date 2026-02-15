@@ -82,7 +82,7 @@ const FallingWordsGame: React.FC = () => {
     const spawnInterval =
         Math.max(2000 - level * 100, 300) * (slowMotion ? 1.5 : 1) * config.spawnMul;
     // 바닥 도달 시간(초): 레벨 1 ≈ 6.7초, 레벨이 올라갈수록 빨라짐, 최소 1초
-    const fallSeconds = Math.max(10 / (1 + level * 0.5), 1) * (slowMotion ? 2 : 1) / config.speedMul;
+    const fallSeconds = Math.max(7 / (1 + level * 0.5), 1) * (slowMotion ? 2 : 1) / config.speedMul;
 
     const lifeLostRef = useRef(false);
     const activeTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
