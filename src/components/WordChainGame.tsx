@@ -303,7 +303,7 @@ const WordChainGame: React.FC = () => {
 
     // Main timer.
     useEffect(() => {
-        if (!gameStarted || gameOver || isPaused || isAiTurn) return;
+        if (!gameStarted || gameOver || isPaused || isAiTurn || isValidatingWord) return;
 
         timerIntervalRef.current = setInterval(() => {
             setTimer((prev) => {
@@ -329,7 +329,7 @@ const WordChainGame: React.FC = () => {
         return () => {
             if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
         };
-    }, [gameStarted, gameOver, isPaused, isAiTurn, config.timeLimit, playSound]);
+    }, [gameStarted, gameOver, isPaused, isAiTurn, isValidatingWord, config.timeLimit, playSound]);
 
     // Auto scroll chat.
     useEffect(() => {
