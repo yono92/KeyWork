@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import useTypingStore from "../store/store";
-import quotesData from "../data/quotes.json";
+import proverbsData from "../data/proverbs.json";
 
 type SoundType = "correct" | "wrong" | "win" | "lose" | "roundComplete" | "countdown" | "go";
 
@@ -162,7 +162,7 @@ const TypingRaceGame: React.FC = () => {
     }, [isMuted]);
 
     const getRandomSentence = useCallback((): string => {
-        const sentences = quotesData[language];
+        const sentences = proverbsData[language];
         const available = sentences.filter((_, i) => !usedIndicesRef.current.has(i));
         const pool = available.length > 0 ? available : sentences;
         const idx = sentences.indexOf(pool[Math.floor(Math.random() * pool.length)]);
@@ -345,7 +345,7 @@ const TypingRaceGame: React.FC = () => {
         if (resetCountdown) {
             setGameStarted(true);
             // 문장 미리 세팅 + 카운트다운 시작
-            const s = quotesData[language][Math.floor(Math.random() * quotesData[language].length)];
+            const s = proverbsData[language][Math.floor(Math.random() * proverbsData[language].length)];
             setSentence(s);
             setCountdown(3);
         }

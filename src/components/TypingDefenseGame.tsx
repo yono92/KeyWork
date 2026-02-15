@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import useTypingStore from "../store/store";
 import wordsData from "../data/word.json";
-import quotesData from "../data/quotes.json";
+import proverbsData from "../data/proverbs.json";
 
 type SoundType = "hit" | "destroy" | "bossHit" | "baseDamage" | "waveComplete" | "gameOver";
 
@@ -224,7 +224,7 @@ const TypingDefenseGame: React.FC = () => {
     }, [language, koreanWords, fetchKoreanWords]);
 
     const getRandomSentence = useCallback((): string => {
-        const sentences = quotesData[language];
+        const sentences = proverbsData[language];
         return sentences[Math.floor(Math.random() * sentences.length)];
     }, [language]);
 
