@@ -1,9 +1,12 @@
 import React, { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import useTypingStore from "../store/store";
 import quotesData from "../data/quotes.json";
+import proverbsData from "../data/proverbs.json";
 import { calculateHangulAccuracy, countKeystrokes } from "../utils/hangulUtils";
 import Keyboard from "./Keyboard";
 import ProgressBar from "./ProgressBar";
+
+type TextSource = "quotes" | "proverbs" | "longtext";
 
 type AudioContextClass = typeof AudioContext;
 
@@ -93,6 +96,9 @@ const TypingInput: React.FC = () => {
     const audioContextRef = useRef<AudioContext | null>(null);
     const initializedRef = useRef(false);
     const isMuted = useTypingStore((state) => state.isMuted);
+    const [textSource, setTextSource] = useState<TextSource>("quotes");
+    const [isLoadingText, setIsLoadingText] = useState(false);
+    const [wikiTitle, setWikiTitle] = useState<string | null>(null);
 
     const handleKeyDown = useCallback((e: KeyboardEvent) => {
         const keyCode = normalizeCode(e.code);
@@ -139,6 +145,44 @@ const TypingInput: React.FC = () => {
         return quotesArray[randomIndex];
     };
 
+    const getRandomProverb = (language: "korean" | "english") => {
+        const arr = proverbsData[language];
+        return arr[Math.floor(Math.random() * arr.length)];
+    };
+
+    const fetchWikipediaText = useCallback(async (lang: "korean" | "english") => {
+        const apiLang = lang === "korean" ? "ko" : "en";
+        const res = await fetch(`/api/wikipedia?lang=${apiLang}`);
+        if (!res.ok) throw new Error("Wikipedia fetch failed");
+        const data: { title: string; text: string } = await res.json();
+        return data;
+    }, []);
+
+    const loadText = useCallback(async (source: TextSource, lang: "korean" | "english") => {
+        if (source === "quotes") {
+            setWikiTitle(null);
+            return getRandomQuote(lang);
+        }
+        if (source === "proverbs") {
+            setWikiTitle(null);
+            return getRandomProverb(lang);
+        }
+        // longtext
+        setIsLoadingText(true);
+        try {
+            const data = await fetchWikipediaText(lang);
+            setWikiTitle(data.title);
+            return data.text;
+        } catch {
+            setWikiTitle(null);
+            return lang === "korean"
+                ? "위키백과에서 텍스트를 불러오지 못했습니다. 다시 시도해주세요."
+                : "Failed to load text from Wikipedia. Please try again.";
+        } finally {
+            setIsLoadingText(false);
+        }
+    }, [fetchWikipediaText]);
+
     const beep = useCallback(
         (frequency = 800, duration = 30, volume = 0.2) => {
             try {
@@ -168,21 +212,30 @@ const TypingInput: React.FC = () => {
         []
     );
 
-    // 텍스트 초기화 (마운트 시 1회만)
+    // 텍스트 초기화 (마운트 시, 언어 변경 시, 탭 변경 시)
     useEffect(() => {
-        const randomQuote = getRandomQuote(language);
-        setText(randomQuote);
-        setInput("");
-        setStartTime(null);
-        setTypingSpeed(0);
-        setAccuracy(0);
-        setProgress(0);
+        let cancelled = false;
 
-        if (!initializedRef.current) {
-            initializedRef.current = true;
-            if (inputRef.current) inputRef.current.focus();
-        }
-    }, [language, setProgress, setText]);
+        const load = async () => {
+            const newText = await loadText(textSource, language);
+            if (cancelled) return;
+            setText(newText);
+            setInput("");
+            setStartTime(null);
+            setTypingSpeed(0);
+            setAccuracy(0);
+            setProgress(0);
+
+            if (!initializedRef.current) {
+                initializedRef.current = true;
+                if (inputRef.current) inputRef.current.focus();
+            }
+        };
+
+        load();
+
+        return () => { cancelled = true; };
+    }, [language, textSource, setProgress, setText, loadText]);
 
     // AudioContext 초기화 (사용자 상호작용 시)
     useEffect(() => {
@@ -323,8 +376,6 @@ const TypingInput: React.FC = () => {
                     return;
                 }
                 setLanguage("english");
-                const randomQuote = getRandomQuote("english");
-                setText(randomQuote);
                 setInput("");
                 setStartTime(null);
                 return;
@@ -336,8 +387,6 @@ const TypingInput: React.FC = () => {
                     return;
                 }
                 setLanguage("korean");
-                const randomQuote = getRandomQuote("korean");
-                setText(randomQuote);
                 setInput("");
                 setStartTime(null);
                 return;
@@ -423,9 +472,10 @@ const TypingInput: React.FC = () => {
             setStartTime(null);
             setTypingSpeed(0);
             setAccuracy(0);
-            // 현재 language 상태를 사용하여 새로운 인용구 가져오기
-            const randomQuote = getRandomQuote(language);
-            setText(randomQuote);
+            // 현재 소스에서 새로운 텍스트 가져오기
+            loadText(textSource, language).then((newText) => {
+                setText(newText);
+            });
         }
     };
 
@@ -461,8 +511,41 @@ const TypingInput: React.FC = () => {
 
     const lg = isLargeScreen;
 
+    const tabs: { key: TextSource; label: string }[] = [
+        { key: "quotes", label: "문장" },
+        { key: "proverbs", label: "속담" },
+        { key: "longtext", label: "장문" },
+    ];
+
+    const handleTabChange = (source: TextSource) => {
+        if (source === textSource) return;
+        setTextSource(source);
+        // 세션 리셋은 useEffect에서 자동 처리됨
+    };
+
     return (
         <div className={`w-full ${lg ? "" : "max-w-4xl mx-auto"} animate-panel-in ${lg ? "space-y-8" : "space-y-4 md:space-y-6"} my-auto`}>
+            {/* 텍스트 소스 탭 */}
+            <div className="flex justify-center gap-1">
+                {tabs.map((tab) => (
+                    <button
+                        key={tab.key}
+                        onClick={() => handleTabChange(tab.key)}
+                        className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all duration-200
+                            ${textSource === tab.key
+                                ? darkMode
+                                    ? "bg-sky-500/20 text-sky-400 border border-sky-500/30"
+                                    : "bg-sky-100 text-sky-700 border border-sky-200"
+                                : darkMode
+                                    ? "text-slate-500 hover:text-slate-300 border border-transparent hover:border-white/[0.08]"
+                                    : "text-slate-400 hover:text-slate-600 border border-transparent hover:border-sky-100"
+                            }`}
+                    >
+                        {tab.label}
+                    </button>
+                ))}
+            </div>
+
             {/* 타이핑 영역 */}
             <div
                 className={`${lg ? "px-12 py-10" : "px-6 py-6 md:px-8 md:py-8"} rounded-2xl transition-all duration-300 ${
@@ -471,8 +554,25 @@ const TypingInput: React.FC = () => {
                         : "bg-white/60 border border-sky-100/50 shadow-sm"
                 }`}
             >
-                <div className={`text-center ${lg ? "text-4xl leading-relaxed mb-8" : "text-2xl md:text-3xl leading-loose mb-6"} font-semibold tracking-wide`}>
-                    {renderedText}
+                {/* 장문 모드: 위키 제목 표시 */}
+                {textSource === "longtext" && wikiTitle && !isLoadingText && (
+                    <div className={`text-center text-xs mb-3 ${darkMode ? "text-slate-600" : "text-slate-400"}`}>
+                        출처: 위키백과 &mdash; {wikiTitle}
+                    </div>
+                )}
+
+                <div className={`text-center ${
+                    textSource === "longtext"
+                        ? lg ? "text-2xl leading-relaxed mb-8" : "text-lg md:text-xl leading-relaxed mb-6"
+                        : lg ? "text-4xl leading-relaxed mb-8" : "text-2xl md:text-3xl leading-loose mb-6"
+                } font-semibold tracking-wide`}>
+                    {isLoadingText ? (
+                        <span className={`inline-block animate-pulse ${darkMode ? "text-slate-600" : "text-slate-300"}`}>
+                            텍스트를 불러오는 중...
+                        </span>
+                    ) : (
+                        renderedText
+                    )}
                 </div>
                 <ProgressBar trackWidth={progressBarWidth} className={lg ? "mb-7" : "mb-5"} />
                 <input
@@ -496,6 +596,7 @@ const TypingInput: React.FC = () => {
                     `}
                     placeholder=""
                     autoFocus
+                    disabled={isLoadingText}
                 />
                 {!isValidInput && (
                     <p className="text-rose-500 text-sm mt-2 ml-1">
