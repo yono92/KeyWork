@@ -50,6 +50,8 @@ const fetchCandidatesByStart = async (apiKey: string, start: string): Promise<st
             method: "include",
             num: "100",
             start: String((page - 1) * 100 + 1),
+            advanced: "y",
+            pos: "1",
         });
 
         const response = await fetch(`${KRDICT_SEARCH_URL}?${searchParams.toString()}`, {

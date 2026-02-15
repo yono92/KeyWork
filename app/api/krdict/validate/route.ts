@@ -97,6 +97,8 @@ export async function GET(request: NextRequest) {
         part: "word",
         method: "exact",
         num: "20",
+        advanced: "y",
+        pos: "1",
     });
 
     try {
