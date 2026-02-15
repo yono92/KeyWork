@@ -5,6 +5,14 @@ import { calculateHangulAccuracy, countKeystrokes } from "../utils/hangulUtils";
 import Keyboard from "./Keyboard";
 import ProgressBar from "./ProgressBar";
 
+type AudioContextClass = typeof AudioContext;
+
+const getAudioContextClass = (): AudioContextClass | undefined => {
+    const w = window as Window &
+        typeof globalThis & { webkitAudioContext?: AudioContextClass };
+    return w.AudioContext || w.webkitAudioContext;
+};
+
 const normalizeCode = (code: string): string => {
     if (code.startsWith("Key")) return code.slice(3).toLowerCase();
     if (code.startsWith("Digit")) return code.slice(5);
@@ -83,6 +91,7 @@ const TypingInput: React.FC = () => {
     const [isValidInput, setIsValidInput] = useState<boolean>(true);
     const [platform, setPlatform] = useState<"mac" | "windows">("windows");
     const audioContextRef = useRef<AudioContext | null>(null);
+    const initializedRef = useRef(false);
     const isMuted = useTypingStore((state) => state.isMuted);
 
     const handleKeyDown = useCallback((e: KeyboardEvent) => {
@@ -134,12 +143,9 @@ const TypingInput: React.FC = () => {
         (frequency = 800, duration = 30, volume = 0.2) => {
             try {
                 if (!audioContextRef.current) {
-                    const AudioContextClass =
-                        window.AudioContext ||
-                        (window as any).webkitAudioContext;
-                    if (!AudioContextClass) return;
-
-                    audioContextRef.current = new AudioContextClass();
+                    const AudioCtor = getAudioContextClass();
+                    if (!AudioCtor) return;
+                    audioContextRef.current = new AudioCtor();
                 }
 
                 const ctx = audioContextRef.current;
@@ -164,24 +170,28 @@ const TypingInput: React.FC = () => {
 
     // 텍스트 초기화 (마운트 시 1회만)
     useEffect(() => {
-        const initialRandomQuote = getRandomQuote("korean");
-        setText(initialRandomQuote);
+        const randomQuote = getRandomQuote(language);
+        setText(randomQuote);
+        setInput("");
+        setStartTime(null);
+        setTypingSpeed(0);
+        setAccuracy(0);
+        setProgress(0);
 
-        if (inputRef.current) {
-            inputRef.current.focus();
+        if (!initializedRef.current) {
+            initializedRef.current = true;
+            if (inputRef.current) inputRef.current.focus();
         }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    }, [language, setProgress, setText]);
 
     // AudioContext 초기화 (사용자 상호작용 시)
     useEffect(() => {
         const handleUserInteraction = () => {
             if (audioContextRef.current) return;
             try {
-                const AudioContextClass =
-                    window.AudioContext || (window as any).webkitAudioContext;
-                if (!AudioContextClass) return;
-                audioContextRef.current = new AudioContextClass();
+                const AudioCtor = getAudioContextClass();
+                if (!AudioCtor) return;
+                audioContextRef.current = new AudioCtor();
             } catch {
                 // AudioContext 초기화 실패 시 무시
             }
