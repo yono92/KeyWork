@@ -8,6 +8,7 @@ This file is the project-specific guide for agents working in this repository.
 - State: Zustand (`src/store/store.ts`)
 - Styling: Tailwind CSS with root `dark` class
 - Routing: Next.js App Router (`app/`)
+- Canonical production URL: `https://key-work-rho.vercel.app`
 
 ## 2) Commands
 - Dev server: `npm run dev`

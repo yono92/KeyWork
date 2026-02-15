@@ -1,10 +1,12 @@
-# KeyWork
+﻿# KeyWork
 
-KeyWork는 한글/영문 타자 연습과 미니 게임을 제공하는 웹 앱입니다.
-현재 프로젝트는 Next.js App Router 기반으로 동작합니다.
+KeyWork???쒓?/?곷Ц ????곗뒿怨?誘몃땲 寃뚯엫???쒓났?섎뒗 ???깆엯?덈떎.
+?꾩옱 ?꾨줈?앺듃??Next.js App Router 湲곕컲?쇰줈 ?숈옉?⑸땲??
 
 - Production: https://key-work-rho.vercel.app
-- 기본 진입 경로: `/practice`
+- Canonical URL: `https://key-work-rho.vercel.app`
+- Legacy `https://key-work.vercel.app` is not assigned to this project
+- 湲곕낯 吏꾩엯 寃쎈줈: `/practice`
 
 ## Tech Stack
 
@@ -32,22 +34,22 @@ npm install
 npm run dev
 ```
 
-개발 서버: `http://localhost:3000`
+媛쒕컻 ?쒕쾭: `http://localhost:3000`
 
 ## Scripts
 
-- `npm run dev`: 개발 서버 실행
-- `npm run build`: 프로덕션 빌드
-- `npm run build:prod`: `NODE_ENV=production` 빌드
-- `npm run start`: 빌드 결과 실행
-- `npm run preview`: 빌드 결과 실행 (`start`와 동일)
-- `npm run lint`: ESLint 실행
-- `npm run test`: Vitest watch 모드
-- `npm run test:run`: Vitest 단일 실행
+- `npm run dev`: 媛쒕컻 ?쒕쾭 ?ㅽ뻾
+- `npm run build`: ?꾨줈?뺤뀡 鍮뚮뱶
+- `npm run build:prod`: `NODE_ENV=production` 鍮뚮뱶
+- `npm run start`: 鍮뚮뱶 寃곌낵 ?ㅽ뻾
+- `npm run preview`: 鍮뚮뱶 寃곌낵 ?ㅽ뻾 (`start`? ?숈씪)
+- `npm run lint`: ESLint ?ㅽ뻾
+- `npm run test`: Vitest watch 紐⑤뱶
+- `npm run test:run`: Vitest ?⑥씪 ?ㅽ뻾
 
 ## Validation Checklist
 
-PR 전에 아래를 권장합니다.
+PR ?꾩뿉 ?꾨옒瑜?沅뚯옣?⑸땲??
 
 ```bash
 npm run lint
@@ -57,25 +59,24 @@ npm run test:run
 
 ## Project Structure
 
-- `app/`: Next.js App Router 엔트리 및 라우트
-- `src/components/`: 게임 및 공통 UI 컴포넌트
-- `src/store/store.ts`: Zustand 전역 상태
-- `src/utils/hangulUtils.ts`: 한글 타이핑 처리 유틸
-- `src/utils/levenshtein.ts`: 정확도/거리 계산 유틸
-- `src/data/*.json`: 한글/영문 문장 데이터
-- `tests/setup.ts`: 테스트 런타임 셋업
+- `app/`: Next.js App Router ?뷀듃由?諛??쇱슦??- `src/components/`: 寃뚯엫 諛?怨듯넻 UI 而댄룷?뚰듃
+- `src/store/store.ts`: Zustand ?꾩뿭 ?곹깭
+- `src/utils/hangulUtils.ts`: ?쒓? ??댄븨 泥섎━ ?좏떥
+- `src/utils/levenshtein.ts`: ?뺥솗??嫄곕━ 怨꾩궛 ?좏떥
+- `src/data/*.json`: ?쒓?/?곷Ц 臾몄옣 ?곗씠??- `tests/setup.ts`: ?뚯뒪???고????뗭뾽
 
 ## Deployment (Vercel)
 
-이 프로젝트는 Vercel에서 배포합니다.
+???꾨줈?앺듃??Vercel?먯꽌 諛고룷?⑸땲??
 
-필수 설정:
+?꾩닔 ?ㅼ젙:
 - Framework Preset: `Next.js`
 - Root Directory: `.`
 - Build Command: `npm run build`
-- Output Directory: 비워두기 (Next.js 기본값 사용)
+- Output Directory: 鍮꾩썙?먭린 (Next.js 湲곕낯媛??ъ슜)
 - Node.js Version: `20.x`
 
 ## License
 
 MIT
+
