@@ -461,7 +461,10 @@ const WordChainGame: React.FC = () => {
         }
         initialAiWordTimeoutRef.current = setTimeout(async () => {
             let firstWord: string | null = null;
-            const starters = await fetchKrdictCandidates(KOREAN_START_POOL);
+            // Pick a single random start character to avoid Vercel function timeout
+            // (14 chars × 3 pages = 42 sequential krdict calls ≈ 40s, exceeds 10s limit).
+            const randomStart = KOREAN_START_POOL[Math.floor(Math.random() * KOREAN_START_POOL.length)];
+            const starters = await fetchKrdictCandidates([randomStart]);
             if (starters.length > 0) {
                 firstWord = starters[Math.floor(Math.random() * starters.length)];
             }

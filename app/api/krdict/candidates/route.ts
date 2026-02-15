@@ -4,7 +4,7 @@ const KRDICT_SEARCH_URL = "https://krdict.korean.go.kr/api/search";
 const CACHE_TTL_MS = 10 * 60 * 1000;
 const DEFAULT_RETURN = 30;
 const MAX_RETURN = 300;
-const MAX_FETCH_PER_START = 3;
+const MAX_FETCH_PER_START = 1;
 
 type CacheEntry = {
     words: string[];
