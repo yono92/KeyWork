@@ -22,6 +22,8 @@ const DIFFICULTY_CONFIG = {
     normal: { speedMul: 1.0, spawnMul: 1.0, baseHp: 3 },
     hard:   { speedMul: 1.3, spawnMul: 0.7, baseHp: 3 },
 } as const;
+const KOREAN_START_POOL = ["가", "나", "다", "라", "마", "바", "사", "아", "자", "차", "카", "타", "파", "하"];
+const HANGUL_WORD_REGEX = /^[\uAC00-\uD7A3]{2,}$/;
 
 const LANE_COUNT = 5;
 
@@ -46,6 +48,7 @@ const TypingDefenseGame: React.FC = () => {
     const [waveEnemiesLeft, setWaveEnemiesLeft] = useState(0);
     const [waveCleared, setWaveCleared] = useState(false);
     const [totalSpawned, setTotalSpawned] = useState(0);
+    const [koreanWords, setKoreanWords] = useState<string[]>([]);
 
     const inputRef = useRef<HTMLInputElement>(null);
     const isComposingRef = useRef(false);
@@ -172,15 +175,58 @@ const TypingDefenseGame: React.FC = () => {
         };
     }, [initAudioContext]);
 
-    const getRandomWord = (): string => {
+    const fetchKoreanWords = useCallback(async () => {
+        if (language !== "korean") return;
+        try {
+            const starts = encodeURIComponent(KOREAN_START_POOL.join(","));
+            const response = await fetch(`/api/krdict/candidates?starts=${starts}&num=220`);
+            if (!response.ok) return;
+
+            const data: unknown = await response.json();
+            if (
+                typeof data === "object" &&
+                data !== null &&
+                "words" in data &&
+                Array.isArray((data as { words: unknown }).words)
+            ) {
+                const words = ((data as { words: string[] }).words ?? [])
+                    .map((w) => w.trim())
+                    .filter((w) => HANGUL_WORD_REGEX.test(w));
+                if (words.length > 0) {
+                    setKoreanWords([...new Set(words)]);
+                }
+            }
+        } catch {
+            // ignore
+        }
+    }, [language]);
+
+    useEffect(() => {
+        if (language === "korean") {
+            void fetchKoreanWords();
+        }
+    }, [language, fetchKoreanWords]);
+
+    const getRandomWord = useCallback((): string => {
+        if (language === "korean") {
+            if (koreanWords.length === 0) {
+                void fetchKoreanWords();
+                return "";
+            }
+            if (koreanWords.length < 50) {
+                void fetchKoreanWords();
+            }
+            return koreanWords[Math.floor(Math.random() * koreanWords.length)];
+        }
+
         const wordsList = wordsData[language];
         return wordsList[Math.floor(Math.random() * wordsList.length)];
-    };
+    }, [language, koreanWords, fetchKoreanWords]);
 
-    const getRandomSentence = (): string => {
+    const getRandomSentence = useCallback((): string => {
         const sentences = quotesData[language];
         return sentences[Math.floor(Math.random() * sentences.length)];
-    };
+    }, [language]);
 
     // 적 스폰
     const spawnEnemy = useCallback(() => {
@@ -194,7 +240,7 @@ const TypingDefenseGame: React.FC = () => {
             const lane = Math.floor(Math.random() * LANE_COUNT);
             const speed = (waveConfig.baseSpeed + Math.random() * 2) * config.speedMul;
 
-            const newEnemy: Enemy = isLastAndBoss
+            const newEnemy: Enemy | null = isLastAndBoss
                 ? {
                     id: Date.now() + Math.random(),
                     text: getRandomSentence(),
@@ -206,23 +252,31 @@ const TypingDefenseGame: React.FC = () => {
                     maxHp: waveConfig.bossHp,
                     status: "active",
                 }
-                : {
-                    id: Date.now() + Math.random(),
-                    text: getRandomWord(),
-                    left: 0,
-                    lane,
-                    speed,
-                    type: "normal",
-                    hp: 1,
-                    maxHp: 1,
-                    status: "active",
-                };
+                : (() => {
+                    const word = getRandomWord();
+                    if (!word) return null;
+                    return {
+                        id: Date.now() + Math.random(),
+                        text: word,
+                        left: 0,
+                        lane,
+                        speed,
+                        type: "normal",
+                        hp: 1,
+                        maxHp: 1,
+                        status: "active",
+                    };
+                })();
+
+            if (!newEnemy) {
+                return prev;
+            }
 
             setEnemies((prev) => [...prev, newEnemy]);
             setWaveEnemiesLeft((prev) => prev + 1);
             return prev + 1;
         });
-    }, [getWaveConfig, config.speedMul, language]);
+    }, [getWaveConfig, config.speedMul, getRandomSentence, getRandomWord]);
 
     // 적 이동 루프
     useEffect(() => {
@@ -413,6 +467,9 @@ const TypingDefenseGame: React.FC = () => {
         setWaveEnemiesLeft(0);
         enemiesDestroyedRef.current = 0;
         gameStartTimeRef.current = Date.now();
+        if (language === "korean" && koreanWords.length === 0) {
+            void fetchKoreanWords();
+        }
         if (inputRef.current) inputRef.current.focus();
     };
 

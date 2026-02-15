@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 
 const KRDICT_SEARCH_URL = "https://krdict.korean.go.kr/api/search";
 const CACHE_TTL_MS = 10 * 60 * 1000;
-const MAX_RETURN = 30;
+const DEFAULT_RETURN = 30;
+const MAX_RETURN = 300;
 const MAX_FETCH_PER_START = 3;
 
 type CacheEntry = {
@@ -19,7 +20,8 @@ const normalizeHeadword = (word: string): string =>
         .replace(/[-^]/g, "")
         .replace(/\d+$/g, "");
 
-const isHangulWord = (word: string): boolean => /^[가-힣]{2,}$/.test(word);
+const isHangulWord = (word: string): boolean => /^[\uAC00-\uD7A3]{2,}$/.test(word);
+const isHangulChar = (char: string): boolean => /^[\uAC00-\uD7A3]$/.test(char);
 
 const extractWordsFromXml = (xml: string): string[] => {
     const matches = xml.match(/<word>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/word>/g) ?? [];
@@ -71,11 +73,18 @@ export async function GET(request: NextRequest) {
     const starts = startsRaw
         .split(",")
         .map((s) => normalizeHeadword(s))
-        .filter((s) => /^[가-힣]$/.test(s));
+        .filter((s) => isHangulChar(s));
 
     if (starts.length === 0) {
         return NextResponse.json({ error: "starts query is required" }, { status: 400 });
     }
+
+    const numRaw = request.nextUrl.searchParams.get("num");
+    const parsedNum = numRaw ? Number(numRaw) : DEFAULT_RETURN;
+    const limit =
+        Number.isFinite(parsedNum) && parsedNum > 0
+            ? Math.min(Math.floor(parsedNum), MAX_RETURN)
+            : DEFAULT_RETURN;
 
     const apiKey = process.env.KRDICT_API_KEY;
     if (!apiKey) {
@@ -85,7 +94,7 @@ export async function GET(request: NextRequest) {
         );
     }
 
-    const cacheKey = starts.join(",");
+    const cacheKey = `${starts.join(",")}:${limit}`;
     const cached = candidatesCache.get(cacheKey);
     if (cached && cached.expiresAt > Date.now()) {
         return NextResponse.json({ words: cached.words, source: "krdict-cache" });
@@ -98,7 +107,7 @@ export async function GET(request: NextRequest) {
             allWords.push(...words);
         }
 
-        const deduped = [...new Set(allWords)].slice(0, MAX_RETURN);
+        const deduped = [...new Set(allWords)].slice(0, limit);
         candidatesCache.set(cacheKey, {
             words: deduped,
             expiresAt: Date.now() + CACHE_TTL_MS,
