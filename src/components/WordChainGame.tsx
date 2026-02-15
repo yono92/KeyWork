@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+﻿import React, { useState, useEffect, useCallback, useRef } from "react";
 import useTypingStore from "../store/store";
 import wordsData from "../data/wordchain-dict.json";
 
@@ -27,12 +27,10 @@ const WordChainGame: React.FC = () => {
     const darkMode = useTypingStore((s) => s.darkMode);
     const language = useTypingStore((s) => s.language);
     const isMuted = useTypingStore((s) => s.isMuted);
-    const difficulty = useTypingStore((s) => s.difficulty);
-    const setDifficulty = useTypingStore((s) => s.setDifficulty);
 
-    const config = DIFFICULTY_CONFIG[difficulty];
+    const config = DIFFICULTY_CONFIG.normal;
 
-    const [gameStarted, setGameStarted] = useState(false);
+    const [gameStarted, setGameStarted] = useState(true);
     const [gameOver, setGameOver] = useState(false);
     const [isPaused, setIsPaused] = useState(false);
 
@@ -42,7 +40,7 @@ const WordChainGame: React.FC = () => {
     const [timer, setTimer] = useState<number>(config.timeLimit);
     const [input, setInput] = useState("");
     const [messages, setMessages] = useState<ChatMessage[]>([]);
-    const [currentChar, setCurrentChar] = useState(""); // 현재 시작해야 하는 글자
+    const [currentChar, setCurrentChar] = useState(""); // ?꾩옱 ?쒖옉?댁빞 ?섎뒗 湲??
     const [isAiTurn, setIsAiTurn] = useState(false);
     const [playerWon, setPlayerWon] = useState(false);
     const [isValidatingWord, setIsValidatingWord] = useState(false);
@@ -145,30 +143,32 @@ const WordChainGame: React.FC = () => {
         } catch { /* ignore */ }
     }, [isMuted]);
 
-    // 한글 두음법칙: 끝말잇기에서 마지막 글자의 변환 후보를 반환
     const getStartChars = (lastChar: string): string[] => {
         if (language !== "korean") return [lastChar.toLowerCase()];
 
-        // 두음법칙 매핑 (마지막 글자 → 시작 가능 글자들)
-        // 예: "럼" → ["럼", "넘"] 이 아니라, 마지막 글자 "력"이면 다음 단어는 "역"으로도 시작 가능
+        // Two-sound rule candidates (ASCII-safe unicode escapes).
         const dueum: Record<string, string[]> = {
-            "녀": ["여"], "뇨": ["요"], "뉴": ["유"], "니": ["이"],
-            "랴": ["야"], "려": ["여"], "례": ["예"], "료": ["요"],
-            "류": ["유"], "리": ["이"], "라": ["나"], "래": ["내"],
-            "로": ["노"], "뢰": ["뇌"], "루": ["누"], "르": ["느"],
+            "\uB77C": ["\uB098"], // 라 -> 나
+            "\uB7B4": ["\uB0B4"], // 래 -> 내
+            "\uB7B5": ["\uC57D"], // 략 -> 약
+            "\uB7C9": ["\uC591"], // 량 -> 양
+            "\uB824": ["\uC5EC"], // 려 -> 여
+            "\uB840": ["\uC608"], // 례 -> 예
+            "\uB85C": ["\uB178"], // 로 -> 노
+            "\uB8CC": ["\uC694"], // 료 -> 요
+            "\uB958": ["\uC720"], // 류 -> 유
+            "\uB974": ["\uB290"], // 르 -> 느
+            "\uB9AC": ["\uC774"], // 리 -> 이
         };
 
         const chars = [lastChar];
-        // lastChar 자체가 두음법칙 대상인 경우
-        if (dueum[lastChar]) {
-            chars.push(...dueum[lastChar]);
-        }
-        // 역방향: lastChar가 변환 결과인 경우 (예: "여"로 끝나면 "녀", "려"로 시작하는 단어도 허용)
+        if (dueum[lastChar]) chars.push(...dueum[lastChar]);
+
+        // Allow reverse pair too, so users are not over-restricted.
         for (const [from, toList] of Object.entries(dueum)) {
-            if (toList.includes(lastChar)) {
-                chars.push(from);
-            }
+            if (toList.includes(lastChar)) chars.push(from);
         }
+
         return [...new Set(chars)];
     };
 
@@ -254,7 +254,7 @@ const WordChainGame: React.FC = () => {
         ]);
     };
 
-    // ref 동기화 (closure 문제 방지)
+    // ref ?숆린??(closure 臾몄젣 諛⑹?)
     useEffect(() => { currentCharRef.current = currentChar; }, [currentChar]);
 
     const doAiTurn = useCallback((startChar: string) => {
@@ -262,8 +262,8 @@ const WordChainGame: React.FC = () => {
         setTimeout(async () => {
             const aiWord = findAiWord(startChar);
             if (!aiWord) {
-                // AI가 단어를 못 찾음 → 플레이어 승리
-                addMessage(language === "korean" ? "...할 말이 없어요" : "...I give up", "ai", true);
+                // AI媛 ?⑥뼱瑜?紐?李얠쓬 ???뚮젅?댁뼱 ?밸━
+                addMessage(language === "korean" ? "...단어가 없어." : "...I give up", "ai", true);
                 setPlayerWon(true);
                 setGameOver(true);
                 playSound("win");
@@ -288,17 +288,17 @@ const WordChainGame: React.FC = () => {
         }, 1000 + Math.random() * 500);
     }, [findAiWord, language, config.timeLimit, playSound, validateWordWithKrdict]);
 
-    // doAiTurnRef 동기화
+    // doAiTurnRef ?숆린??
     useEffect(() => { doAiTurnRef.current = doAiTurn; }, [doAiTurn]);
 
-    // 타이머
+    // ??대㉧
     useEffect(() => {
         if (!gameStarted || gameOver || isPaused || isAiTurn) return;
 
         timerIntervalRef.current = setInterval(() => {
             setTimer((prev) => {
                 if (prev <= 1) {
-                    // 시간 초과 → 라이프 감소 + AI가 같은 글자로 단어를 제시
+                    // ?쒓컙 珥덇낵 ???쇱씠??媛먯냼 + AI媛 媛숈? 湲?먮줈 ?⑥뼱瑜??쒖떆
                     playSound("lifeLost");
                     setCombo(0);
                     setLives((l) => {
@@ -307,7 +307,7 @@ const WordChainGame: React.FC = () => {
                             setGameOver(true);
                             playSound("gameOver");
                         } else {
-                            // ref로 최신 값 참조 (stale closure 방지)
+                            // ref濡?理쒖떊 媛?李몄“ (stale closure 諛⑹?)
                             doAiTurnRef.current(currentCharRef.current);
                         }
                         return Math.max(newLives, 0);
@@ -323,14 +323,14 @@ const WordChainGame: React.FC = () => {
         };
     }, [gameStarted, gameOver, isPaused, isAiTurn, config.timeLimit, playSound]);
 
-    // 채팅 스크롤
+    // 梨꾪똿 ?ㅽ겕濡?
     useEffect(() => {
         if (chatContainerRef.current) {
             chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
         }
     }, [messages]);
 
-    // ESC 일시정지
+    // ESC ?쇱떆?뺤?
     useEffect(() => {
         const handleEsc = (e: KeyboardEvent) => {
             if (e.key === "Escape" && gameStarted && !gameOver) {
@@ -352,7 +352,7 @@ const WordChainGame: React.FC = () => {
         setInput("");
         if (inputRef.current) inputRef.current.value = "";
 
-        // 연결 규칙 검증 (두음법칙 포함)
+        // ?곌껐 洹쒖튃 寃利?(?먯쓬踰뺤튃 ?ы븿)
         if (currentChar && !isChainValid(currentChar, word)) {
             addMessage(word, "player", false);
             playSound("wrong");
@@ -389,7 +389,7 @@ const WordChainGame: React.FC = () => {
             return;
         }
 
-        // 유효한 단어
+        // ?좏슚???⑥뼱
         usedWordsRef.current.add(word.toLowerCase());
         addMessage(word, "player", true, definition);
         playSound("submit");
@@ -399,13 +399,13 @@ const WordChainGame: React.FC = () => {
         setCombo(newCombo);
         if (newCombo > maxComboRef.current) maxComboRef.current = newCombo;
 
-        // 점수 계산
+        // ?먯닔 怨꾩궛
         const timeBonus = timer / config.timeLimit;
         const comboMultiplier = Math.min(1 + newCombo * 0.2, 2);
         const wordScore = Math.round(word.length * 10 * timeBonus * comboMultiplier);
         setScore((prev) => prev + wordScore);
 
-        // AI 턴
+        // AI ??
         const nextChar = getLastChar(word);
         setCurrentChar(nextChar);
         doAiTurn(nextChar);
@@ -423,9 +423,8 @@ const WordChainGame: React.FC = () => {
         setInput((e.target as HTMLInputElement).value);
     };
 
-    const restartGame = (overrideDifficulty?: keyof typeof DIFFICULTY_CONFIG) => {
-        const d = overrideDifficulty ?? difficulty;
-        const cfg = DIFFICULTY_CONFIG[d];
+    const restartGame = useCallback(() => {
+        const cfg = DIFFICULTY_CONFIG.normal;
         setScore(0);
         setLives(cfg.lives);
         setCombo(0);
@@ -442,7 +441,7 @@ const WordChainGame: React.FC = () => {
         maxComboRef.current = 0;
         wordsTypedRef.current = 0;
 
-        // AI가 먼저 시작
+        // AI媛 癒쇱? ?쒖옉
         setTimeout(async () => {
             const wordsList = wordsData[language] as string[];
             const firstWord = wordsList[Math.floor(Math.random() * wordsList.length)];
@@ -459,19 +458,23 @@ const WordChainGame: React.FC = () => {
             setTimer(cfg.timeLimit);
             if (inputRef.current) inputRef.current.focus();
         }, 500);
-    };
+    }, [language, validateWordWithKrdict]);
+
+    useEffect(() => {
+        restartGame();
+    }, [restartGame]);
 
     const formatPlayTime = (ms: number) => {
         const totalSec = Math.floor(ms / 1000);
         const min = Math.floor(totalSec / 60);
         const sec = totalSec % 60;
-        return `${min}분 ${sec.toString().padStart(2, "0")}초`;
+        return `${min}:${sec.toString().padStart(2, "0")}`;
     };
 
     return (
         <div className="relative w-full flex-1 min-h-[280px] sm:min-h-[400px] rounded-2xl overflow-hidden border border-sky-200/40 dark:border-sky-500/10">
             <div className={`absolute inset-0 flex flex-col ${darkMode ? "bg-[#0e1825]" : "bg-gradient-to-b from-sky-50/80 to-white"}`}>
-                {/* 상단 바 */}
+                {/* ?곷떒 諛?*/}
                 <div className={`flex justify-between items-center px-2.5 py-2 sm:px-5 sm:py-3 backdrop-blur-sm border-b z-10 ${
                     darkMode ? "bg-white/[0.04] border-white/[0.06]" : "bg-white/70 border-sky-100/50"
                 }`}>
@@ -483,29 +486,22 @@ const WordChainGame: React.FC = () => {
                             </span>
                         )}
                     </div>
-                    <span className={`px-1.5 sm:px-2 py-0.5 text-[10px] sm:text-xs font-bold rounded-md ${
-                        difficulty === "easy" ? "bg-emerald-500/20 text-emerald-400"
-                        : difficulty === "normal" ? "bg-sky-500/20 text-sky-400"
-                        : "bg-rose-500/20 text-rose-400"
-                    }`}>
-                        {difficulty === "easy" ? "Easy" : difficulty === "normal" ? "Normal" : "Hard"}
-                    </span>
                     <div className="flex items-center gap-1.5 sm:gap-3">
-                        {/* 타이머 */}
+                        {/* ??대㉧ */}
                         <div className={`text-xs sm:text-lg font-bold tabular-nums ${
                             timer <= 3 ? "text-rose-400 animate-pulse" : darkMode ? "text-white" : "text-slate-800"
                         }`}>
-                            ⏱️ {timer}s
+                            ?깍툘 {timer}s
                         </div>
-                        {/* 라이프 */}
+                        {/* ?쇱씠??*/}
                         <div className={`text-sm sm:text-lg ${darkMode ? "text-white" : "text-slate-800"}`}>
-                            {"❤️".repeat(Math.max(lives, 0))}
-                            {"🖤".repeat(Math.max(config.lives - lives, 0))}
+                            {"?ㅿ툘".repeat(Math.max(lives, 0))}
+                            {"?뼡".repeat(Math.max(config.lives - lives, 0))}
                         </div>
                     </div>
                 </div>
 
-                {/* 현재 글자 힌트 */}
+                {/* ?꾩옱 湲???뚰듃 */}
                 {currentChar && gameStarted && !gameOver && (
                     <div className="flex justify-center py-2">
                         <span className={`px-4 py-1.5 rounded-full text-sm font-medium ${
@@ -515,9 +511,9 @@ const WordChainGame: React.FC = () => {
                                 const chars = getStartChars(currentChar);
                                 if (language === "korean") {
                                     if (chars.length > 1) {
-                                        return `"${chars.join('" 또는 "')}"(으)로 시작하는 단어`;
+                                        return `"${chars.join('" ?먮뒗 "')}"(??濡??쒖옉?섎뒗 ?⑥뼱`;
                                     }
-                                    return `"${currentChar}"(으)로 시작하는 단어`;
+                                    return `"${currentChar}"(??濡??쒖옉?섎뒗 ?⑥뼱`;
                                 }
                                 return `Word starting with "${currentChar}"`;
                             })()}
@@ -525,7 +521,7 @@ const WordChainGame: React.FC = () => {
                     </div>
                 )}
 
-                {/* 채팅 영역 */}
+                {/* 梨꾪똿 ?곸뿭 */}
                 <div
                     ref={chatContainerRef}
                     className="flex-1 overflow-y-auto px-4 py-3 space-y-2"
@@ -535,20 +531,29 @@ const WordChainGame: React.FC = () => {
                             key={msg.id}
                             className={`flex ${msg.sender === "player" ? "justify-end" : "justify-start"} animate-chat-bubble`}
                         >
-                            <div className={`max-w-[70%] px-4 py-2.5 rounded-2xl text-sm font-medium ${
-                                msg.sender === "ai"
-                                    ? darkMode
-                                        ? "bg-white/[0.08] text-white rounded-bl-md"
-                                        : "bg-slate-100 text-slate-800 rounded-bl-md"
-                                    : msg.isValid
-                                        ? "bg-gradient-to-r from-sky-500 to-cyan-500 text-white rounded-br-md"
-                                        : "bg-rose-500/80 text-white rounded-br-md line-through"
-                            }`}>
-                                {msg.sender === "ai" && <span className="mr-1.5">🤖</span>}
-                                {msg.text}
+                            <div className="max-w-[78%]">
+                                <div className={`px-4 py-2.5 rounded-2xl text-sm font-medium ${
+                                    msg.sender === "ai"
+                                        ? darkMode
+                                            ? "bg-white/[0.08] text-white rounded-bl-md"
+                                            : "bg-slate-100 text-slate-800 rounded-bl-md"
+                                        : msg.isValid
+                                            ? "bg-gradient-to-r from-sky-500 to-cyan-500 text-white rounded-br-md"
+                                            : "bg-rose-500/80 text-white rounded-br-md line-through"
+                                }`}>
+                                    {msg.sender === "ai" && <span className="mr-1.5">?쨼</span>}
+                                    {msg.text}
+                                </div>
                                 {msg.isValid && msg.definition && (
-                                    <div className="mt-1 text-[11px] sm:text-xs opacity-90">
-                                        {language === "korean" ? `의미: ${msg.definition}` : `Definition: ${msg.definition}`}
+                                    <div className={`mt-1.5 px-3 py-2 rounded-xl border text-[11px] sm:text-xs leading-relaxed ${
+                                        darkMode
+                                            ? "bg-slate-950/50 border-sky-500/20 text-slate-200"
+                                            : "bg-sky-50/80 border-sky-200 text-slate-700"
+                                    }`}>
+                                        <span className="font-semibold text-sky-400 mr-1">
+                                            {language === "korean" ? "의미" : "Definition"}
+                                        </span>
+                                        <span>{msg.definition}</span>
                                     </div>
                                 )}
                             </div>
@@ -559,13 +564,13 @@ const WordChainGame: React.FC = () => {
                             <div className={`px-4 py-2.5 rounded-2xl rounded-bl-md text-sm ${
                                 darkMode ? "bg-white/[0.08] text-white" : "bg-slate-100 text-slate-800"
                             }`}>
-                                🤖 <span className="animate-pulse">...</span>
+                                ?쨼 <span className="animate-pulse">...</span>
                             </div>
                         </div>
                     )}
                 </div>
 
-                {/* 하단 입력 */}
+                {/* ?섎떒 ?낅젰 */}
                 <div className={`p-2.5 sm:p-4 backdrop-blur-sm border-t ${
                     darkMode ? "bg-white/[0.04] border-white/[0.06]" : "bg-white/70 border-sky-100/50"
                 }`}>
@@ -586,17 +591,17 @@ const WordChainGame: React.FC = () => {
                             } focus:ring-2 focus:ring-sky-500/20 disabled:opacity-50`}
                             placeholder={
                                 isAiTurn
-                                    ? (language === "korean" ? "AI 차례입니다..." : "AI's turn...")
+                                    ? (language === "korean" ? "AI 李⑤??낅땲??.." : "AI's turn...")
                                     : currentChar
                                         ? (language === "korean"
                                             ? (() => {
                                                 const chars = getStartChars(currentChar);
                                                 return chars.length > 1
-                                                    ? `"${chars.join('" / "')}"(으)로 시작하는 단어 입력`
-                                                    : `"${currentChar}"(으)로 시작하는 단어 입력`;
+                                                    ? `"${chars.join('" / "')}"(??濡??쒖옉?섎뒗 ?⑥뼱 ?낅젰`
+                                                    : `"${currentChar}"(??濡??쒖옉?섎뒗 ?⑥뼱 ?낅젰`;
                                             })()
                                             : `Type a word starting with "${currentChar}"`)
-                                        : (language === "korean" ? "단어를 입력하세요..." : "Type a word...")
+                                        : (language === "korean" ? "?⑥뼱瑜??낅젰?섏꽭??.." : "Type a word...")
                             }
                             autoComplete="off"
                         />
@@ -605,72 +610,26 @@ const WordChainGame: React.FC = () => {
                             disabled={!gameStarted || isPaused || gameOver || isAiTurn || isValidatingWord || !input.trim()}
                             className="px-4 py-2 sm:px-6 sm:py-3 bg-gradient-to-r from-sky-500 to-cyan-500 text-white rounded-xl hover:shadow-lg hover:shadow-sky-500/25 transition-all duration-200 font-medium text-sm sm:text-base disabled:opacity-50"
                         >
-                            {isValidatingWord ? (language === "korean" ? "검증중..." : "Checking...") : "Enter"}
+                            {isValidatingWord ? (language === "korean" ? "寃利앹쨷..." : "Checking...") : "Enter"}
                         </button>
                     </div>
                 </div>
             </div>
 
-            {/* 난이도 선택 */}
-            {!gameStarted && !gameOver && (
-                <div className="absolute inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm z-30">
-                    <div className={`text-center px-5 py-5 sm:px-10 sm:py-8 rounded-2xl border animate-panel-in ${
-                        darkMode ? "bg-[#162032] border-white/10" : "bg-white border-sky-100"
-                    } shadow-2xl w-full max-w-xs sm:max-w-sm mx-4`}>
-                        <h2 className={`text-xl sm:text-3xl font-bold mb-1 ${darkMode ? "text-white" : "text-slate-800"}`}>
-                            {language === "korean" ? "끝말잇기" : "Word Chain"}
-                        </h2>
-                        <p className={`text-sm mb-4 sm:mb-6 ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
-                            {language === "korean" ? "난이도를 선택하세요" : "Select difficulty"}
-                        </p>
-                        <div className="flex flex-col gap-2.5 sm:gap-3">
-                            {(["easy", "normal", "hard"] as const).map((d) => {
-                                const colors = {
-                                    easy: "border-emerald-500/30 hover:border-emerald-400 hover:bg-emerald-500/10",
-                                    normal: "border-sky-500/30 hover:border-sky-400 hover:bg-sky-500/10",
-                                    hard: "border-rose-500/30 hover:border-rose-400 hover:bg-rose-500/10",
-                                };
-                                const labelColors = { easy: "text-emerald-400", normal: "text-sky-400", hard: "text-rose-400" };
-                                const descriptions = {
-                                    easy: language === "korean" ? `제한시간 ${DIFFICULTY_CONFIG.easy.timeLimit}초, 라이프 3개` : `${DIFFICULTY_CONFIG.easy.timeLimit}s time, 3 lives`,
-                                    normal: language === "korean" ? `제한시간 ${DIFFICULTY_CONFIG.normal.timeLimit}초, 라이프 3개` : `${DIFFICULTY_CONFIG.normal.timeLimit}s time, 3 lives`,
-                                    hard: language === "korean" ? `제한시간 ${DIFFICULTY_CONFIG.hard.timeLimit}초, 라이프 3개` : `${DIFFICULTY_CONFIG.hard.timeLimit}s time, 3 lives`,
-                                };
-                                return (
-                                    <button
-                                        key={d}
-                                        onClick={() => { setDifficulty(d); restartGame(d); }}
-                                        className={`px-4 py-2.5 sm:px-6 sm:py-3 rounded-xl border-2 transition-all duration-200 cursor-pointer ${colors[d]} ${
-                                            darkMode ? "bg-white/[0.03]" : "bg-slate-50"
-                                        }`}
-                                    >
-                                        <div className={`text-base sm:text-lg font-bold ${labelColors[d]}`}>
-                                            {d === "easy" ? "Easy" : d === "normal" ? "Normal" : "Hard"}
-                                        </div>
-                                        <div className={`text-xs mt-0.5 ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
-                                            {descriptions[d]}
-                                        </div>
-                                    </button>
-                                );
-                            })}
-                        </div>
-                    </div>
-                </div>
-            )}
 
-            {/* 일시정지 */}
+            {/* ?쇱떆?뺤? */}
             {isPaused && !gameOver && (
                 <div className="absolute inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm z-30">
                     <div className="text-center">
                         <h2 className="text-3xl sm:text-5xl font-bold text-white mb-4">PAUSED</h2>
                         <p className="text-sm sm:text-lg text-slate-300">
-                            {language === "korean" ? "ESC를 눌러 계속" : "Press ESC to continue"}
+                            {language === "korean" ? "ESC瑜??뚮윭 怨꾩냽" : "Press ESC to continue"}
                         </p>
                     </div>
                 </div>
             )}
 
-            {/* 게임 오버 */}
+            {/* 寃뚯엫 ?ㅻ쾭 */}
             {gameOver && (
                 <div className="absolute inset-0 flex items-center justify-center bg-black/70 backdrop-blur-sm z-30">
                     <div className={`text-center px-5 py-5 sm:px-10 sm:py-8 rounded-2xl border animate-panel-in ${
@@ -678,11 +637,11 @@ const WordChainGame: React.FC = () => {
                     } shadow-2xl w-full max-w-xs sm:max-w-sm mx-4`}>
                         <h2 className={`text-xl sm:text-3xl font-bold mb-1 ${darkMode ? "text-white" : "text-slate-800"}`}>
                             {playerWon
-                                ? (language === "korean" ? "승리!" : "You Win!")
+                                ? (language === "korean" ? "?밸━!" : "You Win!")
                                 : (language === "korean" ? "Game Over!" : "Game Over!")}
                         </h2>
                         {playerWon && (
-                            <p className="text-amber-400 font-bold text-sm mb-3 animate-bounce">🏆</p>
+                            <p className="text-amber-400 font-bold text-sm mb-3 animate-bounce">?룇</p>
                         )}
 
                         <div className={`border-t border-b py-3 my-3 ${darkMode ? "border-white/10" : "border-slate-200"}`}>
@@ -692,9 +651,9 @@ const WordChainGame: React.FC = () => {
                         </div>
 
                         <div className={`text-sm space-y-1.5 mb-5 ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
-                            <p>{language === "korean" ? "입력 단어" : "Words typed"}: <span className="font-medium tabular-nums">{wordsTypedRef.current}{language === "korean" ? "개" : ""}</span></p>
-                            <p>{language === "korean" ? "최대 콤보" : "Max combo"}: <span className="font-medium tabular-nums">{maxComboRef.current}</span></p>
-                            <p>{language === "korean" ? "플레이 시간" : "Play time"}: <span className="font-medium tabular-nums">{formatPlayTime(Date.now() - gameStartTimeRef.current)}</span></p>
+                            <p>Words typed: <span className="font-medium tabular-nums">{wordsTypedRef.current}</span></p>
+                            <p>Max combo: <span className="font-medium tabular-nums">{maxComboRef.current}</span></p>
+                            <p>Play time: <span className="font-medium tabular-nums">{formatPlayTime(Date.now() - gameStartTimeRef.current)}</span></p>
                         </div>
 
                         <div className="flex flex-col sm:flex-row gap-2.5 sm:gap-3 justify-center">
@@ -702,17 +661,7 @@ const WordChainGame: React.FC = () => {
                                 onClick={() => restartGame()}
                                 className="px-5 py-2.5 sm:px-8 sm:py-3 bg-gradient-to-r from-sky-500 to-cyan-500 text-white rounded-xl hover:shadow-lg hover:shadow-sky-500/25 transition-all duration-200 font-medium text-sm sm:text-base"
                             >
-                                {language === "korean" ? "다시 하기" : "Play Again"}
-                            </button>
-                            <button
-                                onClick={() => { restartGame(); setGameStarted(false); }}
-                                className={`px-4 py-2.5 sm:px-6 sm:py-3 rounded-xl border-2 transition-all duration-200 font-medium text-sm sm:text-base ${
-                                    darkMode
-                                        ? "border-white/10 text-slate-300 hover:border-white/20 hover:bg-white/5"
-                                        : "border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50"
-                                }`}
-                            >
-                                {language === "korean" ? "난이도 변경" : "Change Difficulty"}
+                                {language === "korean" ? "?ㅼ떆 ?섍린" : "Play Again"}
                             </button>
                         </div>
                     </div>
