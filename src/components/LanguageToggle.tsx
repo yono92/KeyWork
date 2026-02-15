@@ -1,3 +1,5 @@
+"use client";
+
 import React from "react";
 import { BsGlobe } from "react-icons/bs";
 import { usePathname } from "next/navigation";
