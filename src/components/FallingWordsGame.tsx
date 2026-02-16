@@ -757,7 +757,7 @@ const FallingWordsGame: React.FC = () => {
                         },
                         {
                             label: language === "korean" ? "플레이 시간" : "Play time",
-                            value: formatPlayTime(Date.now() - gameStartTimeRef.current),
+                            value: formatPlayTime(Date.now() - gameStartTimeRef.current, language === "korean" ? "ko" : "en"),
                         },
                     ]}
                     buttons={[

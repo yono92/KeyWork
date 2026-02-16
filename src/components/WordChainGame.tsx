@@ -84,7 +84,7 @@ const WordChainGame: React.FC = () => {
             "\uB85C": ["\uB178"], // 로 -> 노
             "\uB8CC": ["\uC694"], // 료 -> 요
             "\uB958": ["\uC720"], // 류 -> 유
-            "\uB975": ["\uB290"], // 르 -> 느
+            "\uB974": ["\uB290"], // 르 -> 느
             "\uB9AC": ["\uC774"], // 리 -> 이
         };
 
@@ -630,7 +630,7 @@ const WordChainGame: React.FC = () => {
                     stats={[
                         { label: "입력 단어 수", value: wordsTypedRef.current },
                         { label: "최대 콤보", value: maxComboRef.current },
-                        { label: "플레이 시간", value: formatPlayTime(Date.now() - gameStartTimeRef.current) },
+                        { label: "플레이 시간", value: formatPlayTime(Date.now() - gameStartTimeRef.current, "ko") },
                     ]}
                     buttons={[
                         { label: "다시 하기", onClick: () => restartGame(), primary: true },

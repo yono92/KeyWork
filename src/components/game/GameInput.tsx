@@ -42,9 +42,8 @@ const GameInput: React.FC<GameInputProps> = ({
             onCompositionStart={() => {
                 isComposingRef.current = true;
             }}
-            onCompositionEnd={(e) => {
+            onCompositionEnd={() => {
                 isComposingRef.current = false;
-                onChange((e.target as HTMLInputElement).value);
             }}
             disabled={disabled}
             className={`px-3 py-2 text-base sm:px-4 sm:py-3 sm:text-lg rounded-xl outline-none transition-all duration-200 border-2 ${

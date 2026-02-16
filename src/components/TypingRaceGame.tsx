@@ -382,7 +382,7 @@ const TypingRaceGame: React.FC = () => {
                     }
                     stats={[
                         { label: language === "korean" ? "최종 WPM" : "Final WPM", value: playerWpm },
-                        { label: language === "korean" ? "플레이 시간" : "Play time", value: formatPlayTime(Date.now() - gameStartTimeRef.current) },
+                        { label: language === "korean" ? "플레이 시간" : "Play time", value: formatPlayTime(Date.now() - gameStartTimeRef.current, language === "korean" ? "ko" : "en") },
                     ]}
                     buttons={[
                         { label: language === "korean" ? "다시 하기" : "Play Again", onClick: () => restartGame(), primary: true },
