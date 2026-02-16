@@ -11,6 +11,8 @@ import GameOverModal from "./game/GameOverModal";
 import DifficultySelector from "./game/DifficultySelector";
 import GameInput from "./game/GameInput";
 
+const hasTTS = typeof window !== "undefined" && "speechSynthesis" in window;
+
 const DIFFICULTY_CONFIG = {
     easy:   { speechRate: 0.8, hasHint: true,  canReplay: true },
     normal: { speechRate: 1.0, hasHint: false, canReplay: true },
@@ -50,11 +52,12 @@ const DictationGame: React.FC = () => {
 
     // 일시정지 시 음성 취소
     useEffect(() => {
-        if (isPaused) speechSynthesis.cancel();
+        if (isPaused && hasTTS) speechSynthesis.cancel();
     }, [isPaused]);
 
     // 음성 목록 로드
     useEffect(() => {
+        if (!hasTTS) return;
         const loadVoices = () => {
             const voices = speechSynthesis.getVoices();
             if (voices.length > 0) voicesLoadedRef.current = true;
@@ -65,12 +68,12 @@ const DictationGame: React.FC = () => {
     }, []);
 
     const speakSentence = useCallback((text: string) => {
+        if (!hasTTS) return;
         speechSynthesis.cancel();
         const utterance = new SpeechSynthesisUtterance(text);
         utterance.lang = language === "korean" ? "ko-KR" : "en-US";
         utterance.rate = config.speechRate;
 
-        // 적절한 voice 선택
         const voices = speechSynthesis.getVoices();
         const langCode = language === "korean" ? "ko" : "en";
         const voice = voices.find((v) => v.lang.startsWith(langCode));
@@ -150,7 +153,7 @@ const DictationGame: React.FC = () => {
 
     // 언마운트 시 음성 취소
     useEffect(() => {
-        return () => { speechSynthesis.cancel(); };
+        return () => { if (hasTTS) speechSynthesis.cancel(); };
     }, []);
 
     const getHintText = (): string => {
@@ -164,7 +167,7 @@ const DictationGame: React.FC = () => {
 
     const restartGame = (overrideDifficulty?: keyof typeof DIFFICULTY_CONFIG) => {
         if (overrideDifficulty) setDifficulty(overrideDifficulty);
-        speechSynthesis.cancel();
+        if (hasTTS) speechSynthesis.cancel();
         setRound(1);
         setGameOver(false);
         setGameStarted(true);
