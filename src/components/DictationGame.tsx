@@ -3,8 +3,13 @@ import useTypingStore from "../store/store";
 import proverbsData from "../data/proverbs.json";
 import { calculateHangulAccuracy } from "../utils/hangulUtils";
 import { getLevenshteinDistance } from "../utils/levenshtein";
-
-type SoundType = "submit" | "perfect" | "gameOver";
+import { formatPlayTime } from "../utils/formatting";
+import { useGameAudio } from "../hooks/useGameAudio";
+import { usePauseHandler } from "../hooks/usePauseHandler";
+import PauseOverlay from "./game/PauseOverlay";
+import GameOverModal from "./game/GameOverModal";
+import DifficultySelector from "./game/DifficultySelector";
+import GameInput from "./game/GameInput";
 
 const DIFFICULTY_CONFIG = {
     easy:   { speechRate: 0.8, hasHint: true,  canReplay: true },
@@ -17,7 +22,6 @@ const TOTAL_ROUNDS = 10;
 const DictationGame: React.FC = () => {
     const darkMode = useTypingStore((s) => s.darkMode);
     const language = useTypingStore((s) => s.language);
-    const isMuted = useTypingStore((s) => s.isMuted);
     const difficulty = useTypingStore((s) => s.difficulty);
     const setDifficulty = useTypingStore((s) => s.setDifficulty);
 
@@ -37,11 +41,17 @@ const DictationGame: React.FC = () => {
     const [isSpeaking, setIsSpeaking] = useState(false);
 
     const inputRef = useRef<HTMLInputElement>(null);
-    const isComposingRef = useRef(false);
-    const audioContextRef = useRef<AudioContext | null>(null);
     const usedIndicesRef = useRef<Set<number>>(new Set());
     const voicesLoadedRef = useRef(false);
     const gameStartTimeRef = useRef(Date.now());
+
+    const { playSound } = useGameAudio();
+    usePauseHandler(gameStarted, gameOver, setIsPaused);
+
+    // 일시정지 시 음성 취소
+    useEffect(() => {
+        if (isPaused) speechSynthesis.cancel();
+    }, [isPaused]);
 
     // 음성 목록 로드
     useEffect(() => {
@@ -53,57 +63,6 @@ const DictationGame: React.FC = () => {
         speechSynthesis.addEventListener("voiceschanged", loadVoices);
         return () => speechSynthesis.removeEventListener("voiceschanged", loadVoices);
     }, []);
-
-    const playSound = useCallback((type: SoundType) => {
-        if (isMuted) return;
-        try {
-            if (!audioContextRef.current) audioContextRef.current = new AudioContext();
-            const ctx = audioContextRef.current;
-            if (ctx.state === "suspended") ctx.resume();
-            const now = ctx.currentTime;
-
-            switch (type) {
-                case "submit": {
-                    const osc = ctx.createOscillator();
-                    const gain = ctx.createGain();
-                    osc.type = "sine";
-                    osc.frequency.setValueAtTime(660, now);
-                    osc.frequency.linearRampToValueAtTime(880, now + 0.08);
-                    gain.gain.setValueAtTime(0.15, now);
-                    gain.gain.linearRampToValueAtTime(0, now + 0.08);
-                    osc.connect(gain).connect(ctx.destination);
-                    osc.start(now); osc.stop(now + 0.08);
-                    break;
-                }
-                case "perfect": {
-                    for (let i = 0; i < 3; i++) {
-                        const osc = ctx.createOscillator();
-                        const gain = ctx.createGain();
-                        osc.type = "sine";
-                        const offset = i * 0.1;
-                        osc.frequency.setValueAtTime(523 + i * 130, now + offset);
-                        gain.gain.setValueAtTime(0.15, now + offset);
-                        gain.gain.linearRampToValueAtTime(0, now + offset + 0.1);
-                        osc.connect(gain).connect(ctx.destination);
-                        osc.start(now + offset); osc.stop(now + offset + 0.1);
-                    }
-                    break;
-                }
-                case "gameOver": {
-                    const osc = ctx.createOscillator();
-                    const gain = ctx.createGain();
-                    osc.type = "sine";
-                    osc.frequency.setValueAtTime(440, now);
-                    osc.frequency.linearRampToValueAtTime(330, now + 0.3);
-                    gain.gain.setValueAtTime(0.15, now);
-                    gain.gain.linearRampToValueAtTime(0, now + 0.4);
-                    osc.connect(gain).connect(ctx.destination);
-                    osc.start(now); osc.stop(now + 0.4);
-                    break;
-                }
-            }
-        } catch { /* ignore */ }
-    }, [isMuted]);
 
     const speakSentence = useCallback((text: string) => {
         speechSynthesis.cancel();
@@ -169,7 +128,7 @@ const DictationGame: React.FC = () => {
         if (accuracy === 100) {
             playSound("perfect");
         } else {
-            playSound("submit");
+            playSound("match");
         }
 
         setScores((prev) => [...prev, accuracy]);
@@ -184,34 +143,6 @@ const DictationGame: React.FC = () => {
         setRound((r) => r + 1);
         startRound();
     };
-
-    const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-        if (e.key === "Enter" && !isComposingRef.current && !e.nativeEvent.isComposing) {
-            if (!submitted) {
-                handleSubmit();
-            } else {
-                handleNextRound();
-            }
-        }
-    };
-
-    const handleCompositionStart = () => { isComposingRef.current = true; };
-    const handleCompositionEnd = (e: React.CompositionEvent<HTMLInputElement>) => {
-        isComposingRef.current = false;
-        setInput((e.target as HTMLInputElement).value);
-    };
-
-    // ESC 일시정지
-    useEffect(() => {
-        const handleEsc = (e: KeyboardEvent) => {
-            if (e.key === "Escape" && gameStarted && !gameOver) {
-                setIsPaused((p) => !p);
-                if (!isPaused) speechSynthesis.cancel();
-            }
-        };
-        window.addEventListener("keydown", handleEsc);
-        return () => window.removeEventListener("keydown", handleEsc);
-    }, [gameStarted, gameOver, isPaused]);
 
     useEffect(() => {
         if (!isPaused && !gameOver && inputRef.current) inputRef.current.focus();
@@ -249,13 +180,6 @@ const DictationGame: React.FC = () => {
             const s = getRandomSentence();
             startRound(s);
         }, 100);
-    };
-
-    const formatPlayTime = (ms: number) => {
-        const totalSec = Math.floor(ms / 1000);
-        const min = Math.floor(totalSec / 60);
-        const sec = totalSec % 60;
-        return `${min}분 ${sec.toString().padStart(2, "0")}초`;
     };
 
     return (
@@ -371,22 +295,14 @@ const DictationGame: React.FC = () => {
                     darkMode ? "bg-white/[0.04] border-white/[0.06]" : "bg-white/70 border-sky-100/50"
                 }`}>
                     <div className="flex gap-2 sm:gap-3">
-                        <input
-                            ref={inputRef}
-                            type="text"
+                        <GameInput
+                            inputRef={inputRef}
                             value={input}
-                            onChange={(e) => setInput(e.target.value)}
-                            onKeyDown={handleKeyDown}
-                            onCompositionStart={handleCompositionStart}
-                            onCompositionEnd={handleCompositionEnd}
+                            onChange={setInput}
+                            onSubmit={!submitted ? handleSubmit : handleNextRound}
                             disabled={!gameStarted || isPaused || gameOver || submitted}
-                            className={`flex-1 px-3 py-2 text-base sm:px-4 sm:py-3 sm:text-lg rounded-xl outline-none transition-all duration-200 border-2 ${
-                                darkMode
-                                    ? "bg-white/[0.04] text-white border-white/[0.08] focus:border-sky-500/50 focus:bg-white/[0.06]"
-                                    : "bg-white text-slate-800 border-sky-200/60 focus:border-sky-400"
-                            } focus:ring-2 focus:ring-sky-500/20 disabled:opacity-50`}
                             placeholder={language === "korean" ? "들은 문장을 입력하세요..." : "Type what you heard..."}
-                            autoComplete="off"
+                            className="flex-1"
                         />
                         <button
                             onClick={handleSubmit}
@@ -401,77 +317,32 @@ const DictationGame: React.FC = () => {
 
             {/* 난이도 선택 */}
             {!gameStarted && !gameOver && (
-                <div className="absolute inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm z-30">
-                    <div className={`text-center px-5 py-5 sm:px-10 sm:py-8 rounded-2xl border animate-panel-in ${
-                        darkMode ? "bg-[#162032] border-white/10" : "bg-white border-sky-100"
-                    } shadow-2xl w-full max-w-xs sm:max-w-sm mx-4`}>
-                        <h2 className={`text-xl sm:text-3xl font-bold mb-1 ${darkMode ? "text-white" : "text-slate-800"}`}>
-                            {language === "korean" ? "받아쓰기" : "Dictation"}
-                        </h2>
-                        <p className={`text-sm mb-4 sm:mb-6 ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
-                            {language === "korean" ? "난이도를 선택하세요" : "Select difficulty"}
-                        </p>
-                        <div className="flex flex-col gap-2.5 sm:gap-3">
-                            {(["easy", "normal", "hard"] as const).map((d) => {
-                                const colors = {
-                                    easy: "border-emerald-500/30 hover:border-emerald-400 hover:bg-emerald-500/10",
-                                    normal: "border-sky-500/30 hover:border-sky-400 hover:bg-sky-500/10",
-                                    hard: "border-rose-500/30 hover:border-rose-400 hover:bg-rose-500/10",
-                                };
-                                const labelColors = { easy: "text-emerald-400", normal: "text-sky-400", hard: "text-rose-400" };
-                                const descriptions = {
-                                    easy: language === "korean" ? "느린 음성, 힌트 제공, 다시 듣기" : "Slow speech, hints, replay",
-                                    normal: language === "korean" ? "보통 음성, 다시 듣기" : "Normal speech, replay",
-                                    hard: language === "korean" ? "빠른 음성, 다시 듣기 불가" : "Fast speech, no replay",
-                                };
-                                return (
-                                    <button
-                                        key={d}
-                                        onClick={() => { setDifficulty(d); restartGame(d); }}
-                                        className={`px-4 py-2.5 sm:px-6 sm:py-3 rounded-xl border-2 transition-all duration-200 cursor-pointer ${colors[d]} ${
-                                            darkMode ? "bg-white/[0.03]" : "bg-slate-50"
-                                        }`}
-                                    >
-                                        <div className={`text-base sm:text-lg font-bold ${labelColors[d]}`}>
-                                            {d === "easy" ? "Easy" : d === "normal" ? "Normal" : "Hard"}
-                                        </div>
-                                        <div className={`text-xs mt-0.5 ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
-                                            {descriptions[d]}
-                                        </div>
-                                    </button>
-                                );
-                            })}
-                        </div>
-                    </div>
-                </div>
+                <DifficultySelector
+                    title={language === "korean" ? "받아쓰기" : "Dictation"}
+                    subtitle={language === "korean" ? "난이도를 선택하세요" : "Select difficulty"}
+                    descriptions={{
+                        easy: language === "korean" ? "느린 음성, 힌트 제공, 다시 듣기" : "Slow speech, hints, replay",
+                        normal: language === "korean" ? "보통 음성, 다시 듣기" : "Normal speech, replay",
+                        hard: language === "korean" ? "빠른 음성, 다시 듣기 불가" : "Fast speech, no replay",
+                    }}
+                    onSelect={(d) => { setDifficulty(d); restartGame(d); }}
+                />
             )}
 
             {/* 일시정지 */}
-            {isPaused && !gameOver && (
-                <div className="absolute inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm z-30">
-                    <div className="text-center">
-                        <h2 className="text-3xl sm:text-5xl font-bold text-white mb-4">PAUSED</h2>
-                        <p className="text-sm sm:text-lg text-slate-300">
-                            {language === "korean" ? "ESC를 눌러 계속" : "Press ESC to continue"}
-                        </p>
-                    </div>
-                </div>
-            )}
+            {isPaused && !gameOver && <PauseOverlay language={language} />}
 
             {/* 게임 오버 */}
             {gameOver && (
-                <div className="absolute inset-0 flex items-center justify-center bg-black/70 backdrop-blur-sm z-30">
-                    <div className={`text-center px-5 py-5 sm:px-10 sm:py-8 rounded-2xl border animate-panel-in ${
-                        darkMode ? "bg-[#162032] border-white/10" : "bg-white border-sky-100"
-                    } shadow-2xl w-full max-w-xs sm:max-w-sm mx-4`}>
-                        <h2 className={`text-xl sm:text-3xl font-bold mb-1 ${darkMode ? "text-white" : "text-slate-800"}`}>
-                            {language === "korean" ? "결과" : "Results"}
-                        </h2>
-                        {avgScore >= 90 && (
+                <GameOverModal
+                    title={language === "korean" ? "결과" : "Results"}
+                    badge={
+                        avgScore >= 90 ? (
                             <p className="text-amber-400 font-bold text-sm mb-3 animate-bounce">🏆 {language === "korean" ? "우수!" : "Excellent!"}</p>
-                        )}
-
-                        <div className={`border-t border-b py-3 my-3 ${darkMode ? "border-white/10" : "border-slate-200"}`}>
+                        ) : undefined
+                    }
+                    primaryStat={
+                        <>
                             <p className={`text-3xl font-bold mb-1 ${
                                 avgScore >= 90 ? "text-emerald-400"
                                 : avgScore >= 70 ? "text-sky-400"
@@ -483,50 +354,47 @@ const DictationGame: React.FC = () => {
                             <p className={`text-sm ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
                                 {language === "korean" ? "평균 정확도" : "Average accuracy"}
                             </p>
-                        </div>
-
-                        <div className={`text-sm space-y-1.5 mb-5 ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
-                            <p>{language === "korean" ? "만점 라운드" : "Perfect rounds"}: <span className="font-medium tabular-nums">{scores.filter((s) => s === 100).length}/{TOTAL_ROUNDS}</span></p>
-                            <p>{language === "korean" ? "플레이 시간" : "Play time"}: <span className="font-medium tabular-nums">{formatPlayTime(Date.now() - gameStartTimeRef.current)}</span></p>
-                        </div>
-
-                        {/* 라운드별 점수 */}
-                        <div className="flex gap-1 justify-center mb-5">
-                            {scores.map((s, i) => (
-                                <div
-                                    key={i}
-                                    className={`w-7 h-7 rounded-md text-xs font-bold flex items-center justify-center ${
-                                        s === 100 ? "bg-emerald-500/20 text-emerald-400"
-                                        : s >= 70 ? "bg-sky-500/20 text-sky-400"
-                                        : s >= 50 ? "bg-amber-500/20 text-amber-400"
-                                        : "bg-rose-500/20 text-rose-400"
-                                    }`}
-                                >
-                                    {s}
-                                </div>
-                            ))}
-                        </div>
-
-                        <div className="flex flex-col sm:flex-row gap-2.5 sm:gap-3 justify-center">
-                            <button
-                                onClick={() => restartGame()}
-                                className="px-5 py-2.5 sm:px-8 sm:py-3 bg-gradient-to-r from-sky-500 to-cyan-500 text-white rounded-xl hover:shadow-lg hover:shadow-sky-500/25 transition-all duration-200 font-medium text-sm sm:text-base"
-                            >
-                                {language === "korean" ? "다시 하기" : "Play Again"}
-                            </button>
-                            <button
-                                onClick={() => { restartGame(); setGameStarted(false); }}
-                                className={`px-4 py-2.5 sm:px-6 sm:py-3 rounded-xl border-2 transition-all duration-200 font-medium text-sm sm:text-base ${
-                                    darkMode
-                                        ? "border-white/10 text-slate-300 hover:border-white/20 hover:bg-white/5"
-                                        : "border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50"
+                        </>
+                    }
+                    stats={[
+                        {
+                            label: language === "korean" ? "만점 라운드" : "Perfect rounds",
+                            value: `${scores.filter((s) => s === 100).length}/${TOTAL_ROUNDS}`,
+                        },
+                        {
+                            label: language === "korean" ? "플레이 시간" : "Play time",
+                            value: formatPlayTime(Date.now() - gameStartTimeRef.current),
+                        },
+                    ]}
+                    buttons={[
+                        {
+                            label: language === "korean" ? "다시 하기" : "Play Again",
+                            onClick: () => restartGame(),
+                            primary: true,
+                        },
+                        {
+                            label: language === "korean" ? "난이도 변경" : "Change Difficulty",
+                            onClick: () => { restartGame(); setGameStarted(false); },
+                        },
+                    ]}
+                >
+                    {/* 라운드별 점수 */}
+                    <div className="flex gap-1 justify-center mb-5">
+                        {scores.map((s, i) => (
+                            <div
+                                key={i}
+                                className={`w-7 h-7 rounded-md text-xs font-bold flex items-center justify-center ${
+                                    s === 100 ? "bg-emerald-500/20 text-emerald-400"
+                                    : s >= 70 ? "bg-sky-500/20 text-sky-400"
+                                    : s >= 50 ? "bg-amber-500/20 text-amber-400"
+                                    : "bg-rose-500/20 text-rose-400"
                                 }`}
                             >
-                                {language === "korean" ? "난이도 변경" : "Change Difficulty"}
-                            </button>
-                        </div>
+                                {s}
+                            </div>
+                        ))}
                     </div>
-                </div>
+                </GameOverModal>
             )}
         </div>
     );

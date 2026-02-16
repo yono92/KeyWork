@@ -2,8 +2,13 @@ import React, { useState, useEffect, useCallback, useRef, useMemo } from "react"
 import useTypingStore from "../store/store";
 import wordsData from "../data/word.json";
 import proverbsData from "../data/proverbs.json";
-
-type SoundType = "hit" | "destroy" | "bossHit" | "baseDamage" | "waveComplete" | "gameOver";
+import { formatPlayTime } from "../utils/formatting";
+import { useGameAudio } from "../hooks/useGameAudio";
+import { usePauseHandler } from "../hooks/usePauseHandler";
+import PauseOverlay from "./game/PauseOverlay";
+import GameOverModal from "./game/GameOverModal";
+import DifficultySelector from "./game/DifficultySelector";
+import GameInput from "./game/GameInput";
 
 interface Enemy {
     id: number;
@@ -30,7 +35,6 @@ const LANE_COUNT = 5;
 const TypingDefenseGame: React.FC = () => {
     const darkMode = useTypingStore((s) => s.darkMode);
     const language = useTypingStore((s) => s.language);
-    const isMuted = useTypingStore((s) => s.isMuted);
     const difficulty = useTypingStore((s) => s.difficulty);
     const setDifficulty = useTypingStore((s) => s.setDifficulty);
 
@@ -51,12 +55,13 @@ const TypingDefenseGame: React.FC = () => {
     const [koreanWords, setKoreanWords] = useState<string[]>([]);
 
     const inputRef = useRef<HTMLInputElement>(null);
-    const isComposingRef = useRef(false);
-    const audioContextRef = useRef<AudioContext | null>(null);
     const gameStartTimeRef = useRef(Date.now());
     const enemiesDestroyedRef = useRef(0);
     const spawnTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const waveRef = useRef(1);
+
+    const { playSound } = useGameAudio();
+    usePauseHandler(gameStarted, gameOver, setIsPaused);
 
     // wave ref 동기화 (closure 문제 방지)
     useEffect(() => { waveRef.current = wave; }, [wave]);
@@ -69,111 +74,6 @@ const TypingDefenseGame: React.FC = () => {
         const bossHp = 3 + Math.floor(w / 5);
         return { enemyCount, spawnInterval, baseSpeed, isBossWave, bossHp };
     }, [config.spawnMul]);
-
-    const initAudioContext = useCallback(() => {
-        if (!audioContextRef.current) {
-            audioContextRef.current = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
-        }
-    }, []);
-
-    const playSound = useCallback((type: SoundType) => {
-        if (isMuted) return;
-        if (!audioContextRef.current) return;
-        try {
-            const ctx = audioContextRef.current;
-            if (ctx.state === "suspended") ctx.resume();
-            const now = ctx.currentTime;
-
-            switch (type) {
-                case "hit": {
-                    const osc = ctx.createOscillator();
-                    const gain = ctx.createGain();
-                    osc.type = "sine";
-                    osc.frequency.setValueAtTime(800, now);
-                    gain.gain.setValueAtTime(0.2, now);
-                    gain.gain.linearRampToValueAtTime(0, now + 0.03);
-                    osc.connect(gain).connect(ctx.destination);
-                    osc.start(now); osc.stop(now + 0.03);
-                    break;
-                }
-                case "destroy": {
-                    const osc = ctx.createOscillator();
-                    const gain = ctx.createGain();
-                    osc.type = "sine";
-                    osc.frequency.setValueAtTime(880, now);
-                    osc.frequency.linearRampToValueAtTime(1200, now + 0.1);
-                    gain.gain.setValueAtTime(0.15, now);
-                    gain.gain.linearRampToValueAtTime(0, now + 0.1);
-                    osc.connect(gain).connect(ctx.destination);
-                    osc.start(now); osc.stop(now + 0.1);
-                    break;
-                }
-                case "bossHit": {
-                    for (let i = 0; i < 2; i++) {
-                        const osc = ctx.createOscillator();
-                        const gain = ctx.createGain();
-                        osc.type = "square";
-                        const offset = i * 0.06;
-                        osc.frequency.setValueAtTime(330 + i * 110, now + offset);
-                        gain.gain.setValueAtTime(0.1, now + offset);
-                        gain.gain.linearRampToValueAtTime(0, now + offset + 0.08);
-                        osc.connect(gain).connect(ctx.destination);
-                        osc.start(now + offset); osc.stop(now + offset + 0.08);
-                    }
-                    break;
-                }
-                case "baseDamage": {
-                    const osc = ctx.createOscillator();
-                    const gain = ctx.createGain();
-                    osc.type = "sawtooth";
-                    osc.frequency.setValueAtTime(220, now);
-                    osc.frequency.linearRampToValueAtTime(110, now + 0.2);
-                    gain.gain.setValueAtTime(0.15, now);
-                    gain.gain.linearRampToValueAtTime(0, now + 0.2);
-                    osc.connect(gain).connect(ctx.destination);
-                    osc.start(now); osc.stop(now + 0.2);
-                    break;
-                }
-                case "waveComplete": {
-                    for (let i = 0; i < 3; i++) {
-                        const osc = ctx.createOscillator();
-                        const gain = ctx.createGain();
-                        osc.type = "sine";
-                        const offset = i * 0.1;
-                        osc.frequency.setValueAtTime(440 + i * 220, now + offset);
-                        gain.gain.setValueAtTime(0.15, now + offset);
-                        gain.gain.linearRampToValueAtTime(0, now + offset + 0.1);
-                        osc.connect(gain).connect(ctx.destination);
-                        osc.start(now + offset); osc.stop(now + offset + 0.1);
-                    }
-                    break;
-                }
-                case "gameOver": {
-                    const osc = ctx.createOscillator();
-                    const gain = ctx.createGain();
-                    osc.type = "sine";
-                    osc.frequency.setValueAtTime(440, now);
-                    osc.frequency.linearRampToValueAtTime(110, now + 0.5);
-                    gain.gain.setValueAtTime(0.15, now);
-                    gain.gain.linearRampToValueAtTime(0, now + 0.5);
-                    osc.connect(gain).connect(ctx.destination);
-                    osc.start(now); osc.stop(now + 0.5);
-                    break;
-                }
-            }
-        } catch { /* ignore */ }
-    }, [isMuted]);
-
-    // 유저 제스처로 AudioContext 초기화
-    useEffect(() => {
-        const handler = () => initAudioContext();
-        window.addEventListener("click", handler, { once: true });
-        window.addEventListener("keydown", handler, { once: true });
-        return () => {
-            window.removeEventListener("click", handler);
-            window.removeEventListener("keydown", handler);
-        };
-    }, [initAudioContext]);
 
     const fetchKoreanWords = useCallback(async () => {
         if (language !== "korean") return;
@@ -297,7 +197,7 @@ const TypingDefenseGame: React.FC = () => {
                 });
 
                 if (hitsInTick > 0) {
-                    for (let i = 0; i < hitsInTick; i++) playSound("baseDamage");
+                    for (let i = 0; i < hitsInTick; i++) playSound("lifeLost");
                     setBaseHp((prev) => {
                         const newHp = prev - hitsInTick;
                         if (newHp <= 0) {
@@ -349,20 +249,9 @@ const TypingDefenseGame: React.FC = () => {
             waveEnemiesLeft <= 0
         ) {
             setWaveCleared(true);
-            playSound("waveComplete");
+            playSound("levelUp");
         }
     }, [totalSpawned, waveEnemiesLeft, wave, gameStarted, gameOver, waveCleared, getWaveConfig, playSound]);
-
-    // ESC 일시정지
-    useEffect(() => {
-        const handleEsc = (e: KeyboardEvent) => {
-            if (e.key === "Escape" && gameStarted && !gameOver) {
-                setIsPaused((p) => !p);
-            }
-        };
-        window.addEventListener("keydown", handleEsc);
-        return () => window.removeEventListener("keydown", handleEsc);
-    }, [gameStarted, gameOver]);
 
     useEffect(() => {
         if (!isPaused && !gameOver && inputRef.current) inputRef.current.focus();
@@ -381,11 +270,7 @@ const TypingDefenseGame: React.FC = () => {
         if (inputRef.current) inputRef.current.value = "";
     };
 
-    const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-        initAudioContext();
-        if (e.key !== "Enter") return;
-        if (isComposingRef.current || e.nativeEvent.isComposing) return;
-
+    const handleSubmit = () => {
         const value = input.trim();
         if (!value) return;
 
@@ -431,16 +316,6 @@ const TypingDefenseGame: React.FC = () => {
         }
     };
 
-    const handleInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-        setInput(e.target.value);
-    };
-
-    const handleCompositionStart = () => { isComposingRef.current = true; };
-    const handleCompositionEnd = (e: React.CompositionEvent<HTMLInputElement>) => {
-        isComposingRef.current = false;
-        setInput((e.target as HTMLInputElement).value);
-    };
-
     const startNextWave = () => {
         setWave((w) => w + 1);
         setWaveCleared(false);
@@ -471,13 +346,6 @@ const TypingDefenseGame: React.FC = () => {
             void fetchKoreanWords();
         }
         if (inputRef.current) inputRef.current.focus();
-    };
-
-    const formatPlayTime = (ms: number) => {
-        const totalSec = Math.floor(ms / 1000);
-        const min = Math.floor(totalSec / 60);
-        const sec = totalSec % 60;
-        return `${min}분 ${sec.toString().padStart(2, "0")}초`;
     };
 
     const laneHeight = 100 / LANE_COUNT;
@@ -587,71 +455,29 @@ const TypingDefenseGame: React.FC = () => {
                 <div className={`p-2.5 sm:p-4 backdrop-blur-sm border-t ${
                     darkMode ? "bg-white/[0.04] border-white/[0.06]" : "bg-white/70 border-sky-100/50"
                 }`}>
-                    <input
-                        ref={inputRef}
-                        type="text"
+                    <GameInput
+                        inputRef={inputRef}
                         value={input}
-                        onChange={handleInput}
-                        onKeyDown={handleKeyDown}
-                        onCompositionStart={handleCompositionStart}
-                        onCompositionEnd={handleCompositionEnd}
+                        onChange={setInput}
+                        onSubmit={handleSubmit}
                         disabled={!gameStarted || isPaused || gameOver || waveCleared}
-                        className={`w-full px-3 py-2 text-base sm:px-4 sm:py-3 sm:text-lg rounded-xl outline-none transition-all duration-200 border-2 ${
-                            darkMode
-                                ? "bg-white/[0.04] text-white border-white/[0.08] focus:border-sky-500/50 focus:bg-white/[0.06]"
-                                : "bg-white text-slate-800 border-sky-200/60 focus:border-sky-400"
-                        } focus:ring-2 focus:ring-sky-500/20 disabled:opacity-50`}
                         placeholder={language === "korean" ? "적의 단어를 입력하세요..." : "Type the enemy word..."}
-                        autoComplete="off"
                     />
                 </div>
             </div>
 
             {/* 난이도 선택 */}
             {!gameStarted && !gameOver && (
-                <div className="absolute inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm z-30">
-                    <div className={`text-center px-5 py-5 sm:px-10 sm:py-8 rounded-2xl border animate-panel-in ${
-                        darkMode ? "bg-[#162032] border-white/10" : "bg-white border-sky-100"
-                    } shadow-2xl w-full max-w-xs sm:max-w-sm mx-4`}>
-                        <h2 className={`text-xl sm:text-3xl font-bold mb-1 ${darkMode ? "text-white" : "text-slate-800"}`}>
-                            {language === "korean" ? "타이핑 디펜스" : "Typing Defense"}
-                        </h2>
-                        <p className={`text-sm mb-4 sm:mb-6 ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
-                            {language === "korean" ? "난이도를 선택하세요" : "Select difficulty"}
-                        </p>
-                        <div className="flex flex-col gap-2.5 sm:gap-3">
-                            {(["easy", "normal", "hard"] as const).map((d) => {
-                                const colors = {
-                                    easy: "border-emerald-500/30 hover:border-emerald-400 hover:bg-emerald-500/10",
-                                    normal: "border-sky-500/30 hover:border-sky-400 hover:bg-sky-500/10",
-                                    hard: "border-rose-500/30 hover:border-rose-400 hover:bg-rose-500/10",
-                                };
-                                const labelColors = { easy: "text-emerald-400", normal: "text-sky-400", hard: "text-rose-400" };
-                                const descriptions = {
-                                    easy: language === "korean" ? "느린 속도, 기지 HP 3" : "Slow speed, 3 HP",
-                                    normal: language === "korean" ? "보통 속도, 기지 HP 3" : "Normal speed, 3 HP",
-                                    hard: language === "korean" ? "빠른 속도, 기지 HP 3" : "Fast speed, 3 HP",
-                                };
-                                return (
-                                    <button
-                                        key={d}
-                                        onClick={() => { initAudioContext(); setDifficulty(d); restartGame(d); }}
-                                        className={`px-4 py-2.5 sm:px-6 sm:py-3 rounded-xl border-2 transition-all duration-200 cursor-pointer ${colors[d]} ${
-                                            darkMode ? "bg-white/[0.03]" : "bg-slate-50"
-                                        }`}
-                                    >
-                                        <div className={`text-base sm:text-lg font-bold ${labelColors[d]}`}>
-                                            {d === "easy" ? "Easy" : d === "normal" ? "Normal" : "Hard"}
-                                        </div>
-                                        <div className={`text-xs mt-0.5 ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
-                                            {descriptions[d]}
-                                        </div>
-                                    </button>
-                                );
-                            })}
-                        </div>
-                    </div>
-                </div>
+                <DifficultySelector
+                    title={language === "korean" ? "타이핑 디펜스" : "Typing Defense"}
+                    subtitle={language === "korean" ? "난이도를 선택하세요" : "Select difficulty"}
+                    descriptions={{
+                        easy: language === "korean" ? "느린 속도, 기지 HP 3" : "Slow speed, 3 HP",
+                        normal: language === "korean" ? "보통 속도, 기지 HP 3" : "Normal speed, 3 HP",
+                        hard: language === "korean" ? "빠른 속도, 기지 HP 3" : "Fast speed, 3 HP",
+                    }}
+                    onSelect={(d) => { setDifficulty(d); restartGame(d); }}
+                />
             )}
 
             {/* 웨이브 클리어 */}
@@ -677,61 +503,44 @@ const TypingDefenseGame: React.FC = () => {
             )}
 
             {/* 일시정지 */}
-            {isPaused && !gameOver && (
-                <div className="absolute inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm z-30">
-                    <div className="text-center">
-                        <h2 className="text-3xl sm:text-5xl font-bold text-white mb-4">PAUSED</h2>
-                        <p className="text-sm sm:text-lg text-slate-300">
-                            {language === "korean" ? "ESC를 눌러 계속" : "Press ESC to continue"}
-                        </p>
-                    </div>
-                </div>
-            )}
+            {isPaused && !gameOver && <PauseOverlay language={language} />}
 
             {/* 게임 오버 */}
             {gameOver && (
-                <div className="absolute inset-0 flex items-center justify-center bg-black/70 backdrop-blur-sm z-30">
-                    <div className={`text-center px-5 py-5 sm:px-10 sm:py-8 rounded-2xl border animate-panel-in ${
-                        darkMode ? "bg-[#162032] border-white/10" : "bg-white border-sky-100"
-                    } shadow-2xl w-full max-w-xs sm:max-w-sm mx-4`}>
-                        <h2 className={`text-xl sm:text-3xl font-bold mb-1 ${darkMode ? "text-white" : "text-slate-800"}`}>
-                            Game Over!
-                        </h2>
-
-                        <div className={`border-t border-b py-3 my-3 ${darkMode ? "border-white/10" : "border-slate-200"}`}>
+                <GameOverModal
+                    title="Game Over!"
+                    primaryStat={
+                        <>
                             <p className={`text-xl mb-1 ${darkMode ? "text-white" : "text-slate-800"}`}>
                                 Score: <span className="font-bold tabular-nums">{score.toLocaleString()}</span>
                             </p>
                             <p className={`text-sm ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
                                 Wave {wave} reached
                             </p>
-                        </div>
-
-                        <div className={`text-sm space-y-1.5 mb-5 ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
-                            <p>{language === "korean" ? "처치한 적" : "Enemies destroyed"}: <span className="font-medium tabular-nums">{enemiesDestroyedRef.current}{language === "korean" ? "마리" : ""}</span></p>
-                            <p>{language === "korean" ? "플레이 시간" : "Play time"}: <span className="font-medium tabular-nums">{formatPlayTime(Date.now() - gameStartTimeRef.current)}</span></p>
-                        </div>
-
-                        <div className="flex flex-col sm:flex-row gap-2.5 sm:gap-3 justify-center">
-                            <button
-                                onClick={() => restartGame()}
-                                className="px-5 py-2.5 sm:px-8 sm:py-3 bg-gradient-to-r from-sky-500 to-cyan-500 text-white rounded-xl hover:shadow-lg hover:shadow-sky-500/25 transition-all duration-200 font-medium text-sm sm:text-base"
-                            >
-                                {language === "korean" ? "다시 하기" : "Play Again"}
-                            </button>
-                            <button
-                                onClick={() => { restartGame(); setGameStarted(false); }}
-                                className={`px-4 py-2.5 sm:px-6 sm:py-3 rounded-xl border-2 transition-all duration-200 font-medium text-sm sm:text-base ${
-                                    darkMode
-                                        ? "border-white/10 text-slate-300 hover:border-white/20 hover:bg-white/5"
-                                        : "border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50"
-                                }`}
-                            >
-                                {language === "korean" ? "난이도 변경" : "Change Difficulty"}
-                            </button>
-                        </div>
-                    </div>
-                </div>
+                        </>
+                    }
+                    stats={[
+                        {
+                            label: language === "korean" ? "처치한 적" : "Enemies destroyed",
+                            value: `${enemiesDestroyedRef.current}${language === "korean" ? "마리" : ""}`,
+                        },
+                        {
+                            label: language === "korean" ? "플레이 시간" : "Play time",
+                            value: formatPlayTime(Date.now() - gameStartTimeRef.current),
+                        },
+                    ]}
+                    buttons={[
+                        {
+                            label: language === "korean" ? "다시 하기" : "Play Again",
+                            onClick: () => restartGame(),
+                            primary: true,
+                        },
+                        {
+                            label: language === "korean" ? "난이도 변경" : "Change Difficulty",
+                            onClick: () => { restartGame(); setGameStarted(false); },
+                        },
+                    ]}
+                />
             )}
         </div>
     );

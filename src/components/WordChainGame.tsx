@@ -1,7 +1,11 @@
-﻿import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import useTypingStore from "../store/store";
-
-type SoundType = "submit" | "wrong" | "aiTurn" | "lifeLost" | "gameOver" | "win";
+import { useGameAudio } from "../hooks/useGameAudio";
+import { usePauseHandler } from "../hooks/usePauseHandler";
+import { formatPlayTime } from "../utils/formatting";
+import PauseOverlay from "./game/PauseOverlay";
+import GameOverModal from "./game/GameOverModal";
+import GameInput from "./game/GameInput";
 
 interface ChatMessage {
     id: number;
@@ -33,7 +37,8 @@ const WordChainGame: React.FC = () => {
     const darkMode = useTypingStore((s) => s.darkMode);
     const language = useTypingStore((s) => s.language);
     const setLanguage = useTypingStore((s) => s.setLanguage);
-    const isMuted = useTypingStore((s) => s.isMuted);
+
+    const { playSound } = useGameAudio();
 
     const config = DIFFICULTY_CONFIG.normal;
 
@@ -54,8 +59,6 @@ const WordChainGame: React.FC = () => {
 
     const inputRef = useRef<HTMLInputElement>(null);
     const chatContainerRef = useRef<HTMLDivElement>(null);
-    const isComposingRef = useRef(false);
-    const audioContextRef = useRef<AudioContext | null>(null);
     const usedWordsRef = useRef<Set<string>>(new Set());
     const timerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const aiTurnTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -67,91 +70,7 @@ const WordChainGame: React.FC = () => {
     const currentCharRef = useRef("");
     const doAiTurnRef = useRef<(startChar: string) => void>(() => {});
 
-    const playSound = useCallback((type: SoundType) => {
-        if (isMuted) return;
-        try {
-            if (!audioContextRef.current) audioContextRef.current = new AudioContext();
-            const ctx = audioContextRef.current;
-            if (ctx.state === "suspended") ctx.resume();
-            const now = ctx.currentTime;
-
-            switch (type) {
-                case "submit": {
-                    const osc = ctx.createOscillator();
-                    const gain = ctx.createGain();
-                    osc.type = "sine";
-                    osc.frequency.setValueAtTime(660, now);
-                    osc.frequency.linearRampToValueAtTime(880, now + 0.08);
-                    gain.gain.setValueAtTime(0.15, now);
-                    gain.gain.linearRampToValueAtTime(0, now + 0.08);
-                    osc.connect(gain).connect(ctx.destination);
-                    osc.start(now); osc.stop(now + 0.08);
-                    break;
-                }
-                case "wrong": {
-                    const osc = ctx.createOscillator();
-                    const gain = ctx.createGain();
-                    osc.type = "sawtooth";
-                    osc.frequency.setValueAtTime(200, now);
-                    gain.gain.setValueAtTime(0.1, now);
-                    gain.gain.linearRampToValueAtTime(0, now + 0.15);
-                    osc.connect(gain).connect(ctx.destination);
-                    osc.start(now); osc.stop(now + 0.15);
-                    break;
-                }
-                case "aiTurn": {
-                    const osc = ctx.createOscillator();
-                    const gain = ctx.createGain();
-                    osc.type = "triangle";
-                    osc.frequency.setValueAtTime(440, now);
-                    osc.frequency.linearRampToValueAtTime(550, now + 0.1);
-                    gain.gain.setValueAtTime(0.12, now);
-                    gain.gain.linearRampToValueAtTime(0, now + 0.1);
-                    osc.connect(gain).connect(ctx.destination);
-                    osc.start(now); osc.stop(now + 0.1);
-                    break;
-                }
-                case "lifeLost": {
-                    const osc = ctx.createOscillator();
-                    const gain = ctx.createGain();
-                    osc.type = "sawtooth";
-                    osc.frequency.setValueAtTime(220, now);
-                    osc.frequency.linearRampToValueAtTime(110, now + 0.2);
-                    gain.gain.setValueAtTime(0.15, now);
-                    gain.gain.linearRampToValueAtTime(0, now + 0.2);
-                    osc.connect(gain).connect(ctx.destination);
-                    osc.start(now); osc.stop(now + 0.2);
-                    break;
-                }
-                case "gameOver": {
-                    const osc = ctx.createOscillator();
-                    const gain = ctx.createGain();
-                    osc.type = "sine";
-                    osc.frequency.setValueAtTime(440, now);
-                    osc.frequency.linearRampToValueAtTime(110, now + 0.5);
-                    gain.gain.setValueAtTime(0.15, now);
-                    gain.gain.linearRampToValueAtTime(0, now + 0.5);
-                    osc.connect(gain).connect(ctx.destination);
-                    osc.start(now); osc.stop(now + 0.5);
-                    break;
-                }
-                case "win": {
-                    for (let i = 0; i < 4; i++) {
-                        const osc = ctx.createOscillator();
-                        const gain = ctx.createGain();
-                        osc.type = "sine";
-                        const offset = i * 0.12;
-                        osc.frequency.setValueAtTime(523 + i * 130, now + offset);
-                        gain.gain.setValueAtTime(0.15, now + offset);
-                        gain.gain.linearRampToValueAtTime(0, now + offset + 0.12);
-                        osc.connect(gain).connect(ctx.destination);
-                        osc.start(now + offset); osc.stop(now + offset + 0.12);
-                    }
-                    break;
-                }
-            }
-        } catch { /* ignore */ }
-    }, [isMuted]);
+    usePauseHandler(gameStarted, gameOver, setIsPaused);
 
     const getStartChars = (lastChar: string): string[] => {
         // Two-sound rule candidates (ASCII-safe unicode escapes).
@@ -165,7 +84,7 @@ const WordChainGame: React.FC = () => {
             "\uB85C": ["\uB178"], // 로 -> 노
             "\uB8CC": ["\uC694"], // 료 -> 요
             "\uB958": ["\uC720"], // 류 -> 유
-            "\uB974": ["\uB290"], // 르 -> 느
+            "\uB975": ["\uB290"], // 르 -> 느
             "\uB9AC": ["\uC774"], // 리 -> 이
         };
 
@@ -347,17 +266,6 @@ const WordChainGame: React.FC = () => {
         }
     }, [messages]);
 
-    // Pause with ESC.
-    useEffect(() => {
-        const handleEsc = (e: KeyboardEvent) => {
-            if (e.key === "Escape" && gameStarted && !gameOver) {
-                setIsPaused((p) => !p);
-            }
-        };
-        window.addEventListener("keydown", handleEsc);
-        return () => window.removeEventListener("keydown", handleEsc);
-    }, [gameStarted, gameOver]);
-
     useEffect(() => {
         if (!isPaused && !gameOver && !isAiTurn && inputRef.current) inputRef.current.focus();
     }, [isPaused, gameOver, isAiTurn]);
@@ -395,7 +303,7 @@ const WordChainGame: React.FC = () => {
     }, [gameStarted, gameOver, isPaused, isAiTurn, isValidatingWord]);
 
     const handleSubmit = async () => {
-        if (isComposingRef.current || !input.trim() || isAiTurn || isValidatingWord) return;
+        if (!input.trim() || isAiTurn || isValidatingWord) return;
 
         const word = input.trim();
         setInput("");
@@ -448,7 +356,7 @@ const WordChainGame: React.FC = () => {
 
         usedWordsRef.current.add(word.toLowerCase());
         addMessage(word, "player", true, definition);
-        playSound("submit");
+        playSound("match");
         wordsTypedRef.current++;
 
         const newCombo = combo + 1;
@@ -463,12 +371,6 @@ const WordChainGame: React.FC = () => {
         const nextChar = getLastChar(word);
         setCurrentChar(nextChar);
         doAiTurn(nextChar);
-    };
-
-    const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-        if (e.key === "Enter" && !isComposingRef.current && !e.nativeEvent.isComposing) {
-            void handleSubmit();
-        }
     };
 
     const handlePass = () => {
@@ -487,12 +389,6 @@ const WordChainGame: React.FC = () => {
             }
             return Math.max(newLives, 0);
         });
-    };
-
-    const handleCompositionStart = () => { isComposingRef.current = true; };
-    const handleCompositionEnd = (e: React.CompositionEvent<HTMLInputElement>) => {
-        isComposingRef.current = false;
-        setInput((e.target as HTMLInputElement).value);
     };
 
     const restartGame = useCallback(() => {
@@ -566,13 +462,6 @@ const WordChainGame: React.FC = () => {
             if (initialAiWordTimeoutRef.current) clearTimeout(initialAiWordTimeoutRef.current);
         };
     }, []);
-
-    const formatPlayTime = (ms: number) => {
-        const totalSec = Math.floor(ms / 1000);
-        const min = Math.floor(totalSec / 60);
-        const sec = totalSec % 60;
-        return `${min}:${sec.toString().padStart(2, "0")}`;
-    };
 
     return (
         <div className="relative w-full flex-1 min-h-[280px] sm:min-h-[400px] rounded-2xl overflow-hidden border border-sky-200/40 dark:border-sky-500/10">
@@ -679,20 +568,13 @@ const WordChainGame: React.FC = () => {
                     darkMode ? "bg-white/[0.04] border-white/[0.06]" : "bg-white/70 border-sky-100/50"
                 }`}>
                     <div className="flex gap-2 sm:gap-3">
-                        <input
-                            ref={inputRef}
-                            type="text"
+                        <GameInput
+                            inputRef={inputRef}
                             value={input}
-                            onChange={(e) => setInput(e.target.value)}
-                            onKeyDown={handleKeyDown}
-                            onCompositionStart={handleCompositionStart}
-                            onCompositionEnd={handleCompositionEnd}
+                            onChange={setInput}
+                            onSubmit={() => void handleSubmit()}
                             disabled={!gameStarted || isPaused || gameOver || isAiTurn || isValidatingWord}
-                            className={`flex-1 px-3 py-2 text-base sm:px-4 sm:py-3 sm:text-lg rounded-xl outline-none transition-all duration-200 border-2 ${
-                                darkMode
-                                    ? "bg-white/[0.04] text-white border-white/[0.08] focus:border-sky-500/50 focus:bg-white/[0.06]"
-                                    : "bg-white text-slate-800 border-sky-200/60 focus:border-sky-400"
-                            } focus:ring-2 focus:ring-sky-500/20 disabled:opacity-50`}
+                            className="flex-1"
                             placeholder={
                                 isAiTurn
                                     ? "상대 차례입니다..."
@@ -707,7 +589,6 @@ const WordChainGame: React.FC = () => {
                                             })()
                                             : "단어를 입력하세요..."
                             }
-                            autoComplete="off"
                         />
                         <button
                             onClick={handlePass}
@@ -734,52 +615,27 @@ const WordChainGame: React.FC = () => {
 
 
             {/* Pause overlay */}
-            {isPaused && !gameOver && (
-                <div className="absolute inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm z-30">
-                    <div className="text-center">
-                        <h2 className="text-3xl sm:text-5xl font-bold text-white mb-4">PAUSED</h2>
-                        <p className="text-sm sm:text-lg text-slate-300">
-                            ESC를 눌러 계속
-                        </p>
-                    </div>
-                </div>
-            )}
+            {isPaused && !gameOver && <PauseOverlay language="korean" />}
 
             {/* Game over overlay */}
             {gameOver && (
-                <div className="absolute inset-0 flex items-center justify-center bg-black/70 backdrop-blur-sm z-30">
-                    <div className={`text-center px-5 py-5 sm:px-10 sm:py-8 rounded-2xl border animate-panel-in ${
-                        darkMode ? "bg-[#162032] border-white/10" : "bg-white border-sky-100"
-                    } shadow-2xl w-full max-w-xs sm:max-w-sm mx-4`}>
-                        <h2 className={`text-xl sm:text-3xl font-bold mb-1 ${darkMode ? "text-white" : "text-slate-800"}`}>
-                            {playerWon ? "승리!" : "게임 오버"}
-                        </h2>
-                        {playerWon && (
-                            <p className="text-amber-400 font-bold text-sm mb-3 animate-bounce">★</p>
-                        )}
-
-                        <div className={`border-t border-b py-3 my-3 ${darkMode ? "border-white/10" : "border-slate-200"}`}>
-                            <p className={`text-xl mb-1 ${darkMode ? "text-white" : "text-slate-800"}`}>
-                                Score: <span className="font-bold tabular-nums">{score.toLocaleString()}</span>
-                            </p>
-                        </div>
-
-                        <div className={`text-sm space-y-1.5 mb-5 ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
-                            <p>입력 단어 수: <span className="font-medium tabular-nums">{wordsTypedRef.current}</span></p>
-                            <p>최대 콤보: <span className="font-medium tabular-nums">{maxComboRef.current}</span></p>
-                            <p>플레이 시간: <span className="font-medium tabular-nums">{formatPlayTime(Date.now() - gameStartTimeRef.current)}</span></p>
-                        </div>
-
-                        <div className="flex flex-col sm:flex-row gap-2.5 sm:gap-3 justify-center">
-                            <button
-                                onClick={() => restartGame()}
-                                className="px-5 py-2.5 sm:px-8 sm:py-3 bg-gradient-to-r from-sky-500 to-cyan-500 text-white rounded-xl hover:shadow-lg hover:shadow-sky-500/25 transition-all duration-200 font-medium text-sm sm:text-base"
-                            >
-                                다시 하기
-                            </button>
-                        </div>
-                    </div>
-                </div>
+                <GameOverModal
+                    title={playerWon ? "승리!" : "게임 오버"}
+                    badge={playerWon ? <p className="text-amber-400 font-bold text-sm mb-3 animate-bounce">★</p> : undefined}
+                    primaryStat={
+                        <p className={`text-xl mb-1 ${darkMode ? "text-white" : "text-slate-800"}`}>
+                            Score: <span className="font-bold tabular-nums">{score.toLocaleString()}</span>
+                        </p>
+                    }
+                    stats={[
+                        { label: "입력 단어 수", value: wordsTypedRef.current },
+                        { label: "최대 콤보", value: maxComboRef.current },
+                        { label: "플레이 시간", value: formatPlayTime(Date.now() - gameStartTimeRef.current) },
+                    ]}
+                    buttons={[
+                        { label: "다시 하기", onClick: () => restartGame(), primary: true },
+                    ]}
+                />
             )}
         </div>
     );
