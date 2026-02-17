@@ -49,11 +49,12 @@ async function fetchRandomArticle(lang: string): Promise<{ title: string; text: 
         .replace(/\s+/g, " ")
         .trim();
 
-    // 한자·특수문자 정리
-    text = text.replace(/\([\u4E00-\u9FFF\u3400-\u4DBF]+\)/g, "");
+    // 한자 포함 괄호 통째 제거: '서울(서울特別市, Seoul)' → '서울'
+    text = text.replace(/\([^)]*[\u4E00-\u9FFF\u3400-\u4DBF][^)]*\)/g, "");
+    // 남은 독립 한자 제거
     text = text.replace(/[\u4E00-\u9FFF\u3400-\u4DBF]+/g, "");
-    text = text.replace(/[^\uAC00-\uD7A3\u3131-\u3163a-zA-Z0-9\s.,!?:;'"() -]/g, "");
-    text = text.replace(/\(\s*\)/g, "").replace(/\s+/g, " ").trim();
+    // 다중 공백 정리
+    text = text.replace(/\s+/g, " ").trim();
 
     if (text.length < MIN_LENGTH) return null;
 
