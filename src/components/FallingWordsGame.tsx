@@ -128,14 +128,14 @@ const FallingWordsGame: React.FC = () => {
 
     const getRandomWord = useCallback((): string => {
         if (language === "korean") {
+            // API 단어가 아직 없으면 로컬 word.json 폴백 사용
+            const pool = koreanWords.length > 0 ? koreanWords : wordsData.korean;
             if (koreanWords.length === 0) {
                 void fetchKoreanWords();
-                return "";
-            }
-            if (koreanWords.length < 50) {
+            } else if (koreanWords.length < 50) {
                 void fetchKoreanWords();
             }
-            return koreanWords[Math.floor(Math.random() * koreanWords.length)];
+            return pool[Math.floor(Math.random() * pool.length)];
         }
 
         const wordsList = wordsData[language];

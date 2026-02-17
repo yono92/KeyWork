@@ -13,6 +13,12 @@ interface AppFrameProps {
 
 export default function AppFrame({ children }: AppFrameProps) {
     const darkMode = useTypingStore((state) => state.darkMode);
+    const hydrate = useTypingStore((state) => state._hydrate);
+
+    // 마운트 시 localStorage에서 상태 복원
+    useEffect(() => {
+        hydrate();
+    }, [hydrate]);
 
     // dark 클래스를 <html>에 동기화 (토글 시 즉시 반영)
     useEffect(() => {
