@@ -29,6 +29,12 @@ const NAV_ITEMS = [
         shortLabel: { korean: "\uB808\uC774\uC2A4", english: "Race" },
     },
     {
+        id: "typing-runner",
+        icon: "🏃",
+        label: { korean: "\uD0C0\uC774\uD551 \uB7EC\uB108", english: "Typing Runner" },
+        shortLabel: { korean: "\uB7EC\uB108", english: "Runner" },
+    },
+    {
         id: "dictation",
         icon: "📝",
         label: { korean: "\uBC1B\uC544\uC4F0\uAE30", english: "Dictation" },

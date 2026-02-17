@@ -72,6 +72,7 @@ const FallingWordsGame: React.FC = () => {
     const [scorePopups, setScorePopups] = useState<ScorePopup[]>([]);
     const [isPaused, setIsPaused] = useState<boolean>(false);
     const [gameStarted, setGameStarted] = useState<boolean>(false);
+    const [countdown, setCountdown] = useState<number | null>(null);
     const [koreanWords, setKoreanWords] = useState<string[]>([]);
 
     const gameAreaRef = useRef<HTMLDivElement>(null);
@@ -94,6 +95,20 @@ const FallingWordsGame: React.FC = () => {
     // 공유 훅: 효과음, 일시정지
     const { playSound } = useGameAudio();
     usePauseHandler(gameStarted, gameOver, setIsPaused);
+
+    // 카운트다운 타이머
+    useEffect(() => {
+        if (countdown === null) return;
+        if (countdown <= 0) {
+            setCountdown(null);
+            setGameStarted(true);
+            gameStartTimeRef.current = Date.now();
+            if (inputRef.current) inputRef.current.focus();
+            return;
+        }
+        const timer = setTimeout(() => setCountdown((c) => (c ?? 1) - 1), 1000);
+        return () => clearTimeout(timer);
+    }, [countdown]);
 
     const fetchKoreanWords = useCallback(async () => {
         if (language !== "korean") return;
@@ -459,7 +474,7 @@ const FallingWordsGame: React.FC = () => {
         setLevel(1);
         setLives(DIFFICULTY_CONFIG[d].lives);
         setGameOver(false);
-        setGameStarted(true);
+        setGameStarted(false);
         setLevelUp(false);
         setCombo(0);
         setSlowMotion(false);
@@ -476,12 +491,10 @@ const FallingWordsGame: React.FC = () => {
         // 통계 리셋
         totalWordsTypedRef.current = 0;
         maxComboRef.current = 0;
-        gameStartTimeRef.current = Date.now();
         itemsCollectedRef.current = 0;
 
-        if (inputRef.current) {
-            inputRef.current.focus();
-        }
+        // 카운트다운 시작 (3→2→1→GO)
+        setCountdown(3);
     };
 
     useEffect(() => {
@@ -699,7 +712,7 @@ const FallingWordsGame: React.FC = () => {
             </div>
 
             {/* 난이도 선택 오버레이 */}
-            {!gameStarted && !gameOver && (
+            {!gameStarted && !gameOver && countdown === null && (
                 <DifficultySelector
                     title={language === "korean" ? "소나기 모드" : "Falling Words"}
                     subtitle={language === "korean" ? "난이도를 선택하세요" : "Select difficulty"}
@@ -713,6 +726,15 @@ const FallingWordsGame: React.FC = () => {
                         restartGame(d);
                     }}
                 />
+            )}
+
+            {/* 카운트다운 오버레이 */}
+            {countdown !== null && countdown > 0 && (
+                <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+                    <div key={countdown} className="animate-countdown text-7xl sm:text-9xl font-black text-white drop-shadow-[0_0_30px_rgba(56,189,248,0.6)]">
+                        {countdown}
+                    </div>
+                </div>
             )}
 
             {/* 일시정지 오버레이 */}
@@ -770,7 +792,7 @@ const FallingWordsGame: React.FC = () => {
                         },
                         {
                             label: language === "korean" ? "난이도 변경" : "Change Difficulty",
-                            onClick: () => { restartGame(); setGameStarted(false); },
+                            onClick: () => { setCountdown(null); setGameStarted(false); setGameOver(false); },
                         },
                     ]}
                 />

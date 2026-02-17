@@ -8,11 +8,12 @@ import TypingDefenseGame from "./TypingDefenseGame";
 import TypingRaceGame from "./TypingRaceGame";
 import DictationGame from "./DictationGame";
 import WordChainGame from "./WordChainGame";
+import TypingRunnerGame from "./TypingRunnerGame";
 import useTypingStore from "../store/store";
 
 // Props 타입 정의 추가
 interface MainLayoutProps {
-    gameMode: "practice" | "falling-words" | "typing-defense" | "typing-race" | "dictation" | "word-chain";
+    gameMode: "practice" | "falling-words" | "typing-defense" | "typing-race" | "typing-runner" | "dictation" | "word-chain";
 }
 
 // Props 타입을 컴포넌트에 적용
@@ -38,6 +39,8 @@ const MainLayout: React.FC<MainLayoutProps> = ({ gameMode }) => {
                         <TypingDefenseGame />
                     ) : gameMode === "typing-race" ? (
                         <TypingRaceGame />
+                    ) : gameMode === "typing-runner" ? (
+                        <TypingRunnerGame />
                     ) : gameMode === "dictation" ? (
                         <DictationGame />
                     ) : gameMode === "word-chain" ? (

@@ -7,31 +7,25 @@ import { useGameAudio } from "../hooks/useGameAudio";
 import { usePauseHandler } from "../hooks/usePauseHandler";
 import PauseOverlay from "./game/PauseOverlay";
 import GameOverModal from "./game/GameOverModal";
-import DifficultySelector from "./game/DifficultySelector";
 import GameInput from "./game/GameInput";
 
-const DIFFICULTY_CONFIG = {
-    easy:   { aiWpm: 20, totalRounds: 5 },
-    normal: { aiWpm: 35, totalRounds: 5 },
-    hard:   { aiWpm: 55, totalRounds: 5 },
-} as const;
+// 라운드별 AI 속도: 15 WPM에서 시작, 라운드마다 +5 WPM (R1=15, R2=20, R3=25...)
+const BASE_AI_WPM = 15;
+const WPM_PER_ROUND = 5;
+const INITIAL_LIVES = 3;
 
 const TypingRaceGame: React.FC = () => {
     const darkMode = useTypingStore((s) => s.darkMode);
     const language = useTypingStore((s) => s.language);
     const difficulty = useTypingStore((s) => s.difficulty);
-    const setDifficulty = useTypingStore((s) => s.setDifficulty);
     const addXp = useTypingStore((s) => s.addXp);
-
-    const config = DIFFICULTY_CONFIG[difficulty];
 
     const [gameStarted, setGameStarted] = useState(false);
     const [gameOver, setGameOver] = useState(false);
     const [isPaused, setIsPaused] = useState(false);
     const [countdown, setCountdown] = useState(0); // 3-2-1 카운트다운
 
-    const [playerScore, setPlayerScore] = useState(0);
-    const [aiScore, setAiScore] = useState(0);
+    const [lives, setLives] = useState(INITIAL_LIVES);
     const [round, setRound] = useState(1);
     const [sentence, setSentence] = useState("");
     const [input, setInput] = useState("");
@@ -47,7 +41,11 @@ const TypingRaceGame: React.FC = () => {
     // 통계
     const totalCharsRef = useRef(0);
     const totalCorrectRef = useRef(0);
+    const roundsWonRef = useRef(0);
     const gameStartTimeRef = useRef(Date.now());
+
+    // 현재 라운드의 AI WPM
+    const aiWpm = BASE_AI_WPM + (round - 1) * WPM_PER_ROUND;
 
     const { playSound } = useGameAudio();
 
@@ -102,7 +100,7 @@ const TypingRaceGame: React.FC = () => {
         if (!gameStarted || gameOver || isPaused || !sentence || countdown > 0) return;
 
         // AI WPM → chars/ms (1 word ≈ 5 chars)
-        const charsPerMs = (config.aiWpm * 5) / 60000;
+        const charsPerMs = (aiWpm * 5) / 60000;
         const totalChars = sentence.length;
 
         aiIntervalRef.current = setInterval(() => {
@@ -117,24 +115,24 @@ const TypingRaceGame: React.FC = () => {
         return () => {
             if (aiIntervalRef.current) clearInterval(aiIntervalRef.current);
         };
-    }, [gameStarted, gameOver, isPaused, sentence, config.aiWpm, countdown]);
+    }, [gameStarted, gameOver, isPaused, sentence, aiWpm, countdown]);
 
-    // AI가 100% 도달 시
+    // AI가 100% 도달 시 → 라이프 감소
     useEffect(() => {
         if (aiProgress >= 100 && gameStarted && !gameOver) {
-            setAiScore((prev) => {
-                const newScore = prev + 1;
-                if (newScore >= config.totalRounds) {
+            playSound("wrong");
+            setLives((prev) => {
+                const newLives = prev - 1;
+                if (newLives <= 0) {
                     setGameOver(true);
                     playSound("lose");
                 } else {
                     setRound((r) => r + 1);
-                    playSound("wrong");
                     setTimeout(() => startRound(), 500);
                 }
-                return newScore;
+                return Math.max(newLives, 0);
             });
-            setAiProgress(0); // 리셋해서 중복 트리거 방지
+            setAiProgress(0);
         }
     }, [aiProgress, gameStarted, gameOver]);
 
@@ -183,25 +181,15 @@ const TypingRaceGame: React.FC = () => {
             setAiProgress(0);
 
             totalCorrectRef.current += sentence.length;
+            roundsWonRef.current += 1;
             playSound("roundComplete");
-            setPlayerScore((prev) => {
-                const newScore = prev + 1;
-                if (newScore >= config.totalRounds) {
-                    setGameOver(true);
-                    setTimeout(() => playSound("win"), 100);
-                } else {
-                    setRound((r) => r + 1);
-                    setTimeout(() => startRound(), 500);
-                }
-                return newScore;
-            });
+            setRound((r) => r + 1);
+            setTimeout(() => startRound(), 500);
         }
     };
 
-    const restartGame = (overrideDifficulty?: keyof typeof DIFFICULTY_CONFIG, resetCountdown = true) => {
-        if (overrideDifficulty) setDifficulty(overrideDifficulty);
-        setPlayerScore(0);
-        setAiScore(0);
+    const restartGame = () => {
+        setLives(INITIAL_LIVES);
         setRound(1);
         setGameOver(false);
         setIsPaused(false);
@@ -211,23 +199,18 @@ const TypingRaceGame: React.FC = () => {
         usedIndicesRef.current.clear();
         totalCharsRef.current = 0;
         totalCorrectRef.current = 0;
+        roundsWonRef.current = 0;
         gameStartTimeRef.current = Date.now();
         playerCharsTypedRef.current = 0;
         if (inputRef.current) {
             inputRef.current.value = "";
         }
 
-        if (resetCountdown) {
-            setGameStarted(true);
-            // 문장 미리 세팅 + 카운트다운 시작
-            const s = proverbsData[language][Math.floor(Math.random() * proverbsData[language].length)];
-            setSentence(s);
-            setCountdown(3);
-        }
+        setGameStarted(true);
+        const s = proverbsData[language][Math.floor(Math.random() * proverbsData[language].length)];
+        setSentence(s);
+        setCountdown(3);
     };
-
-    const aiWpm = config.aiWpm;
-    const playerWon = playerScore >= config.totalRounds;
 
     // 게임오버 시 XP 지급
     useEffect(() => {
@@ -235,10 +218,9 @@ const TypingRaceGame: React.FC = () => {
         const accuracy = totalCharsRef.current > 0
             ? (totalCorrectRef.current / totalCharsRef.current) * 100
             : 0;
-        const baseXp = playerWon ? 30 : 10;
-        const bonus = accuracy * 0.1;
-        addXp(calculateGameXp(baseXp + bonus, difficulty));
-    }, [gameOver, playerWon, addXp, difficulty]);
+        const baseXp = roundsWonRef.current * 5 + accuracy * 0.1;
+        addXp(calculateGameXp(baseXp, difficulty));
+    }, [gameOver, addXp, difficulty]);
 
     return (
         <div className="relative w-full flex-1 min-h-[280px] sm:min-h-[400px] rounded-2xl overflow-hidden border border-sky-200/40 dark:border-sky-500/10">
@@ -247,20 +229,12 @@ const TypingRaceGame: React.FC = () => {
                 <div className={`flex justify-between items-center px-2.5 py-2 sm:px-5 sm:py-3 backdrop-blur-sm border-b z-10 ${
                     darkMode ? "bg-white/[0.04] border-white/[0.06]" : "bg-white/70 border-sky-100/50"
                 }`}>
-                    <div className={`text-xs sm:text-lg font-bold ${darkMode ? "text-white" : "text-slate-800"}`}>
-                        <span className="text-sky-400">Player</span> {playerScore}
-                        <span className="mx-1.5 sm:mx-3 text-slate-400">vs</span>
-                        <span className="text-rose-400">AI</span> {aiScore}
-                    </div>
-                    <span className={`px-1.5 sm:px-2 py-0.5 text-[10px] sm:text-xs font-bold rounded-md ${
-                        difficulty === "easy" ? "bg-emerald-500/20 text-emerald-400"
-                        : difficulty === "normal" ? "bg-sky-500/20 text-sky-400"
-                        : "bg-rose-500/20 text-rose-400"
-                    }`}>
-                        {difficulty === "easy" ? "Easy" : difficulty === "normal" ? "Normal" : "Hard"}
-                    </span>
                     <div className={`text-xs sm:text-sm font-medium ${darkMode ? "text-slate-300" : "text-slate-600"}`}>
-                        Round {round}/{config.totalRounds}
+                        Round <span className="font-bold tabular-nums">{round}</span>
+                    </div>
+                    <div className={`text-sm sm:text-lg font-bold ${darkMode ? "text-white" : "text-slate-800"}`}>
+                        {"❤️".repeat(Math.max(lives, 0))}
+                        {"🖤".repeat(Math.max(INITIAL_LIVES - lives, 0))}
                     </div>
                 </div>
 
@@ -312,6 +286,9 @@ const TypingRaceGame: React.FC = () => {
                                 🤖
                             </div>
                         </div>
+                        <div className={`text-[10px] mt-1 text-right tabular-nums ${darkMode ? "text-slate-500" : "text-slate-400"}`}>
+                            {aiWpm} WPM
+                        </div>
                     </div>
 
                     {/* 문장 표시 */}
@@ -346,18 +323,26 @@ const TypingRaceGame: React.FC = () => {
                 </div>
             </div>
 
-            {/* 난이도 선택 오버레이 */}
-            {!gameStarted && !gameOver && (
-                <DifficultySelector
-                    title={language === "korean" ? "타이핑 레이스" : "Typing Race"}
-                    subtitle={language === "korean" ? "난이도를 선택하세요" : "Select difficulty"}
-                    descriptions={{
-                        easy: language === "korean" ? `AI 속도: ${DIFFICULTY_CONFIG.easy.aiWpm} WPM` : `AI speed: ${DIFFICULTY_CONFIG.easy.aiWpm} WPM`,
-                        normal: language === "korean" ? `AI 속도: ${DIFFICULTY_CONFIG.normal.aiWpm} WPM` : `AI speed: ${DIFFICULTY_CONFIG.normal.aiWpm} WPM`,
-                        hard: language === "korean" ? `AI 속도: ${DIFFICULTY_CONFIG.hard.aiWpm} WPM` : `AI speed: ${DIFFICULTY_CONFIG.hard.aiWpm} WPM`,
-                    }}
-                    onSelect={(d) => { setDifficulty(d); restartGame(d); }}
-                />
+            {/* 시작 오버레이 */}
+            {!gameStarted && !gameOver && countdown === 0 && (
+                <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+                    <div className="text-center">
+                        <h2 className="text-2xl sm:text-4xl font-black text-white mb-2">
+                            {language === "korean" ? "타이핑 레이스" : "Typing Race"}
+                        </h2>
+                        <p className={`text-sm sm:text-base mb-6 ${darkMode ? "text-slate-300" : "text-slate-200"}`}>
+                            {language === "korean"
+                                ? "AI와 속도 대결! 라운드마다 AI가 빨라집니다"
+                                : "Race the AI! It gets faster each round"}
+                        </p>
+                        <button
+                            onClick={() => restartGame()}
+                            className="px-8 py-3 rounded-xl font-bold text-white bg-gradient-to-r from-sky-500 to-cyan-400 hover:from-sky-400 hover:to-cyan-300 transition-all shadow-lg hover:shadow-sky-500/25 text-lg"
+                        >
+                            {language === "korean" ? "시작" : "Start"}
+                        </button>
+                    </div>
+                </div>
             )}
 
             {/* 카운트다운 오버레이 */}
@@ -380,26 +365,20 @@ const TypingRaceGame: React.FC = () => {
             {/* 게임 오버 */}
             {gameOver && (
                 <GameOverModal
-                    title={
-                        playerWon
-                            ? (language === "korean" ? "승리!" : "You Win!")
-                            : (language === "korean" ? "패배..." : "You Lose...")
-                    }
-                    badge={playerWon ? <p className="text-amber-400 font-bold text-sm mb-3 animate-bounce">🏆</p> : undefined}
+                    title="Game Over!"
                     primaryStat={
                         <p className={`text-xl mb-1 ${darkMode ? "text-white" : "text-slate-800"}`}>
-                            <span className="text-sky-400">Player {playerScore}</span>
-                            <span className="mx-2 text-slate-400">vs</span>
-                            <span className="text-rose-400">AI {aiScore}</span>
+                            {language === "korean" ? "도달 라운드" : "Round reached"}: <span className="font-bold tabular-nums">{round}</span>
                         </p>
                     }
                     stats={[
-                        { label: language === "korean" ? "최종 WPM" : "Final WPM", value: playerWpm },
+                        { label: language === "korean" ? "클리어 라운드" : "Rounds won", value: roundsWonRef.current },
+                        { label: language === "korean" ? "최종 AI 속도" : "Final AI speed", value: `${aiWpm} WPM` },
+                        { label: language === "korean" ? "최종 WPM" : "Your WPM", value: playerWpm },
                         { label: language === "korean" ? "플레이 시간" : "Play time", value: formatPlayTime(Date.now() - gameStartTimeRef.current, language === "korean" ? "ko" : "en") },
                     ]}
                     buttons={[
                         { label: language === "korean" ? "다시 하기" : "Play Again", onClick: () => restartGame(), primary: true },
-                        { label: language === "korean" ? "난이도 변경" : "Change Difficulty", onClick: () => { restartGame(undefined, false); setGameStarted(false); } },
                     ]}
                 />
             )}

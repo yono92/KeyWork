@@ -7,6 +7,7 @@ type GameMode =
     | "falling-words"
     | "typing-defense"
     | "typing-race"
+    | "typing-runner"
     | "dictation"
     | "word-chain";
 
