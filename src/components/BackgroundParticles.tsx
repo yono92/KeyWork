@@ -8,13 +8,15 @@ function seededValue(index: number, offset: number): number {
     return x - Math.floor(x);
 }
 
+const r = (n: number, d: number) => Math.round(n * 10 ** d) / 10 ** d;
+
 const particles = Array.from({ length: PARTICLE_COUNT }, (_, i) => ({
-    left: `${seededValue(i, 1) * 100}%`,
-    top: `${seededValue(i, 2) * 100}%`,
-    size: 2 + seededValue(i, 3) * 6, // 2-8px
-    opacity: 0.03 + seededValue(i, 4) * 0.07, // 0.03-0.1
-    duration: 15 + seededValue(i, 5) * 30, // 15-45s
-    delay: -(seededValue(i, 6) * 30), // 음수 딜레이로 즉시 분산
+    left: `${r(seededValue(i, 1) * 100, 2)}%`,
+    top: `${r(seededValue(i, 2) * 100, 2)}%`,
+    size: `${r(2 + seededValue(i, 3) * 6, 1)}px`,
+    opacity: r(0.03 + seededValue(i, 4) * 0.07, 4),
+    duration: r(15 + seededValue(i, 5) * 30, 1),
+    delay: r(-(seededValue(i, 6) * 30), 1),
 }));
 
 export default function BackgroundParticles() {
@@ -30,7 +32,11 @@ export default function BackgroundParticles() {
                         width: p.size,
                         height: p.size,
                         opacity: p.opacity,
-                        animation: `bgFloat ${p.duration}s ease-in-out ${p.delay}s infinite`,
+                        animationName: "bgFloat",
+                        animationDuration: `${p.duration}s`,
+                        animationTimingFunction: "ease-in-out",
+                        animationDelay: `${p.delay}s`,
+                        animationIterationCount: "infinite",
                     }}
                 />
             ))}
