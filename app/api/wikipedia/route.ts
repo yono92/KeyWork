@@ -49,6 +49,12 @@ async function fetchRandomArticle(lang: string): Promise<{ title: string; text: 
         .replace(/\s+/g, " ")
         .trim();
 
+    // 한자·특수문자 정리
+    text = text.replace(/\([\u4E00-\u9FFF\u3400-\u4DBF]+\)/g, "");
+    text = text.replace(/[\u4E00-\u9FFF\u3400-\u4DBF]+/g, "");
+    text = text.replace(/[^\uAC00-\uD7A3\u3131-\u3163a-zA-Z0-9\s.,!?:;'"() -]/g, "");
+    text = text.replace(/\(\s*\)/g, "").replace(/\s+/g, " ").trim();
+
     if (text.length < MIN_LENGTH) return null;
 
     // 최대 길이 초과 시 문장 단위로 자르기

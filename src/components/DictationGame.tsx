@@ -4,6 +4,7 @@ import proverbsData from "../data/proverbs.json";
 import { calculateHangulAccuracy } from "../utils/hangulUtils";
 import { getLevenshteinDistance } from "../utils/levenshtein";
 import { formatPlayTime } from "../utils/formatting";
+import { calculateGameXp } from "../utils/xpUtils";
 import { useGameAudio } from "../hooks/useGameAudio";
 import { usePauseHandler } from "../hooks/usePauseHandler";
 import PauseOverlay from "./game/PauseOverlay";
@@ -26,6 +27,7 @@ const DictationGame: React.FC = () => {
     const language = useTypingStore((s) => s.language);
     const difficulty = useTypingStore((s) => s.difficulty);
     const setDifficulty = useTypingStore((s) => s.setDifficulty);
+    const addXp = useTypingStore((s) => s.addXp);
 
     const config = DIFFICULTY_CONFIG[difficulty];
 
@@ -164,6 +166,11 @@ const DictationGame: React.FC = () => {
     };
 
     const avgScore = scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 0;
+
+    // 게임오버 시 XP 지급
+    useEffect(() => {
+        if (gameOver) addXp(calculateGameXp(avgScore * 0.3, difficulty));
+    }, [gameOver, avgScore, addXp, difficulty]);
 
     const restartGame = (overrideDifficulty?: keyof typeof DIFFICULTY_CONFIG) => {
         if (overrideDifficulty) setDifficulty(overrideDifficulty);

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 import useTypingStore from "../store/store";
 import proverbsData from "../data/proverbs.json";
 import { formatPlayTime } from "../utils/formatting";
+import { calculateGameXp } from "../utils/xpUtils";
 import { useGameAudio } from "../hooks/useGameAudio";
 import { usePauseHandler } from "../hooks/usePauseHandler";
 import PauseOverlay from "./game/PauseOverlay";
@@ -20,6 +21,7 @@ const TypingRaceGame: React.FC = () => {
     const language = useTypingStore((s) => s.language);
     const difficulty = useTypingStore((s) => s.difficulty);
     const setDifficulty = useTypingStore((s) => s.setDifficulty);
+    const addXp = useTypingStore((s) => s.addXp);
 
     const config = DIFFICULTY_CONFIG[difficulty];
 
@@ -226,6 +228,17 @@ const TypingRaceGame: React.FC = () => {
 
     const aiWpm = config.aiWpm;
     const playerWon = playerScore >= config.totalRounds;
+
+    // 게임오버 시 XP 지급
+    useEffect(() => {
+        if (!gameOver) return;
+        const accuracy = totalCharsRef.current > 0
+            ? (totalCorrectRef.current / totalCharsRef.current) * 100
+            : 0;
+        const baseXp = playerWon ? 30 : 10;
+        const bonus = accuracy * 0.1;
+        addXp(calculateGameXp(baseXp + bonus, difficulty));
+    }, [gameOver, playerWon, addXp, difficulty]);
 
     return (
         <div className="relative w-full flex-1 min-h-[280px] sm:min-h-[400px] rounded-2xl overflow-hidden border border-sky-200/40 dark:border-sky-500/10">

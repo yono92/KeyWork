@@ -6,31 +6,37 @@ import MuteToggle from "./MuteToggle";
 import LanguageToggle from "./LanguageToggle";
 import DarkModeToggle from "./DarkModeToggle";
 import Logo from "./Logo";
+import LevelBadge from "./LevelBadge";
 import useTypingStore from "../store/store";
 
 const NAV_ITEMS = [
     {
         id: "practice",
+        icon: "⌨️",
         label: { korean: "\uBB38\uC7A5\uC5F0\uC2B5", english: "Practice" },
         shortLabel: { korean: "\uC5F0\uC2B5", english: "Practice" },
     },
     {
         id: "falling-words",
+        icon: "🌧️",
         label: { korean: "\uB2E8\uC5B4\uB099\uD558", english: "Falling Words" },
         shortLabel: { korean: "\uB099\uD558", english: "Falling" },
     },
     {
         id: "typing-race",
+        icon: "🏎️",
         label: { korean: "\uD0C0\uC774\uD551 \uB808\uC774\uC2A4", english: "Typing Race" },
         shortLabel: { korean: "\uB808\uC774\uC2A4", english: "Race" },
     },
     {
         id: "dictation",
+        icon: "📝",
         label: { korean: "\uBC1B\uC544\uC4F0\uAE30", english: "Dictation" },
         shortLabel: { korean: "\uBC1B\uC544\uC4F0\uAE30", english: "Dictation" },
     },
     {
         id: "word-chain",
+        icon: "🔗",
         label: { korean: "\uB05D\uB9D0\uC787\uAE30", english: "Word Chain" },
         shortLabel: { korean: "\uB05D\uB9D0\uC787\uAE30", english: "Chain" },
     },
@@ -103,13 +109,14 @@ export default function SideNav() {
                                 key={item.id}
                                 type="button"
                                 onClick={() => navigateTo(item.id)}
-                                className={`w-full flex items-center rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200
+                                className={`w-full flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200
                                     ${
                                         active
                                             ? "bg-gradient-to-r from-sky-500 to-cyan-500 text-white shadow-lg shadow-sky-500/25"
                                             : "text-slate-500 dark:text-slate-400 hover:bg-sky-50 dark:hover:bg-white/5 hover:text-slate-700 dark:hover:text-slate-200"
                                     }`}
                             >
+                                <span className="text-base">{item.icon}</span>
                                 {item.label[language]}
                             </button>
                         );
@@ -141,6 +148,8 @@ export default function SideNav() {
                     </div>
                 </div>
 
+                <LevelBadge />
+
                 <nav className="p-3 space-y-1.5 flex-1">
                     {NAV_ITEMS.map((item) => {
                         const active = pathname === `/${item.id}`;
@@ -149,17 +158,15 @@ export default function SideNav() {
                                 key={item.id}
                                 type="button"
                                 onClick={() => navigateTo(item.id)}
-                                className={`w-full flex items-center justify-center lg:justify-start rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200
+                                className={`w-full flex items-center justify-center lg:justify-start gap-2.5 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200
                                     ${
                                         active
                                             ? "bg-gradient-to-r from-sky-500 to-cyan-500 text-white shadow-lg shadow-sky-500/25"
                                             : "text-slate-500 dark:text-slate-400 hover:bg-sky-50 dark:hover:bg-white/5 hover:text-slate-700 dark:hover:text-slate-200"
                                     }`}
                             >
-                                <span className="truncate">
-                                    <span className="lg:hidden">{item.shortLabel[language]}</span>
-                                    <span className="hidden lg:inline">{item.label[language]}</span>
-                                </span>
+                                <span className="text-base shrink-0">{item.icon}</span>
+                                <span className="truncate hidden lg:inline">{item.label[language]}</span>
                             </button>
                         );
                     })}

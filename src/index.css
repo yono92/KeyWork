@@ -20,6 +20,63 @@
 }
 
 @layer utilities {
+    /* 배경 부유 파티클 */
+    @keyframes bgFloat {
+        0%, 100% {
+            transform: translate(0, 0);
+        }
+        25% {
+            transform: translate(15px, -20px);
+        }
+        50% {
+            transform: translate(-10px, -35px);
+        }
+        75% {
+            transform: translate(-20px, -15px);
+        }
+    }
+
+    /* 페이지 전환 */
+    @keyframes pageIn {
+        from {
+            opacity: 0;
+            transform: translateY(6px);
+        }
+        to {
+            opacity: 1;
+            transform: none;
+        }
+    }
+    .animate-page-in {
+        animation: pageIn 250ms ease-out both;
+    }
+
+    /* 레벨업 토스트 */
+    @keyframes levelUp {
+        0% {
+            opacity: 0;
+            transform: translate(-50%, -50%) scale(0.6);
+        }
+        15% {
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1.1);
+        }
+        30% {
+            transform: translate(-50%, -50%) scale(1);
+        }
+        80% {
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1);
+        }
+        100% {
+            opacity: 0;
+            transform: translate(-50%, -50%) scale(0.9);
+        }
+    }
+    .animate-level-up {
+        animation: levelUp 2s ease-out forwards;
+    }
+
     @keyframes panelIn {
         from {
             opacity: 0;

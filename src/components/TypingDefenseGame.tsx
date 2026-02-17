@@ -3,6 +3,7 @@ import useTypingStore from "../store/store";
 import wordsData from "../data/word.json";
 import proverbsData from "../data/proverbs.json";
 import { formatPlayTime } from "../utils/formatting";
+import { calculateGameXp } from "../utils/xpUtils";
 import { useGameAudio } from "../hooks/useGameAudio";
 import { usePauseHandler } from "../hooks/usePauseHandler";
 import PauseOverlay from "./game/PauseOverlay";
@@ -37,6 +38,7 @@ const TypingDefenseGame: React.FC = () => {
     const language = useTypingStore((s) => s.language);
     const difficulty = useTypingStore((s) => s.difficulty);
     const setDifficulty = useTypingStore((s) => s.setDifficulty);
+    const addXp = useTypingStore((s) => s.addXp);
 
     const config = DIFFICULTY_CONFIG[difficulty];
 
@@ -215,6 +217,11 @@ const TypingDefenseGame: React.FC = () => {
 
         return () => clearInterval(moveInterval);
     }, [gameStarted, gameOver, isPaused, waveCleared, playSound]);
+
+    // 게임오버 시 XP 지급
+    useEffect(() => {
+        if (gameOver) addXp(calculateGameXp(score / 20, difficulty));
+    }, [gameOver, score, addXp, difficulty]);
 
     // destroyed 적 제거
     useEffect(() => {

@@ -37,6 +37,7 @@ interface TypingState {
     isMuted: boolean;
     highScore: number;
     difficulty: Difficulty;
+    xp: number;
     mobileMenuOpen: boolean;
     toggleDarkMode: () => void;
     setProgress: (progress: number) => void;
@@ -49,6 +50,7 @@ interface TypingState {
     setHighScore: (score: number) => void;
     setDifficulty: (difficulty: Difficulty) => void;
     setMobileMenuOpen: (open: boolean) => void;
+    addXp: (amount: number) => void;
 }
 
 const useTypingStore = create<TypingState>((set) => ({
@@ -64,6 +66,7 @@ const useTypingStore = create<TypingState>((set) => ({
         const raw = getStored("difficulty");
         return isValidDifficulty(raw) ? raw : "normal";
     })(),
+    xp: Number(getStored("xp")) || 0,
     mobileMenuOpen: false,
     toggleDarkMode: () =>
         set((state) => {
@@ -96,6 +99,12 @@ const useTypingStore = create<TypingState>((set) => ({
         set({ difficulty });
     },
     setMobileMenuOpen: (mobileMenuOpen: boolean) => set({ mobileMenuOpen }),
+    addXp: (amount: number) =>
+        set((state) => {
+            const xp = state.xp + Math.round(amount);
+            setStored("xp", String(xp));
+            return { xp };
+        }),
 }));
 
 export default useTypingStore;
