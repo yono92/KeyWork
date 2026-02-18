@@ -288,22 +288,24 @@
         animation: runnerBounce 350ms ease-in-out infinite;
     }
 
-    /* 러너 게임 - 점프 */
+    /* 러너 게임 - 점프 (squash/stretch) */
     @keyframes runnerJump {
-        0% { transform: translateY(0); }
-        25% { transform: translateY(-75px); }
-        60% { transform: translateY(-75px); }
-        100% { transform: translateY(0); }
+        0% { transform: translateY(0) scaleY(1) scaleX(1); }
+        8% { transform: translateY(2px) scaleY(0.85) scaleX(1.15); }
+        20% { transform: translateY(-75px) scaleY(1.1) scaleX(0.9); }
+        55% { transform: translateY(-80px) scaleY(1) scaleX(1); }
+        100% { transform: translateY(0) scaleY(1) scaleX(1); }
     }
     .animate-runner-jump {
         animation: runnerJump 650ms cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
     }
 
-    /* 러너 게임 - 피격 */
+    /* 러너 게임 - 피격 (brightness 플래시) */
     @keyframes runnerHit {
-        0%, 100% { transform: translateY(0); opacity: 1; }
-        20% { transform: translateX(-10px) translateY(-8px); opacity: 0.3; }
-        50% { transform: translateX(6px) translateY(0); opacity: 0.5; }
+        0% { transform: translate(0); filter: brightness(1); }
+        15% { transform: translate(-8px, -10px); filter: brightness(2) saturate(0); }
+        30% { transform: translate(6px, 0); filter: brightness(1.5); }
+        100% { transform: translate(0); filter: brightness(1); }
     }
     .animate-runner-hit {
         animation: runnerHit 500ms ease-out forwards;
@@ -328,5 +330,76 @@
     }
     .animate-runner-cloud-slow {
         animation: runnerCloud 22s linear infinite;
+    }
+
+    /* 러너 게임 - 패럴랙스 수평 스크롤 */
+    @keyframes runnerParallax {
+        from { transform: translateX(0); }
+        to { transform: translateX(-50%); }
+    }
+
+    /* 러너 게임 - 별 반짝임 (다크모드) */
+    @keyframes runnerTwinkle {
+        0%, 100% { opacity: 0.3; }
+        50% { opacity: 0.9; }
+    }
+
+    /* 러너 게임 - 장애물 제거 버스트 */
+    @keyframes runnerObstacleClear {
+        0% { transform: scale(1); opacity: 1; }
+        50% { transform: scale(1.3); opacity: 0.5; }
+        100% { transform: scale(0.5) translateY(-20px); opacity: 0; }
+    }
+    .animate-runner-obstacle-clear {
+        animation: runnerObstacleClear 400ms ease-out forwards;
+        pointer-events: none;
+    }
+
+    /* 러너 게임 - 불꽃 흔들림 */
+    @keyframes runnerFlameFlicker {
+        0%, 100% { transform: scaleY(1); }
+        50% { transform: scaleY(0.85); opacity: 0.8; }
+    }
+    .animate-runner-flame {
+        animation: runnerFlameFlicker 300ms ease-in-out infinite;
+    }
+
+    /* 파티클 버스트 (ParticleEffect용) */
+    @keyframes particleBurst {
+        0% { transform: translate(0, 0) scale(1); opacity: 1; }
+        100% { transform: translate(calc(cos(var(--angle)) * 40px), calc(sin(var(--angle)) * 40px)) scale(0); opacity: 0; }
+    }
+    .animate-particle-burst {
+        animation: particleBurst 500ms ease-out forwards;
+    }
+
+    /* 러너 게임 - 점프/착지 먼지 */
+    @keyframes runnerDust {
+        0% { transform: translate(0, 0) scale(1); opacity: 0.6; }
+        100% { transform: translate(var(--dx), 10px) scale(0.3); opacity: 0; }
+    }
+    .animate-runner-dust {
+        animation: runnerDust 400ms ease-out forwards;
+    }
+
+    /* 러너 게임 - 히트 화면 흔들림 */
+    @keyframes runnerShake {
+        0%, 100% { transform: translate(0); }
+        10% { transform: translate(-4px, 2px); }
+        30% { transform: translate(4px, -2px); }
+        50% { transform: translate(-3px, 1px); }
+        70% { transform: translate(3px, -1px); }
+    }
+    .animate-runner-shake {
+        animation: runnerShake 400ms ease-out;
+    }
+
+    /* 러너 게임 - 히트 빨간 플래시 */
+    @keyframes runnerHitFlash {
+        0% { opacity: 1; }
+        100% { opacity: 0; }
+    }
+    .animate-runner-hit-flash {
+        animation: runnerHitFlash 300ms ease-out forwards;
     }
 }

@@ -22,6 +22,7 @@ const GameInput: React.FC<GameInputProps> = ({
 }) => {
     const darkMode = useTypingStore((s) => s.darkMode);
     const isComposingRef = useRef(false);
+    const pendingSubmitRef = useRef(false);
 
     return (
         <input
@@ -30,20 +31,29 @@ const GameInput: React.FC<GameInputProps> = ({
             value={value}
             onChange={(e) => onChange(e.target.value)}
             onKeyDown={(e) => {
-                if (
-                    e.key === "Enter" &&
-                    !isComposingRef.current &&
-                    !e.nativeEvent.isComposing &&
-                    onSubmit
-                ) {
-                    onSubmit();
+                if (e.key === "Enter") {
+                    if (isComposingRef.current || e.nativeEvent.isComposing) {
+                        // 한국어 IME 조합 중 Enter → 조합 종료 후 submit 예약
+                        pendingSubmitRef.current = true;
+                    } else if (onSubmit) {
+                        onSubmit();
+                    }
                 }
             }}
             onCompositionStart={() => {
                 isComposingRef.current = true;
             }}
-            onCompositionEnd={() => {
+            onCompositionEnd={(e) => {
                 isComposingRef.current = false;
+                // 조합 완료된 최종 값 동기화
+                onChange(e.currentTarget.value);
+                if (pendingSubmitRef.current) {
+                    pendingSubmitRef.current = false;
+                    // React 상태 업데이트 후 submit 실행
+                    setTimeout(() => {
+                        if (onSubmit) onSubmit();
+                    }, 0);
+                }
             }}
             disabled={disabled}
             className={`px-3 py-2 text-base sm:px-4 sm:py-3 sm:text-lg rounded-xl outline-none transition-all duration-200 border-2 ${
