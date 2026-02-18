@@ -8,7 +8,6 @@ import { useGameAudio } from "../hooks/useGameAudio";
 import { usePauseHandler } from "../hooks/usePauseHandler";
 import PauseOverlay from "./game/PauseOverlay";
 import GameOverModal from "./game/GameOverModal";
-import DifficultySelector from "./game/DifficultySelector";
 import GameInput from "./game/GameInput";
 
 interface Enemy {
@@ -37,7 +36,6 @@ const TypingDefenseGame: React.FC = () => {
     const darkMode = useTypingStore((s) => s.darkMode);
     const language = useTypingStore((s) => s.language);
     const difficulty = useTypingStore((s) => s.difficulty);
-    const setDifficulty = useTypingStore((s) => s.setDifficulty);
     const addXp = useTypingStore((s) => s.addXp);
 
     const config = DIFFICULTY_CONFIG[difficulty];
@@ -45,6 +43,7 @@ const TypingDefenseGame: React.FC = () => {
     const [gameStarted, setGameStarted] = useState(false);
     const [gameOver, setGameOver] = useState(false);
     const [isPaused, setIsPaused] = useState(false);
+    const [countdown, setCountdown] = useState<number | null>(null);
 
     const [wave, setWave] = useState(1);
     const [score, setScore] = useState(0);
@@ -67,6 +66,20 @@ const TypingDefenseGame: React.FC = () => {
 
     // wave ref 동기화 (closure 문제 방지)
     useEffect(() => { waveRef.current = wave; }, [wave]);
+
+    // 카운트다운 타이머
+    useEffect(() => {
+        if (countdown === null) return;
+        if (countdown <= 0) {
+            setCountdown(null);
+            setGameStarted(true);
+            gameStartTimeRef.current = Date.now();
+            if (inputRef.current) inputRef.current.focus();
+            return;
+        }
+        const timer = setTimeout(() => setCountdown((c) => (c ?? 1) - 1), 1000);
+        return () => clearTimeout(timer);
+    }, [countdown]);
 
     const getWaveConfig = useCallback((w: number) => {
         const enemyCount = 5 + w * 3;
@@ -333,26 +346,25 @@ const TypingDefenseGame: React.FC = () => {
         if (inputRef.current) inputRef.current.focus();
     };
 
-    const restartGame = (overrideDifficulty?: keyof typeof DIFFICULTY_CONFIG) => {
-        const d = overrideDifficulty ?? difficulty;
-        const cfg = DIFFICULTY_CONFIG[d];
+    const restartGame = () => {
+        const cfg = DIFFICULTY_CONFIG[difficulty];
         setWave(1);
         setScore(0);
         setBaseHp(cfg.baseHp);
         setEnemies([]);
         setInput("");
         setGameOver(false);
-        setGameStarted(true);
+        setGameStarted(false);
         setIsPaused(false);
         setWaveCleared(false);
         setTotalSpawned(0);
         setWaveEnemiesLeft(0);
         enemiesDestroyedRef.current = 0;
-        gameStartTimeRef.current = Date.now();
         if (language === "korean" && koreanWords.length === 0) {
             void fetchKoreanWords();
         }
-        if (inputRef.current) inputRef.current.focus();
+        // 카운트다운 시작 (3→2→1→GO)
+        setCountdown(3);
     };
 
     const laneHeight = 100 / LANE_COUNT;
@@ -467,24 +479,41 @@ const TypingDefenseGame: React.FC = () => {
                         value={input}
                         onChange={setInput}
                         onSubmit={handleSubmit}
-                        disabled={!gameStarted || isPaused || gameOver || waveCleared}
-                        placeholder={language === "korean" ? "적의 단어를 입력하세요..." : "Type the enemy word..."}
+                        disabled={!gameStarted || isPaused || gameOver || waveCleared || countdown !== null}
+                        placeholder={countdown !== null ? "" : (language === "korean" ? "적의 단어를 입력하세요..." : "Type the enemy word...")}
                     />
                 </div>
             </div>
 
-            {/* 난이도 선택 */}
-            {!gameStarted && !gameOver && (
-                <DifficultySelector
-                    title={language === "korean" ? "타이핑 디펜스" : "Typing Defense"}
-                    subtitle={language === "korean" ? "난이도를 선택하세요" : "Select difficulty"}
-                    descriptions={{
-                        easy: language === "korean" ? "느린 속도, 기지 HP 3" : "Slow speed, 3 HP",
-                        normal: language === "korean" ? "보통 속도, 기지 HP 3" : "Normal speed, 3 HP",
-                        hard: language === "korean" ? "빠른 속도, 기지 HP 3" : "Fast speed, 3 HP",
-                    }}
-                    onSelect={(d) => { setDifficulty(d); restartGame(d); }}
-                />
+            {/* 시작 오버레이 */}
+            {!gameStarted && !gameOver && countdown === null && (
+                <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+                    <div className="text-center">
+                        <h2 className="text-2xl sm:text-4xl font-black text-white mb-2">
+                            {language === "korean" ? "타이핑 디펜스" : "Typing Defense"}
+                        </h2>
+                        <p className={`text-sm sm:text-base mb-6 ${darkMode ? "text-slate-300" : "text-slate-200"}`}>
+                            {language === "korean"
+                                ? "적의 단어를 입력해 기지를 방어하세요!"
+                                : "Type enemy words to defend your base!"}
+                        </p>
+                        <button
+                            onClick={() => restartGame()}
+                            className="px-8 py-3 rounded-xl font-bold text-white bg-gradient-to-r from-sky-500 to-cyan-400 hover:from-sky-400 hover:to-cyan-300 transition-all shadow-lg hover:shadow-sky-500/25 text-lg"
+                        >
+                            {language === "korean" ? "시작" : "Start"}
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* 카운트다운 오버레이 */}
+            {countdown !== null && countdown > 0 && (
+                <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+                    <div key={countdown} className="animate-countdown text-7xl sm:text-9xl font-black text-white drop-shadow-[0_0_30px_rgba(56,189,248,0.6)]">
+                        {countdown}
+                    </div>
+                </div>
             )}
 
             {/* 웨이브 클리어 */}
@@ -541,10 +570,6 @@ const TypingDefenseGame: React.FC = () => {
                             label: language === "korean" ? "다시 하기" : "Play Again",
                             onClick: () => restartGame(),
                             primary: true,
-                        },
-                        {
-                            label: language === "korean" ? "난이도 변경" : "Change Difficulty",
-                            onClick: () => { restartGame(); setGameStarted(false); },
                         },
                     ]}
                 />

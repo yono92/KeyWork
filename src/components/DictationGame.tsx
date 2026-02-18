@@ -9,7 +9,6 @@ import { useGameAudio } from "../hooks/useGameAudio";
 import { usePauseHandler } from "../hooks/usePauseHandler";
 import PauseOverlay from "./game/PauseOverlay";
 import GameOverModal from "./game/GameOverModal";
-import DifficultySelector from "./game/DifficultySelector";
 import GameInput from "./game/GameInput";
 
 const hasTTS = typeof window !== "undefined" && "speechSynthesis" in window;
@@ -26,7 +25,6 @@ const DictationGame: React.FC = () => {
     const darkMode = useTypingStore((s) => s.darkMode);
     const language = useTypingStore((s) => s.language);
     const difficulty = useTypingStore((s) => s.difficulty);
-    const setDifficulty = useTypingStore((s) => s.setDifficulty);
     const addXp = useTypingStore((s) => s.addXp);
 
     const config = DIFFICULTY_CONFIG[difficulty];
@@ -34,6 +32,7 @@ const DictationGame: React.FC = () => {
     const [gameStarted, setGameStarted] = useState(false);
     const [gameOver, setGameOver] = useState(false);
     const [isPaused, setIsPaused] = useState(false);
+    const [countdown, setCountdown] = useState<number | null>(null);
 
     const [round, setRound] = useState(1);
     const [sentence, setSentence] = useState("");
@@ -111,6 +110,24 @@ const DictationGame: React.FC = () => {
         setTimeout(() => speakSentence(s), 300);
     }, [getRandomSentence, speakSentence]);
 
+    // 카운트다운 타이머
+    useEffect(() => {
+        if (countdown === null) return;
+        if (countdown <= 0) {
+            setCountdown(null);
+            setGameStarted(true);
+            gameStartTimeRef.current = Date.now();
+            // 첫 라운드 시작
+            setTimeout(() => {
+                const s = getRandomSentence();
+                startRound(s);
+            }, 100);
+            return;
+        }
+        const timer = setTimeout(() => setCountdown((c) => (c ?? 1) - 1), 1000);
+        return () => clearTimeout(timer);
+    }, [countdown, getRandomSentence, startRound]);
+
     const calculateAccuracy = (target: string, userInput: string): number => {
         if (!userInput.trim()) return 0;
         if (language === "korean") {
@@ -172,24 +189,17 @@ const DictationGame: React.FC = () => {
         if (gameOver) addXp(calculateGameXp(avgScore * 0.3, difficulty));
     }, [gameOver, avgScore, addXp, difficulty]);
 
-    const restartGame = (overrideDifficulty?: keyof typeof DIFFICULTY_CONFIG) => {
-        if (overrideDifficulty) setDifficulty(overrideDifficulty);
+    const restartGame = () => {
         if (hasTTS) speechSynthesis.cancel();
         setRound(1);
         setGameOver(false);
-        setGameStarted(true);
         setIsPaused(false);
         setScores([]);
         setInput("");
         setSubmitted(false);
         setShowHint(false);
         usedIndicesRef.current.clear();
-        gameStartTimeRef.current = Date.now();
-
-        setTimeout(() => {
-            const s = getRandomSentence();
-            startRound(s);
-        }, 100);
+        setCountdown(3);
     };
 
     return (
@@ -325,18 +335,35 @@ const DictationGame: React.FC = () => {
                 </div>
             </div>
 
-            {/* 난이도 선택 */}
-            {!gameStarted && !gameOver && (
-                <DifficultySelector
-                    title={language === "korean" ? "받아쓰기" : "Dictation"}
-                    subtitle={language === "korean" ? "난이도를 선택하세요" : "Select difficulty"}
-                    descriptions={{
-                        easy: language === "korean" ? "느린 음성, 힌트 제공, 다시 듣기" : "Slow speech, hints, replay",
-                        normal: language === "korean" ? "보통 음성, 다시 듣기" : "Normal speech, replay",
-                        hard: language === "korean" ? "빠른 음성, 다시 듣기 불가" : "Fast speech, no replay",
-                    }}
-                    onSelect={(d) => { setDifficulty(d); restartGame(d); }}
-                />
+            {/* 시작 오버레이 */}
+            {!gameStarted && !gameOver && countdown === null && (
+                <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+                    <div className="text-center">
+                        <h2 className="text-2xl sm:text-4xl font-black text-white mb-2">
+                            {language === "korean" ? "받아쓰기" : "Dictation"}
+                        </h2>
+                        <p className={`text-sm sm:text-base mb-6 ${darkMode ? "text-slate-300" : "text-slate-200"}`}>
+                            {language === "korean"
+                                ? "음성을 듣고 문장을 정확히 입력하세요"
+                                : "Listen and type the sentence accurately"}
+                        </p>
+                        <button
+                            onClick={() => restartGame()}
+                            className="px-8 py-3 rounded-xl font-bold text-white bg-gradient-to-r from-sky-500 to-cyan-400 hover:from-sky-400 hover:to-cyan-300 transition-all shadow-lg hover:shadow-sky-500/25 text-lg"
+                        >
+                            {language === "korean" ? "시작" : "Start"}
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* 카운트다운 오버레이 */}
+            {countdown !== null && countdown > 0 && (
+                <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+                    <div key={countdown} className="animate-countdown text-7xl sm:text-9xl font-black text-white drop-shadow-[0_0_30px_rgba(56,189,248,0.6)]">
+                        {countdown}
+                    </div>
+                </div>
             )}
 
             {/* 일시정지 */}
@@ -381,10 +408,6 @@ const DictationGame: React.FC = () => {
                             label: language === "korean" ? "다시 하기" : "Play Again",
                             onClick: () => restartGame(),
                             primary: true,
-                        },
-                        {
-                            label: language === "korean" ? "난이도 변경" : "Change Difficulty",
-                            onClick: () => { restartGame(); setGameStarted(false); },
                         },
                     ]}
                 >

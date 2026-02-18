@@ -8,7 +8,6 @@ import { useGameAudio } from "../hooks/useGameAudio";
 import { usePauseHandler } from "../hooks/usePauseHandler";
 import PauseOverlay from "./game/PauseOverlay";
 import GameOverModal from "./game/GameOverModal";
-import DifficultySelector from "./game/DifficultySelector";
 import GameInput from "./game/GameInput";
 
 
@@ -52,7 +51,6 @@ const FallingWordsGame: React.FC = () => {
     const highScore = useTypingStore((state) => state.highScore);
     const setHighScore = useTypingStore((state) => state.setHighScore);
     const difficulty = useTypingStore((state) => state.difficulty);
-    const setDifficulty = useTypingStore((state) => state.setDifficulty);
     const addXp = useTypingStore((s) => s.addXp);
 
     const config = DIFFICULTY_CONFIG[difficulty];
@@ -464,15 +462,14 @@ const FallingWordsGame: React.FC = () => {
         }
     };
 
-    const restartGame = (overrideDifficulty?: keyof typeof DIFFICULTY_CONFIG): void => {
-        const d = overrideDifficulty ?? difficulty;
+    const restartGame = (): void => {
         Object.values(activeTimersRef.current).forEach(clearTimeout);
         activeTimersRef.current = {};
 
         setWords([]);
         setScore(0);
         setLevel(1);
-        setLives(DIFFICULTY_CONFIG[d].lives);
+        setLives(DIFFICULTY_CONFIG[difficulty].lives);
         setGameOver(false);
         setGameStarted(false);
         setLevelUp(false);
@@ -711,21 +708,34 @@ const FallingWordsGame: React.FC = () => {
                 </div>
             </div>
 
-            {/* 난이도 선택 오버레이 */}
+            {/* 시작 오버레이 */}
             {!gameStarted && !gameOver && countdown === null && (
-                <DifficultySelector
-                    title={language === "korean" ? "소나기 모드" : "Falling Words"}
-                    subtitle={language === "korean" ? "난이도를 선택하세요" : "Select difficulty"}
-                    descriptions={{
-                        easy: language === "korean" ? "느린 속도, 라이프 3개" : "Slow speed, 3 lives",
-                        normal: language === "korean" ? "보통 속도, 라이프 3개" : "Normal speed, 3 lives",
-                        hard: language === "korean" ? "빠른 속도, 라이프 3개" : "Fast speed, 3 lives",
-                    }}
-                    onSelect={(d) => {
-                        setDifficulty(d);
-                        restartGame(d);
-                    }}
-                />
+                <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+                    <div className={`text-center px-8 py-8 rounded-2xl border ${
+                        darkMode ? "bg-[#162032]/90 border-white/10" : "bg-white/90 border-sky-100"
+                    } shadow-2xl max-w-xs mx-4`}>
+                        <div className="text-5xl mb-3">🌧️</div>
+                        <h2 className={`text-2xl sm:text-3xl font-black mb-2 ${darkMode ? "text-white" : "text-slate-800"}`}>
+                            {language === "korean" ? "소나기 모드" : "Falling Words"}
+                        </h2>
+                        <p className={`text-sm mb-1 ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
+                            {language === "korean"
+                                ? "떨어지는 단어를 타이핑하세요!"
+                                : "Type the falling words before they hit the ground!"}
+                        </p>
+                        <p className={`text-xs mb-5 ${darkMode ? "text-slate-500" : "text-slate-400"}`}>
+                            {language === "korean"
+                                ? "콤보를 쌓아 높은 점수를 노리세요"
+                                : "Build combos for higher scores"}
+                        </p>
+                        <button
+                            onClick={() => restartGame()}
+                            className="w-full px-6 py-3 rounded-xl font-bold text-white bg-gradient-to-r from-emerald-500 to-cyan-400 hover:from-emerald-400 hover:to-cyan-300 transition-all shadow-lg hover:shadow-emerald-500/25 text-lg"
+                        >
+                            {language === "korean" ? "시작" : "Start"}
+                        </button>
+                    </div>
+                </div>
             )}
 
             {/* 카운트다운 오버레이 */}
@@ -789,10 +799,6 @@ const FallingWordsGame: React.FC = () => {
                             label: language === "korean" ? "다시 하기" : "Play Again",
                             onClick: () => restartGame(),
                             primary: true,
-                        },
-                        {
-                            label: language === "korean" ? "난이도 변경" : "Change Difficulty",
-                            onClick: () => { setCountdown(null); setGameStarted(false); setGameOver(false); },
                         },
                     ]}
                 />
