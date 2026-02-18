@@ -19,6 +19,9 @@ const JUMP_DURATION = 650;
 const HIT_DURATION = 500;
 const HIT_INVINCIBILITY = 1200;
 
+const KOREAN_START_POOL = ["가", "나", "다", "라", "마", "바", "사", "아", "자", "차", "카", "타", "파", "하"];
+const HANGUL_WORD_REGEX = /^[\uAC00-\uD7A3]{2,}$/;
+
 const OBSTACLE_VISUALS = [
     { emoji: "🌵", bg: "from-emerald-500/20 to-emerald-600/10" },
     { emoji: "🪨", bg: "from-slate-500/20 to-slate-600/10" },
@@ -60,6 +63,7 @@ const TypingRunnerGame: React.FC = () => {
     const [distance, setDistance] = useState(0);
     const [isInvincible, setIsInvincible] = useState(false);
     const [scorePopups, setScorePopups] = useState<ScorePopup[]>([]);
+    const [koreanWords, setKoreanWords] = useState<string[]>([]);
 
     const gameAreaRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
@@ -83,16 +87,57 @@ const TypingRunnerGame: React.FC = () => {
         }, 800);
     };
 
-    // --- 단어 선택 ---
+    // --- 한국어 단어 API 로딩 ---
+    const fetchKoreanWords = useCallback(async () => {
+        if (language !== "korean") return;
+        try {
+            const starts = encodeURIComponent(KOREAN_START_POOL.join(","));
+            const response = await fetch(`/api/krdict/candidates?starts=${starts}&num=220`);
+            if (!response.ok) return;
+            const data: unknown = await response.json();
+            if (
+                typeof data === "object" &&
+                data !== null &&
+                "words" in data &&
+                Array.isArray((data as { words: unknown }).words)
+            ) {
+                const words = ((data as { words: string[] }).words ?? [])
+                    .map((w) => w.trim())
+                    .filter((w) => HANGUL_WORD_REGEX.test(w));
+                if (words.length > 0) {
+                    setKoreanWords([...new Set(words)]);
+                }
+            }
+        } catch {
+            // ignore
+        }
+    }, [language]);
+
+    useEffect(() => {
+        if (language === "korean") {
+            void fetchKoreanWords();
+        }
+    }, [language, fetchKoreanWords]);
+
+    // --- 단어 선택 (API 단어 우선, 로컬 폴백) ---
     const getRandomWord = useCallback((): string => {
-        const pool = wordsData[language];
         const cleared = clearedCountRef.current;
         const maxLen = cleared < 5 ? 3 : cleared < 15 ? 4 : cleared < 30 ? 5 : 6;
         const minLen = cleared < 15 ? 2 : 3;
+
+        if (language === "korean") {
+            const pool = koreanWords.length > 0 ? koreanWords : wordsData.korean;
+            if (koreanWords.length === 0) void fetchKoreanWords();
+            const filtered = pool.filter((w) => w.length >= minLen && w.length <= maxLen);
+            const source = filtered.length > 0 ? filtered : pool;
+            return source[Math.floor(Math.random() * source.length)];
+        }
+
+        const pool = wordsData[language];
         const filtered = pool.filter((w) => w.length >= minLen && w.length <= maxLen);
         const source = filtered.length > 0 ? filtered : pool;
         return source[Math.floor(Math.random() * source.length)];
-    }, [language]);
+    }, [language, koreanWords, fetchKoreanWords]);
 
     // --- 타겟 장애물 ---
     const targetObstacle = useMemo(() => {
