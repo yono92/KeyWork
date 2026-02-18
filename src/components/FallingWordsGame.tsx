@@ -364,12 +364,23 @@ const FallingWordsGame: React.FC = () => {
         return () => clearInterval(spawn);
     }, [spawnWord, spawnInterval, gameStarted, gameOver, isPaused]);
 
-    // 게임오버 시 하이스코어 갱신 + XP 지급
+    // 게임오버 시 하이스코어 갱신
     useEffect(() => {
         if (!gameOver) return;
         if (score > highScore) setHighScore(score);
+    }, [gameOver, score, highScore, setHighScore]);
+
+    // 게임오버 시 XP 지급 (1회만)
+    const xpAwardedRef = useRef(false);
+    useEffect(() => {
+        if (!gameOver) {
+            xpAwardedRef.current = false;
+            return;
+        }
+        if (xpAwardedRef.current) return;
+        xpAwardedRef.current = true;
         addXp(calculateGameXp(score / 20, difficulty));
-    }, [gameOver, score, highScore, setHighScore, addXp, difficulty]);
+    }, [gameOver, score, addXp, difficulty]);
 
     const getLevelRequirements = (currentLevel: number) => ({
         scoreNeeded: currentLevel * config.scorePerLevel,

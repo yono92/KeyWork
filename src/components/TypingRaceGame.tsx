@@ -169,7 +169,20 @@ const TypingRaceGame: React.FC = () => {
     const handleInput = (val: string) => {
         setInput(val);
         playerCharsTypedRef.current = val.length;
-        totalCharsRef.current++;
+
+        // per-character 정확도 추적: 새로 입력된 마지막 글자 기준
+        const newLen = val.length;
+        const prevLen = totalCharsRef.current > 0 ? input.length : 0;
+        if (newLen > prevLen) {
+            const addedCount = newLen - prevLen;
+            totalCharsRef.current += addedCount;
+            // 새로 입력된 각 글자가 맞는지 확인
+            for (let i = prevLen; i < newLen; i++) {
+                if (i < sentence.length && val[i] === sentence[i]) {
+                    totalCorrectRef.current++;
+                }
+            }
+        }
 
         // 플레이어가 문장 완료
         if (val === sentence) {
@@ -180,7 +193,6 @@ const TypingRaceGame: React.FC = () => {
             }
             setAiProgress(0);
 
-            totalCorrectRef.current += sentence.length;
             roundsWonRef.current += 1;
             playSound("roundComplete");
             setRound((r) => r + 1);

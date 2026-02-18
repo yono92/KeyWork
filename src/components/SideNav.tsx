@@ -164,6 +164,7 @@ export default function SideNav() {
                                 key={item.id}
                                 type="button"
                                 onClick={() => navigateTo(item.id)}
+                                aria-label={item.label[language]}
                                 className={`w-full flex items-center justify-center lg:justify-start gap-2.5 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200
                                     ${
                                         active
