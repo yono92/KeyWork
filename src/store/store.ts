@@ -7,6 +7,7 @@ type GameMode =
     | "falling-words"
     | "typing-defense"
     | "typing-race"
+    | "typing-runner"
     | "dictation"
     | "word-chain";
 
@@ -28,6 +29,7 @@ const setStored = (key: string, value: string): void => {
 };
 
 interface TypingState {
+    _hydrated: boolean;
     darkMode: boolean;
     progress: number;
     text: string;
@@ -37,7 +39,9 @@ interface TypingState {
     isMuted: boolean;
     highScore: number;
     difficulty: Difficulty;
+    xp: number;
     mobileMenuOpen: boolean;
+    _hydrate: () => void;
     toggleDarkMode: () => void;
     setProgress: (progress: number) => void;
     setText: (text: string) => void;
@@ -49,22 +53,36 @@ interface TypingState {
     setHighScore: (score: number) => void;
     setDifficulty: (difficulty: Difficulty) => void;
     setMobileMenuOpen: (open: boolean) => void;
+    addXp: (amount: number) => void;
 }
 
 const useTypingStore = create<TypingState>((set) => ({
-    darkMode: getStored("darkMode") === "true",
+    // 서버-안전한 기본값 (localStorage 읽지 않음 → hydration 불일치 방지)
+    _hydrated: false,
+    darkMode: false,
     progress: 0,
     text: "Start typing practice.",
     input: "",
     gameMode: "practice",
-    language: getStored("language") === "english" ? "english" : "korean",
+    language: "korean",
     isMuted: false,
-    highScore: Number(getStored("highScore")) || 0,
-    difficulty: (() => {
-        const raw = getStored("difficulty");
-        return isValidDifficulty(raw) ? raw : "normal";
-    })(),
+    highScore: 0,
+    difficulty: "normal",
+    xp: 0,
     mobileMenuOpen: false,
+    // 마운트 후 localStorage에서 복원
+    _hydrate: () =>
+        set(() => {
+            const raw = getStored("difficulty");
+            return {
+                _hydrated: true,
+                darkMode: getStored("darkMode") === "true",
+                language: getStored("language") === "english" ? "english" : "korean",
+                highScore: Number(getStored("highScore")) || 0,
+                difficulty: isValidDifficulty(raw) ? raw : "normal",
+                xp: Number(getStored("xp")) || 0,
+            };
+        }),
     toggleDarkMode: () =>
         set((state) => {
             const darkMode = !state.darkMode;
@@ -96,6 +114,12 @@ const useTypingStore = create<TypingState>((set) => ({
         set({ difficulty });
     },
     setMobileMenuOpen: (mobileMenuOpen: boolean) => set({ mobileMenuOpen }),
+    addXp: (amount: number) =>
+        set((state) => {
+            const xp = state.xp + Math.round(amount);
+            setStored("xp", String(xp));
+            return { xp };
+        }),
 }));
 
 export default useTypingStore;

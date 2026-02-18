@@ -3,9 +3,11 @@ import useTypingStore from "../store/store";
 import { useGameAudio } from "../hooks/useGameAudio";
 import { usePauseHandler } from "../hooks/usePauseHandler";
 import { formatPlayTime } from "../utils/formatting";
+import { calculateGameXp } from "../utils/xpUtils";
 import PauseOverlay from "./game/PauseOverlay";
 import GameOverModal from "./game/GameOverModal";
 import GameInput from "./game/GameInput";
+import { KOREAN_START_POOL, HANGUL_WORD_REGEX } from "../utils/koreanConstants";
 
 interface ChatMessage {
     id: number;
@@ -24,8 +26,6 @@ interface KrdictCandidatesResult {
     words: string[];
 }
 
-const KOREAN_START_POOL = ["가", "나", "다", "라", "마", "바", "사", "아", "자", "차", "카", "타", "파", "하"];
-const HANGUL_WORD_REGEX = /^[가-힣]{2,}$/;
 
 const DIFFICULTY_CONFIG = {
     easy:   { timeLimit: 20, lives: 3 },
@@ -37,6 +37,7 @@ const WordChainGame: React.FC = () => {
     const darkMode = useTypingStore((s) => s.darkMode);
     const language = useTypingStore((s) => s.language);
     const setLanguage = useTypingStore((s) => s.setLanguage);
+    const addXp = useTypingStore((s) => s.addXp);
 
     const { playSound } = useGameAudio();
 
@@ -71,6 +72,11 @@ const WordChainGame: React.FC = () => {
     const doAiTurnRef = useRef<(startChar: string) => void>(() => {});
 
     usePauseHandler(gameStarted, gameOver, setIsPaused);
+
+    // 게임오버 시 XP 지급
+    useEffect(() => {
+        if (gameOver) addXp(calculateGameXp(score / 15, "normal"));
+    }, [gameOver, score, addXp]);
 
     const getStartChars = (lastChar: string): string[] => {
         // Two-sound rule candidates (ASCII-safe unicode escapes).

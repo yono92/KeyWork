@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState, useCallback, useMemo } from "react"
 import useTypingStore from "../store/store";
 import proverbsData from "../data/proverbs.json";
 import { calculateHangulAccuracy, countKeystrokes } from "../utils/hangulUtils";
+import { calculateGameXp } from "../utils/xpUtils";
 import Keyboard from "./Keyboard";
 import ProgressBar from "./ProgressBar";
 
@@ -75,7 +76,7 @@ const TypingInput: React.FC = () => {
     const darkMode = useTypingStore((state) => state.darkMode);
     const setText = useTypingStore((state) => state.setText);
     const language = useTypingStore((state) => state.language);
-    const setLanguage = useTypingStore((state) => state.setLanguage);
+    const addXp = useTypingStore((s) => s.addXp);
 
     const [input, setInput] = useState<string>("");
     const [startTime, setStartTime] = useState<number | null>(null);
@@ -402,6 +403,11 @@ const [platform, setPlatform] = useState<"mac" | "windows">("windows");
                     setAverageAccuracy(Math.round(newAverageAccuracy));
                     return updatedAccuracies;
                 });
+            }
+
+            // XP 지급 (정확도 기반, 최대 15)
+            if (accuracy > 0) {
+                addXp(calculateGameXp(Math.min(accuracy * 0.15, 15), "normal"));
             }
 
             // 입력 필드 초기화 및 상태 초기화
