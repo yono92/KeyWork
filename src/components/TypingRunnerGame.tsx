@@ -19,8 +19,7 @@ const JUMP_DURATION = 650;
 const HIT_DURATION = 500;
 const HIT_INVINCIBILITY = 1200;
 
-const KOREAN_START_POOL = ["가", "나", "다", "라", "마", "바", "사", "아", "자", "차", "카", "타", "파", "하"];
-const HANGUL_WORD_REGEX = /^[\uAC00-\uD7A3]{2,}$/;
+import { pickRandomStarts, HANGUL_WORD_REGEX } from "../utils/koreanConstants";
 
 const OBSTACLE_VISUALS = [
     { emoji: "🌵", bg: "from-emerald-500/20 to-emerald-600/10" },
@@ -91,8 +90,8 @@ const TypingRunnerGame: React.FC = () => {
     const fetchKoreanWords = useCallback(async () => {
         if (language !== "korean") return;
         try {
-            const starts = encodeURIComponent(KOREAN_START_POOL.join(","));
-            const response = await fetch(`/api/krdict/candidates?starts=${starts}&num=220`);
+            const starts = encodeURIComponent(pickRandomStarts(15).join(","));
+            const response = await fetch(`/api/krdict/candidates?starts=${starts}&num=300`);
             if (!response.ok) return;
             const data: unknown = await response.json();
             if (

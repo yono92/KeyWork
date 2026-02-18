@@ -7,6 +7,7 @@ import { calculateGameXp } from "../utils/xpUtils";
 import PauseOverlay from "./game/PauseOverlay";
 import GameOverModal from "./game/GameOverModal";
 import GameInput from "./game/GameInput";
+import { KOREAN_START_POOL, HANGUL_WORD_REGEX } from "../utils/koreanConstants";
 
 interface ChatMessage {
     id: number;
@@ -25,8 +26,6 @@ interface KrdictCandidatesResult {
     words: string[];
 }
 
-const KOREAN_START_POOL = ["가", "나", "다", "라", "마", "바", "사", "아", "자", "차", "카", "타", "파", "하"];
-const HANGUL_WORD_REGEX = /^[가-힣]{2,}$/;
 
 const DIFFICULTY_CONFIG = {
     easy:   { timeLimit: 20, lives: 3 },

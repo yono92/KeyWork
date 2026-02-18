@@ -6,6 +6,7 @@ import { formatPlayTime } from "../utils/formatting";
 import { calculateGameXp } from "../utils/xpUtils";
 import { useGameAudio } from "../hooks/useGameAudio";
 import { usePauseHandler } from "../hooks/usePauseHandler";
+import { pickRandomStarts, HANGUL_WORD_REGEX } from "../utils/koreanConstants";
 import PauseOverlay from "./game/PauseOverlay";
 import GameOverModal from "./game/GameOverModal";
 import GameInput from "./game/GameInput";
@@ -27,8 +28,6 @@ const DIFFICULTY_CONFIG = {
     normal: { speedMul: 1.0, spawnMul: 1.0, baseHp: 3 },
     hard:   { speedMul: 1.3, spawnMul: 0.7, baseHp: 3 },
 } as const;
-const KOREAN_START_POOL = ["가", "나", "다", "라", "마", "바", "사", "아", "자", "차", "카", "타", "파", "하"];
-const HANGUL_WORD_REGEX = /^[\uAC00-\uD7A3]{2,}$/;
 
 const LANE_COUNT = 5;
 
@@ -93,8 +92,8 @@ const TypingDefenseGame: React.FC = () => {
     const fetchKoreanWords = useCallback(async () => {
         if (language !== "korean") return;
         try {
-            const starts = encodeURIComponent(KOREAN_START_POOL.join(","));
-            const response = await fetch(`/api/krdict/candidates?starts=${starts}&num=220`);
+            const starts = encodeURIComponent(pickRandomStarts(15).join(","));
+            const response = await fetch(`/api/krdict/candidates?starts=${starts}&num=300`);
             if (!response.ok) return;
 
             const data: unknown = await response.json();
