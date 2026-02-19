@@ -10,6 +10,7 @@ import { pickRandomStarts, HANGUL_WORD_REGEX } from "../utils/koreanConstants";
 import PauseOverlay from "./game/PauseOverlay";
 import GameOverModal from "./game/GameOverModal";
 import GameInput from "./game/GameInput";
+import { Button } from "@/components/ui/button";
 
 interface Enemy {
     id: number;
@@ -33,6 +34,7 @@ const LANE_COUNT = 5;
 
 const TypingDefenseGame: React.FC = () => {
     const darkMode = useTypingStore((s) => s.darkMode);
+    const retroTheme = useTypingStore((s) => s.retroTheme);
     const language = useTypingStore((s) => s.language);
     const difficulty = useTypingStore((s) => s.difficulty);
     const addXp = useTypingStore((s) => s.addXp);
@@ -479,7 +481,8 @@ const TypingDefenseGame: React.FC = () => {
                         onChange={setInput}
                         onSubmit={handleSubmit}
                         disabled={!gameStarted || isPaused || gameOver || waveCleared || countdown !== null}
-                        placeholder={countdown !== null ? "" : (language === "korean" ? "적의 단어를 입력하세요..." : "Type the enemy word...")}
+                        placeholder={countdown !== null ? "" : (language === "korean" ? "적의 단어를 입력하세요…" : "Type the enemy word…")}
+                        ariaLabel={language === "korean" ? "디펜스 단어 입력" : "Defense word input"}
                     />
                 </div>
             </div>
@@ -496,12 +499,13 @@ const TypingDefenseGame: React.FC = () => {
                                 ? "적의 단어를 입력해 기지를 방어하세요!"
                                 : "Type enemy words to defend your base!"}
                         </p>
-                        <button
+                        <Button
                             onClick={() => restartGame()}
-                            className="px-8 py-3 rounded-xl font-bold text-white bg-gradient-to-r from-sky-500 to-cyan-400 hover:from-sky-400 hover:to-cyan-300 transition-all shadow-lg hover:shadow-sky-500/25 text-lg"
+                            variant="secondary"
+                            className={`h-auto px-8 py-3 font-bold text-lg ${retroTheme === "mac-classic" ? "rounded-lg" : "rounded-none"}`}
                         >
                             {language === "korean" ? "시작" : "Start"}
-                        </button>
+                        </Button>
                     </div>
                 </div>
             )}
@@ -527,12 +531,13 @@ const TypingDefenseGame: React.FC = () => {
                         <p className={`text-sm mb-4 ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
                             Score: <span className="font-bold tabular-nums">{score}</span>
                         </p>
-                        <button
+                        <Button
                             onClick={startNextWave}
-                            className="px-5 py-2.5 sm:px-8 sm:py-3 bg-gradient-to-r from-sky-500 to-cyan-500 text-white rounded-xl hover:shadow-lg hover:shadow-sky-500/25 transition-all duration-200 font-medium text-sm sm:text-base"
+                            variant="secondary"
+                            className={`h-auto px-5 py-2.5 sm:px-8 sm:py-3 font-medium text-sm sm:text-base ${retroTheme === "mac-classic" ? "rounded-lg" : "rounded-none"}`}
                         >
                             {language === "korean" ? "다음 웨이브" : "Next Wave"}
-                        </button>
+                        </Button>
                     </div>
                 </div>
             )}

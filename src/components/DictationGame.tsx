@@ -10,6 +10,8 @@ import { usePauseHandler } from "../hooks/usePauseHandler";
 import PauseOverlay from "./game/PauseOverlay";
 import GameOverModal from "./game/GameOverModal";
 import GameInput from "./game/GameInput";
+import DifficultyBadge from "./game/DifficultyBadge";
+import { Button } from "@/components/ui/button";
 
 const hasTTS = typeof window !== "undefined" && "speechSynthesis" in window;
 
@@ -23,6 +25,7 @@ const TOTAL_ROUNDS = 10;
 
 const DictationGame: React.FC = () => {
     const darkMode = useTypingStore((s) => s.darkMode);
+    const retroTheme = useTypingStore((s) => s.retroTheme);
     const language = useTypingStore((s) => s.language);
     const difficulty = useTypingStore((s) => s.difficulty);
     const addXp = useTypingStore((s) => s.addXp);
@@ -212,13 +215,7 @@ const DictationGame: React.FC = () => {
                     <div className={`text-xs sm:text-lg font-bold ${darkMode ? "text-white" : "text-slate-800"}`}>
                         Round <span className="tabular-nums">{round}</span>/{TOTAL_ROUNDS}
                     </div>
-                    <span className={`px-1.5 sm:px-2 py-0.5 text-[10px] sm:text-xs font-bold rounded-md ${
-                        difficulty === "easy" ? "bg-emerald-500/20 text-emerald-400"
-                        : difficulty === "normal" ? "bg-sky-500/20 text-sky-400"
-                        : "bg-rose-500/20 text-rose-400"
-                    }`}>
-                        {difficulty === "easy" ? "Easy" : difficulty === "normal" ? "Normal" : "Hard"}
-                    </span>
+                    <DifficultyBadge difficulty={difficulty} />
                     <div className={`text-xs sm:text-sm ${darkMode ? "text-slate-300" : "text-slate-600"}`}>
                         <span className="hidden sm:inline">{language === "korean" ? "평균 정확도" : "Avg Accuracy"}: </span><span className="font-bold tabular-nums">{avgScore}%</span>
                     </div>
@@ -228,10 +225,11 @@ const DictationGame: React.FC = () => {
                 <div className="flex-1 flex flex-col items-center justify-center px-3 gap-4 sm:px-6 sm:gap-6">
                     {/* 재생 버튼 */}
                     <div className="flex items-center gap-4">
-                        <button
+                        <Button
                             onClick={() => speakSentence(sentence)}
                             disabled={isPaused || submitted || (!config.canReplay && isSpeaking)}
-                            className={`w-14 h-14 sm:w-20 sm:h-20 rounded-full flex items-center justify-center text-2xl sm:text-4xl transition-all duration-200 ${
+                            variant="ghost"
+                            className={`w-14 h-14 sm:w-20 sm:h-20 rounded-full text-2xl sm:text-4xl transition-all duration-200 ${
                                 isSpeaking
                                     ? "bg-sky-500 text-white shadow-lg shadow-sky-500/30 scale-110"
                                     : darkMode
@@ -240,19 +238,20 @@ const DictationGame: React.FC = () => {
                             } disabled:opacity-50`}
                         >
                             🔊
-                        </button>
+                        </Button>
 
                         {config.hasHint && !submitted && (
-                            <button
+                            <Button
                                 onClick={() => setShowHint((h) => !h)}
-                                className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
+                                variant="outline"
+                                className={`h-auto px-4 py-2 rounded-xl text-sm font-medium transition-all ${
                                     darkMode
-                                        ? "bg-white/[0.06] hover:bg-white/[0.1] text-amber-300"
+                                        ? "bg-white/[0.06] border-white/10 hover:bg-white/[0.1] text-amber-300"
                                         : "bg-amber-50 hover:bg-amber-100 text-amber-600 border border-amber-200"
                                 }`}
                             >
                                 💡 {language === "korean" ? "힌트" : "Hint"}
-                            </button>
+                            </Button>
                         )}
 
                         {!config.canReplay && (
@@ -297,14 +296,15 @@ const DictationGame: React.FC = () => {
                                 }`}>
                                     {roundAccuracy}%
                                 </span>
-                                <button
+                                <Button
                                     onClick={handleNextRound}
-                                    className="ml-4 px-6 py-2 bg-gradient-to-r from-sky-500 to-cyan-500 text-white rounded-xl hover:shadow-lg transition-all text-sm font-medium"
+                                    variant="secondary"
+                                    className={`ml-4 h-auto px-6 py-2 text-sm font-medium ${retroTheme === "mac-classic" ? "rounded-lg" : "rounded-none"}`}
                                 >
                                     {round >= TOTAL_ROUNDS
                                         ? (language === "korean" ? "결과 보기" : "See Results")
                                         : (language === "korean" ? "다음 문제" : "Next")}
-                                </button>
+                                </Button>
                             </div>
                         </div>
                     )}
@@ -321,16 +321,18 @@ const DictationGame: React.FC = () => {
                             onChange={setInput}
                             onSubmit={!submitted ? handleSubmit : handleNextRound}
                             disabled={!gameStarted || isPaused || gameOver || submitted}
-                            placeholder={language === "korean" ? "들은 문장을 입력하세요..." : "Type what you heard..."}
+                            placeholder={language === "korean" ? "들은 문장을 입력하세요…" : "Type what you heard…"}
+                            ariaLabel={language === "korean" ? "받아쓰기 입력" : "Dictation input"}
                             className="flex-1"
                         />
-                        <button
+                        <Button
                             onClick={handleSubmit}
                             disabled={!gameStarted || isPaused || gameOver || submitted || !input.trim()}
-                            className="px-4 py-2 sm:px-6 sm:py-3 bg-gradient-to-r from-sky-500 to-cyan-500 text-white rounded-xl hover:shadow-lg hover:shadow-sky-500/25 transition-all duration-200 font-medium text-sm sm:text-base disabled:opacity-50"
+                            variant="secondary"
+                            className={`h-auto px-4 py-2 sm:px-6 sm:py-3 font-medium text-sm sm:text-base disabled:opacity-50 ${retroTheme === "mac-classic" ? "rounded-lg" : "rounded-none"}`}
                         >
                             {language === "korean" ? "제출" : "Submit"}
-                        </button>
+                        </Button>
                     </div>
                 </div>
             </div>
@@ -347,12 +349,13 @@ const DictationGame: React.FC = () => {
                                 ? "음성을 듣고 문장을 정확히 입력하세요"
                                 : "Listen and type the sentence accurately"}
                         </p>
-                        <button
+                        <Button
                             onClick={() => restartGame()}
-                            className="px-8 py-3 rounded-xl font-bold text-white bg-gradient-to-r from-sky-500 to-cyan-400 hover:from-sky-400 hover:to-cyan-300 transition-all shadow-lg hover:shadow-sky-500/25 text-lg"
+                            variant="secondary"
+                            className={`h-auto px-8 py-3 font-bold text-lg ${retroTheme === "mac-classic" ? "rounded-lg" : "rounded-none"}`}
                         >
                             {language === "korean" ? "시작" : "Start"}
-                        </button>
+                        </Button>
                     </div>
                 </div>
             )}

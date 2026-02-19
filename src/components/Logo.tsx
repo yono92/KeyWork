@@ -1,55 +1,39 @@
-import React, { useId } from "react";
+import React from "react";
 
 const Logo: React.FC<{ compact?: boolean }> = ({ compact = false }) => {
-    const gid = useId();
-
     return (
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 select-none">
             <svg
-                className="w-7 h-7 shrink-0"
-                viewBox="0 0 28 28"
-                fill="none"
+                className="h-6 w-6 shrink-0"
+                viewBox="0 0 24 24"
+                role="img"
+                aria-label="KeyWork logo"
             >
-                <defs>
-                    <linearGradient
-                        id={gid}
-                        x1="0"
-                        y1="0"
-                        x2="28"
-                        y2="28"
-                    >
-                        <stop stopColor="#0ea5e9" />
-                        <stop offset="1" stopColor="#06b6d4" />
-                    </linearGradient>
-                </defs>
-                {/* 키보드 본체 */}
-                <rect
-                    x="1.5"
-                    y="6"
-                    width="25"
-                    height="16"
-                    rx="3.5"
-                    fill={`url(#${gid})`}
-                    fillOpacity="0.1"
-                    stroke={`url(#${gid})`}
-                    strokeWidth="1.5"
-                />
-                {/* 상단 키 3개 */}
-                <rect x="4.5" y="9" width="5" height="3.5" rx="1" fill={`url(#${gid})`} />
-                <rect x="11.5" y="9" width="5" height="3.5" rx="1" fill={`url(#${gid})`} />
-                <rect x="18.5" y="9" width="5" height="3.5" rx="1" fill={`url(#${gid})`} />
-                {/* 스페이스바 */}
-                <rect x="7" y="15" width="14" height="3.5" rx="1" fill={`url(#${gid})`} fillOpacity="0.5" />
+                <rect x="1" y="1" width="22" height="22" fill="rgba(255,255,255,0.16)" />
+                <rect x="1" y="1" width="22" height="22" fill="none" stroke="rgba(255,255,255,0.85)" strokeWidth="2" />
+                <rect x="2" y="2" width="20" height="20" fill="none" stroke="rgba(0,0,0,0.35)" strokeWidth="1.5" />
+
+                <rect x="4" y="6" width="16" height="9" fill="rgba(255,255,255,0.16)" />
+                <rect x="5" y="7" width="3" height="2" fill="#d9ecff" />
+                <rect x="9" y="7" width="3" height="2" fill="#d9ecff" />
+                <rect x="13" y="7" width="3" height="2" fill="#d9ecff" />
+                <rect x="17" y="7" width="2" height="2" fill="#d9ecff" />
+                <rect x="6" y="11" width="12" height="2" fill="#d9ecff" />
+
+                <rect x="4" y="16.5" width="16" height="3.5" fill="rgba(255,255,255,0.28)" />
             </svg>
-            {!compact && (
-                <span className="font-extrabold text-lg tracking-tight select-none">
-                    <span className="bg-gradient-to-r from-sky-500 to-cyan-500 dark:from-sky-400 dark:to-cyan-300 bg-clip-text text-transparent">
-                        Key
-                    </span>
-                    <span className="text-slate-700 dark:text-slate-200">
-                        Work
-                    </span>
-                </span>
+
+            {!compact ? (
+                <div className="leading-none">
+                    <p className="text-[12px] font-bold tracking-[0.08em] text-white">
+                        KEYWORK
+                    </p>
+                    <p className="text-[9px] font-semibold tracking-[0.12em] text-slate-100/80">
+                        TYPING STATION
+                    </p>
+                </div>
+            ) : (
+                <span className="sr-only">KeyWork</span>
             )}
         </div>
     );

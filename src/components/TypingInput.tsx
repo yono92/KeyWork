@@ -95,6 +95,7 @@ const [platform, setPlatform] = useState<"mac" | "windows">("windows");
     const audioContextRef = useRef<AudioContext | null>(null);
     const initializedRef = useRef(false);
     const isMuted = useTypingStore((state) => state.isMuted);
+    const retroTheme = useTypingStore((state) => state.retroTheme);
     const [textSource, setTextSource] = useState<TextSource>("proverbs");
     const [isLoadingText, setIsLoadingText] = useState(false);
     const [wikiTitle, setWikiTitle] = useState<string | null>(null);
@@ -473,7 +474,9 @@ const [platform, setPlatform] = useState<"mac" | "windows">("windows");
                     <button
                         key={tab.key}
                         onClick={() => handleTabChange(tab.key)}
-                        className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all duration-200
+                        className={`px-4 py-1.5 text-sm font-medium transition-all duration-200 ${
+                            retroTheme === "mac-classic" ? "rounded-lg" : "rounded-none"
+                        }
                             ${textSource === tab.key
                                 ? darkMode
                                     ? "bg-sky-500/20 text-sky-400 border border-sky-500/30"
@@ -490,10 +493,10 @@ const [platform, setPlatform] = useState<"mac" | "windows">("windows");
 
             {/* 타이핑 영역 */}
             <div
-                className={`${lg ? "px-12 py-10" : "px-6 py-6 md:px-8 md:py-8"} rounded-2xl transition-all duration-300 ${
-                    darkMode
-                        ? "bg-white/[0.03] border border-white/[0.06]"
-                        : "bg-white/60 border border-sky-100/50 shadow-sm"
+                className={`${lg ? "px-12 py-10" : "px-6 py-6 md:px-8 md:py-8"} transition-all duration-300 border-2 ${
+                    retroTheme === "mac-classic"
+                        ? "rounded-xl border-[var(--retro-border-mid)] border-t-[var(--retro-border-light)] border-l-[var(--retro-border-light)] border-r-[var(--retro-border-dark)] border-b-[var(--retro-border-dark)] bg-[var(--retro-surface)]"
+                        : "rounded-none border-[var(--retro-border-mid)] border-t-[var(--retro-border-light)] border-l-[var(--retro-border-light)] border-r-[var(--retro-border-dark)] border-b-[var(--retro-border-dark)] bg-[var(--retro-surface)]"
                 }`}
             >
                 {/* 장문 모드: 위키 제목 표시 */}
@@ -523,14 +526,11 @@ const [platform, setPlatform] = useState<"mac" | "windows">("windows");
                     value={input}
                     onChange={handleInputChange}
                     onKeyDown={handleKeyPress}
-                    className={`w-full ${lg ? "px-5 py-4 text-2xl" : "px-4 py-3.5 text-xl"} rounded-xl transition-all duration-200 outline-none
-                        ${
-                            darkMode
-                                ? "bg-white/[0.04] text-white placeholder-slate-600 border border-white/[0.08] focus:border-sky-500/50 focus:bg-white/[0.06]"
-                                : "bg-sky-50/50 text-slate-800 placeholder-slate-400 border border-sky-200/60 focus:border-sky-400 focus:bg-white"
-                        }
-                        focus:ring-2 focus:ring-sky-500/20
-                    `}
+                    className={`w-full ${lg ? "px-5 py-4 text-2xl" : "px-4 py-3.5 text-xl"} outline-none border-2 ${
+                        retroTheme === "mac-classic"
+                            ? "rounded-lg border-[var(--retro-border-mid)] border-t-[var(--retro-border-dark)] border-l-[var(--retro-border-dark)] border-r-[var(--retro-border-light)] border-b-[var(--retro-border-light)] bg-[var(--retro-field-bg)] text-[var(--retro-field-text)] placeholder:text-[var(--retro-field-placeholder)]"
+                            : "rounded-none border-[var(--retro-border-mid)] border-t-[var(--retro-border-dark)] border-l-[var(--retro-border-dark)] border-r-[var(--retro-border-light)] border-b-[var(--retro-border-light)] bg-[var(--retro-field-bg)] text-[var(--retro-field-text)] placeholder:text-[var(--retro-field-placeholder)]"
+                    } focus:ring-2 focus:ring-[var(--retro-accent)]`}
                     placeholder=""
                     autoFocus
                     disabled={isLoadingText}
@@ -550,64 +550,48 @@ const [platform, setPlatform] = useState<"mac" | "windows">("windows");
 
             {/* 통계 카드 */}
             <div className={`grid grid-cols-2 md:grid-cols-4 ${lg ? "gap-5" : "gap-3"}`}>
-                <div className={`rounded-xl ${lg ? "px-6 py-5" : "px-4 py-3.5"} transition-all duration-300 ${
-                    darkMode
-                        ? "bg-white/[0.03] border border-white/[0.06]"
-                        : "bg-white/60 border border-sky-100/50"
-                }`}>
+                <div className={`${retroTheme === "mac-classic" ? "rounded-xl" : "rounded-none"} ${lg ? "px-6 py-5" : "px-4 py-3.5"} transition-all duration-300 border-2 border-[var(--retro-border-mid)] border-t-[var(--retro-border-light)] border-l-[var(--retro-border-light)] border-r-[var(--retro-border-dark)] border-b-[var(--retro-border-dark)] bg-[var(--retro-surface)]`}>
                     <div className={`${lg ? "text-sm mb-1.5" : "text-xs mb-1"} font-medium ${darkMode ? "text-sky-400" : "text-sky-600"}`}>
                         타이핑 속도
                     </div>
                     <div className="flex items-baseline gap-1">
-                        <span className={`${lg ? "text-3xl" : "text-2xl"} font-bold tabular-nums ${darkMode ? "text-white" : "text-slate-800"}`}>
+                        <span className={`${lg ? "text-3xl" : "text-2xl"} font-bold tabular-nums text-[var(--retro-text)]`}>
                             {typingSpeed}
                         </span>
-                        <span className={`${lg ? "text-sm" : "text-xs"} ${darkMode ? "text-slate-500" : "text-slate-400"}`}>타/분</span>
+                        <span className={`${lg ? "text-sm" : "text-xs"} text-[var(--retro-text)]/70`}>타/분</span>
                     </div>
                 </div>
-                <div className={`rounded-xl ${lg ? "px-6 py-5" : "px-4 py-3.5"} transition-all duration-300 ${
-                    darkMode
-                        ? "bg-white/[0.03] border border-white/[0.06]"
-                        : "bg-white/60 border border-sky-100/50"
-                }`}>
+                <div className={`${retroTheme === "mac-classic" ? "rounded-xl" : "rounded-none"} ${lg ? "px-6 py-5" : "px-4 py-3.5"} transition-all duration-300 border-2 border-[var(--retro-border-mid)] border-t-[var(--retro-border-light)] border-l-[var(--retro-border-light)] border-r-[var(--retro-border-dark)] border-b-[var(--retro-border-dark)] bg-[var(--retro-surface)]`}>
                     <div className={`${lg ? "text-sm mb-1.5" : "text-xs mb-1"} font-medium ${darkMode ? "text-emerald-400" : "text-emerald-600"}`}>
                         정확도
                     </div>
                     <div className="flex items-baseline gap-1">
-                        <span className={`${lg ? "text-3xl" : "text-2xl"} font-bold tabular-nums ${darkMode ? "text-white" : "text-slate-800"}`}>
+                        <span className={`${lg ? "text-3xl" : "text-2xl"} font-bold tabular-nums text-[var(--retro-text)]`}>
                             {accuracy}
                         </span>
-                        <span className={`${lg ? "text-sm" : "text-xs"} ${darkMode ? "text-slate-500" : "text-slate-400"}`}>%</span>
+                        <span className={`${lg ? "text-sm" : "text-xs"} text-[var(--retro-text)]/70`}>%</span>
                     </div>
                 </div>
-                <div className={`rounded-xl ${lg ? "px-6 py-5" : "px-4 py-3.5"} transition-all duration-300 ${
-                    darkMode
-                        ? "bg-white/[0.03] border border-white/[0.06]"
-                        : "bg-white/60 border border-sky-100/50"
-                }`}>
+                <div className={`${retroTheme === "mac-classic" ? "rounded-xl" : "rounded-none"} ${lg ? "px-6 py-5" : "px-4 py-3.5"} transition-all duration-300 border-2 border-[var(--retro-border-mid)] border-t-[var(--retro-border-light)] border-l-[var(--retro-border-light)] border-r-[var(--retro-border-dark)] border-b-[var(--retro-border-dark)] bg-[var(--retro-surface)]`}>
                     <div className={`${lg ? "text-sm mb-1.5" : "text-xs mb-1"} font-medium ${darkMode ? "text-violet-400" : "text-violet-600"}`}>
                         평균 속도
                     </div>
                     <div className="flex items-baseline gap-1">
-                        <span className={`${lg ? "text-3xl" : "text-2xl"} font-bold tabular-nums ${darkMode ? "text-white" : "text-slate-800"}`}>
+                        <span className={`${lg ? "text-3xl" : "text-2xl"} font-bold tabular-nums text-[var(--retro-text)]`}>
                             {allSpeeds.length > 0 ? averageSpeed : 0}
                         </span>
-                        <span className={`${lg ? "text-sm" : "text-xs"} ${darkMode ? "text-slate-500" : "text-slate-400"}`}>타/분</span>
+                        <span className={`${lg ? "text-sm" : "text-xs"} text-[var(--retro-text)]/70`}>타/분</span>
                     </div>
                 </div>
-                <div className={`rounded-xl ${lg ? "px-6 py-5" : "px-4 py-3.5"} transition-all duration-300 ${
-                    darkMode
-                        ? "bg-white/[0.03] border border-white/[0.06]"
-                        : "bg-white/60 border border-sky-100/50"
-                }`}>
+                <div className={`${retroTheme === "mac-classic" ? "rounded-xl" : "rounded-none"} ${lg ? "px-6 py-5" : "px-4 py-3.5"} transition-all duration-300 border-2 border-[var(--retro-border-mid)] border-t-[var(--retro-border-light)] border-l-[var(--retro-border-light)] border-r-[var(--retro-border-dark)] border-b-[var(--retro-border-dark)] bg-[var(--retro-surface)]`}>
                     <div className={`${lg ? "text-sm mb-1.5" : "text-xs mb-1"} font-medium ${darkMode ? "text-amber-400" : "text-amber-600"}`}>
                         평균 정확도
                     </div>
                     <div className="flex items-baseline gap-1">
-                        <span className={`${lg ? "text-3xl" : "text-2xl"} font-bold tabular-nums ${darkMode ? "text-white" : "text-slate-800"}`}>
+                        <span className={`${lg ? "text-3xl" : "text-2xl"} font-bold tabular-nums text-[var(--retro-text)]`}>
                             {allAccuracies.length > 0 ? averageAccuracy : 0}
                         </span>
-                        <span className={`${lg ? "text-sm" : "text-xs"} ${darkMode ? "text-slate-500" : "text-slate-400"}`}>%</span>
+                        <span className={`${lg ? "text-sm" : "text-xs"} text-[var(--retro-text)]/70`}>%</span>
                     </div>
                 </div>
             </div>

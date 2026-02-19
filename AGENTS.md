@@ -1,82 +1,85 @@
 # AGENTS.md
 
-This file is the project-specific guide for agents working in this repository.
+KeyWork 저장소에서 작업하는 코딩 에이전트 공통 실행 지침이다.
 
-## 1) Project Summary
-- App type: Korean/English typing practice plus mini-game web app
-- Stack: Next.js 15 (App Router) + React 18 + TypeScript
-- State: Zustand (`src/store/store.ts`)
-- Styling: Tailwind CSS with root `dark` class
-- Routing: Next.js App Router (`app/`)
-- Canonical production URL: `https://key-work-rho.vercel.app`
+## 목적
 
-## 2) Commands
-- Dev server: `npm run dev`
-- Build: `npm run build`
-- Production build: `npm run build:prod`
-- Lint: `npm run lint`
-- Preview: `npm run preview`
+- 요청 범위를 벗어나지 않고 빠르게 검증 가능한 변경을 만든다.
+- 기존 코드 구조와 사용자 경험을 유지하면서 필요한 수정만 반영한다.
 
-Notes:
-- Vitest + Testing Library is configured.
-- For validation, run `npm run lint`, `npm run build`, and `npm run test:run` by default.
+## 커뮤니케이션
 
-## 3) Core Structure
-- Entry point: `app/layout.tsx`
-- Root redirect: `app/page.tsx` -> `/practice`
-- Routes (App Router):
-  - `app/(game)/practice/page.tsx`
-  - `app/(game)/falling-words/page.tsx`
-  - `app/(game)/typing-defense/page.tsx`
-  - `app/(game)/typing-race/page.tsx`
-  - `app/(game)/dictation/page.tsx`
-  - `app/(game)/word-chain/page.tsx`
-- Route group layout: `app/(game)/layout.tsx`
-- Shared game shell: `src/components/AppFrame.tsx`
-- Main game renderer: `src/components/MainLayout.tsx`
-- Test setup: `vitest.config.ts`, `tests/setup.ts`
-- Global store: `src/store/store.ts`
-  - Persisted keys include `darkMode`, `language`, `highScore`, `difficulty`
-  - Current mode is tracked by `gameMode`
+- 기본 응답 언어는 한국어로 한다.
+- 결과 보고에는 아래 3가지를 포함한다.
+- 수정한 파일 경로
+- 실제 동작 변화
+- 실행한 검증 명령과 결과
 
-## 4) Domain Rules (Important)
-- For Korean typing accuracy/keystroke logic, use `src/utils/hangulUtils.ts`.
-- If Korean comparison logic changes, keep consistency with `src/utils/levenshtein.ts`.
-- Typing-related features must work for both languages and use `src/data/*.json`.
+## 프로젝트 컨텍스트
 
-## 5) Implementation Principles
-- Follow existing patterns:
-  - Keep UI in Tailwind utility style
-  - Keep global state in Zustand patterns used in this repo
-  - If adding routes, update both `app/(game)/**/page.tsx` and navigation in `src/components/MainLayout.tsx` / `src/components/SideNav.tsx`
-- Prefer small, scoped changes over broad refactors.
-- Keep type safety high; avoid `any` unless absolutely necessary.
-- Guard browser-only APIs (`window`, `AudioContext`) as existing components do.
-  - See `src/components/TypingInput.tsx` and `src/components/FallingWordsGame.tsx`.
+- 앱 성격: 한/영 타이핑 연습 + 미니게임 웹 앱
+- 스택: Next.js 15(App Router) + React 18 + TypeScript
+- 상태관리: Zustand (`src/store/store.ts`)
+- 스타일: Tailwind CSS
+- 라우팅: Next.js App Router (`app/`)
+- 배포 기준 URL: `https://key-work-rho.vercel.app`
 
-## 6) Cautions
-- Encoding:
-  - Some docs/comments may display Korean text incorrectly in some terminals.
-  - Keep file encoding in UTF-8.
-- Dependency cleanup:
-  - Verify real import usage before removing packages.
-- Deployment settings:
-  - Vercel project must use `Framework Preset: Next.js`.
-  - Keep `Output Directory` empty for Next.js (do not use `dist`).
-  - Use Node.js `20.x` in Vercel project settings.
+## 핵심 구조
 
-## 7) Completion Checklist
-1. Only intended files are changed.
-2. Lint passes: `npm run lint`
-3. Build passes: `npm run build`
-4. Tests pass: `npm run test:run`
-5. Route/store changes are reflected in all related files.
-6. No Korean/English typing regression, especially in accuracy logic.
+- 엔트리: `app/layout.tsx`
+- 루트 리다이렉트: `app/page.tsx` -> `/practice`
+- 라우트 그룹 레이아웃: `app/(game)/layout.tsx`
+- 게임 라우트:
+- `app/(game)/practice/page.tsx`
+- `app/(game)/falling-words/page.tsx`
+- `app/(game)/typing-defense/page.tsx`
+- `app/(game)/typing-race/page.tsx`
+- `app/(game)/typing-runner/page.tsx`
+- `app/(game)/dictation/page.tsx`
+- `app/(game)/word-chain/page.tsx`
+- 공통 UI 셸: `src/components/AppFrame.tsx`
+- 메인 게임 렌더러: `src/components/MainLayout.tsx`
+- 테스트 설정: `vitest.config.ts`, `tests/setup.ts`
 
-## 8) Recommended Commit Scope
-- One feature or one bug fix per commit.
-- Preferred prefixes:
-  - `feat: ...`
-  - `fix: ...`
-  - `refactor: ...`
-  - `chore: ...`
+## 작업 원칙
+
+- 최소 변경 원칙: 요청과 무관한 리팩터링은 하지 않는다.
+- 일관성 우선: 기존 컴포넌트 패턴, 네이밍, Tailwind 스타일 방식을 따른다.
+- 안정성 우선: 동작이 바뀌는 수정은 영향 범위를 명시한다.
+- 사전 합의: 큰 구조 변경이나 의존성 추가는 먼저 사용자 확인을 받는다.
+
+## 도메인 규칙
+
+- 한글 정확도/자모 비교 로직은 `src/utils/hangulUtils.ts`를 기준으로 유지한다.
+- 한글 비교 기준을 바꿀 때 `src/utils/levenshtein.ts`와 일관성을 맞춘다.
+- 타이핑 기능 변경 시 한/영 모두 동작해야 하며 데이터 파일(`src/data/*.json`) 영향 여부를 확인한다.
+
+## 주의 사항
+
+- `TypingInput.tsx`와 `FallingWordsGame.tsx`는 언어 상태 사용 방식이 다르므로 회귀를 주의한다.
+- 브라우저 전용 API(`window`, `AudioContext`)는 기존 패턴대로 가드한다.
+- 배포/런타임 설정(`ecosystem.config.js`, `vercel.json`, `next.config.ts`)은 요청이 있을 때만 수정한다.
+- 인코딩은 UTF-8을 유지한다.
+
+## 권장 워크플로우
+
+1. 관련 파일을 먼저 찾고(`rg`, `rg --files`) 변경 범위를 확정한다.
+2. 구현은 요청 범위 내에서 최소 단위로 진행한다.
+3. 변경 후 검증 명령을 실행한다.
+4. 요약 보고 시 리스크/후속 작업이 있으면 함께 제시한다.
+
+## 검증 명령
+
+- 정적 점검: `npm run lint`
+- 빌드 검증: `npm run build`
+- 테스트 검증: `npm run test:run`
+- 기능 변경 시 수동 검증 시나리오를 간단히 기록한다.
+
+## 완료 체크리스트
+
+1. 의도한 파일만 수정되었는지 확인
+2. `npm run lint` 통과
+3. `npm run build` 통과
+4. `npm run test:run` 통과
+5. 라우트/스토어 변경 시 관련 파일(`MainLayout`, `SideNav`, 각 라우트 페이지) 동기화 확인
+6. 한/영 타이핑 정확도 회귀 없음 확인

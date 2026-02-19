@@ -2,59 +2,71 @@
 
 import React from "react";
 import { usePathname } from "next/navigation";
+import { Menu, Keyboard, CloudRain, Shield, GaugeCircle, Rabbit, NotebookPen, Link2 } from "lucide-react";
 import useTypingStore from "../store/store";
-
-const PAGE_TITLES: Record<"korean" | "english", Record<string, string>> = {
-    korean: {
-        "/practice": "\uBB38\uC7A5\uC5F0\uC2B5",
-        "/falling-words": "\uB2E8\uC5B4\uB099\uD558",
-        "/typing-defense": "\uD0C0\uC774\uD551 \uB514\uD39C\uC2A4",
-        "/typing-race": "\uD0C0\uC774\uD551 \uB808\uC774\uC2A4",
-        "/dictation": "\uBC1B\uC544\uC4F0\uAE30",
-        "/word-chain": "\uB05D\uB9D0\uC787\uAE30",
-    },
-    english: {
-        "/practice": "Practice",
-        "/falling-words": "Falling Words",
-        "/typing-defense": "Typing Defense",
-        "/typing-race": "Typing Race",
-        "/dictation": "Dictation",
-        "/word-chain": "Word Chain",
-    },
-};
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { getPageTitle, getModeByPathname } from "@/features/game-shell/config";
 
 export default function Header() {
     const pathname = usePathname();
     const language = useTypingStore((s) => s.language);
+    const retroTheme = useTypingStore((s) => s.retroTheme);
     const setMobileMenuOpen = useTypingStore((s) => s.setMobileMenuOpen);
-    const pageTitle = PAGE_TITLES[language][pathname] ?? PAGE_TITLES[language]["/practice"];
+    const pageTitle = getPageTitle(language, pathname);
+    const mode = getModeByPathname(pathname);
+    const Icon = {
+        keyboard: Keyboard,
+        rain: CloudRain,
+        shield: Shield,
+        race: GaugeCircle,
+        runner: Rabbit,
+        dictation: NotebookPen,
+        chain: Link2,
+    }[mode.icon];
 
     return (
-        <header className="h-12 sm:h-14 px-3 sm:px-6 flex items-center gap-2 sm:gap-3">
-            <button
+        <header className="retro-titlebar h-10 sm:h-11 px-2.5 sm:px-3.5 flex items-center gap-2 border-b border-black/25">
+            <Button
                 onClick={() => setMobileMenuOpen(true)}
-                className="md:hidden w-8 h-8 flex items-center justify-center rounded-lg text-slate-500 dark:text-slate-400 hover:bg-sky-50 dark:hover:bg-white/10 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
+                variant="ghost"
+                size="icon"
+                className="md:hidden h-7 w-7 border border-black/25 bg-white/25 text-current hover:bg-white/40 hover:text-current"
                 aria-label="Open menu"
             >
-                <svg
-                    width="20"
-                    height="20"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                >
-                    <line x1="3" y1="6" x2="21" y2="6" />
-                    <line x1="3" y1="12" x2="21" y2="12" />
-                    <line x1="3" y1="18" x2="21" y2="18" />
-                </svg>
-            </button>
+                <Menu className="h-4 w-4" />
+            </Button>
 
-            <div className="flex-1 text-base sm:text-lg font-bold tracking-tight text-slate-800 dark:text-white">
-                {pageTitle}
+            {retroTheme === "mac-classic" && (
+                <div className="hidden sm:flex retro-mac-lights" aria-hidden="true">
+                    <span />
+                    <span />
+                    <span />
+                </div>
+            )}
+
+            <div className={`flex-1 min-w-0 ${retroTheme === "mac-classic" ? "text-center" : ""}`}>
+                <div className={`flex items-center ${retroTheme === "mac-classic" ? "justify-center gap-1.5" : "gap-2"}`}>
+                    <Icon className="h-4 w-4 text-current" aria-hidden="true" />
+                    <h1 className="truncate text-sm sm:text-[15px] font-semibold text-current">
+                        {pageTitle}
+                    </h1>
+                    {retroTheme !== "mac-classic" && (
+                        <Badge
+                            variant="secondary"
+                            className="hidden sm:inline-flex border-white/50 bg-white/15 text-white"
+                        >
+                            ESC Pause
+                        </Badge>
+                    )}
+                </div>
             </div>
+
+            {retroTheme === "mac-classic" && (
+                <Badge variant="outline" className="hidden sm:inline-flex border-black/25 bg-white/35 text-black">
+                    ESC
+                </Badge>
+            )}
         </header>
     );
 }

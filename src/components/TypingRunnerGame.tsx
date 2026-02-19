@@ -8,6 +8,7 @@ import { usePauseHandler } from "../hooks/usePauseHandler";
 import PauseOverlay from "./game/PauseOverlay";
 import GameOverModal from "./game/GameOverModal";
 import GameInput from "./game/GameInput";
+import { Button } from "@/components/ui/button";
 
 // --- 게임 상수 ---
 const CHAR_X_PERCENT = 15;
@@ -285,6 +286,7 @@ const Stars: React.FC = () => {
 
 const TypingRunnerGame: React.FC = () => {
     const darkMode = useTypingStore((s) => s.darkMode);
+    const retroTheme = useTypingStore((s) => s.retroTheme);
     const language = useTypingStore((s) => s.language);
     const difficulty = useTypingStore((s) => s.difficulty);
     const addXp = useTypingStore((s) => s.addXp);
@@ -999,7 +1001,8 @@ const TypingRunnerGame: React.FC = () => {
                         onChange={handleInput}
                         onSubmit={handleSubmit}
                         disabled={!gameStarted || isPaused || gameOver}
-                        placeholder={language === "korean" ? "" : "Type the word..."}
+                        placeholder={language === "korean" ? "" : "Type the word…"}
+                        ariaLabel={language === "korean" ? "러너 단어 입력" : "Runner word input"}
                     />
                 </div>
             </div>
@@ -1027,12 +1030,13 @@ const TypingRunnerGame: React.FC = () => {
                                 ? "갈수록 빨라지고 단어가 길어집니다"
                                 : "Speed and word length increase over time"}
                         </p>
-                        <button
+                        <Button
                             onClick={() => restartGame()}
-                            className="w-full px-6 py-3 rounded-xl font-bold text-white bg-gradient-to-r from-emerald-500 to-cyan-400 hover:from-emerald-400 hover:to-cyan-300 transition-all shadow-lg hover:shadow-emerald-500/25 text-lg"
+                            variant="secondary"
+                            className={`w-full h-auto px-6 py-3 font-bold text-lg ${retroTheme === "mac-classic" ? "rounded-lg" : "rounded-none"}`}
                         >
                             {language === "korean" ? "시작" : "Start"}
-                        </button>
+                        </Button>
                     </div>
                 </div>
             )}

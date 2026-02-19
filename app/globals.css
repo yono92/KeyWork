@@ -1,1 +1,606 @@
-@import "../src/index.css";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+    html,
+    body {
+        font-family: var(--font-body), "Noto Sans KR", sans-serif;
+    }
+
+    h1,
+    h2,
+    h3 {
+        font-family: var(--font-display), var(--font-body), sans-serif;
+        letter-spacing: 0;
+    }
+
+    /* 다크모드 커스텀 스크롤바 */
+    .dark ::-webkit-scrollbar {
+        width: 6px;
+    }
+    .dark ::-webkit-scrollbar-track {
+        background: transparent;
+    }
+    .dark ::-webkit-scrollbar-thumb {
+        background: rgba(100, 116, 139, 0.4);
+        border-radius: 3px;
+    }
+    .dark ::-webkit-scrollbar-thumb:hover {
+        background: rgba(100, 116, 139, 0.6);
+    }
+    :root {
+        --font-body: "Tahoma", "MS Sans Serif", "Geneva", "Chicago", "Noto Sans KR", sans-serif;
+        --font-display: "Tahoma", "MS Sans Serif", "Geneva", "Chicago", "Noto Sans KR", sans-serif;
+        --background: 214 8% 79%;
+        --foreground: 220 16% 15%;
+        --card: 214 6% 91%;
+        --card-foreground: 220 16% 15%;
+        --popover: 214 6% 91%;
+        --popover-foreground: 220 16% 15%;
+        --primary: 211 100% 44%;
+        --primary-foreground: 210 40% 98%;
+        --secondary: 214 8% 86%;
+        --secondary-foreground: 220 16% 15%;
+        --muted: 214 7% 83%;
+        --muted-foreground: 220 10% 32%;
+        --accent: 214 7% 83%;
+        --accent-foreground: 220 16% 15%;
+        --destructive: 0 75% 45%;
+        --destructive-foreground: 210 40% 98%;
+        --border: 214 8% 60%;
+        --input: 214 8% 60%;
+        --ring: 211 100% 44%;
+        --chart-1: 12 76% 61%;
+        --chart-2: 173 58% 39%;
+        --chart-3: 197 37% 24%;
+        --chart-4: 43 74% 66%;
+        --chart-5: 27 87% 67%;
+        --radius: 2px;
+        --retro-app-bg: #2a7e7e;
+        --retro-surface: #d4d4d4;
+        --retro-surface-alt: #c9c9c9;
+        --retro-text: #1e1e1e;
+        --retro-text-inverse: #ffffff;
+        --retro-title-start: #0a4ba8;
+        --retro-title-end: #0f69d6;
+        --retro-accent: #0f5fc0;
+        --retro-accent-2: #1f6fcf;
+        --retro-border-light: #ffffff;
+        --retro-border-mid: #8f8f8f;
+        --retro-border-dark: #2f2f2f;
+        --retro-radius: 0px;
+        --retro-field-bg: #ffffff;
+        --retro-field-text: #141414;
+        --retro-field-placeholder: #6b7280;
+    }
+    [data-retro-theme="mac-classic"] {
+        --font-body: "Geneva", "Charcoal", "Chicago", "Helvetica", "Noto Sans KR", sans-serif;
+        --font-display: "Geneva", "Charcoal", "Chicago", "Helvetica", "Noto Sans KR", sans-serif;
+        --retro-app-bg: #5f8ca2;
+        --retro-surface: #dcdcdc;
+        --retro-surface-alt: #d2d2d2;
+        --retro-text: #111111;
+        --retro-text-inverse: #ffffff;
+        --retro-title-start: #cfcfcf;
+        --retro-title-end: #bdbdbd;
+        --retro-accent: #3a3a3a;
+        --retro-accent-2: #515151;
+        --retro-border-light: #ffffff;
+        --retro-border-mid: #9a9a9a;
+        --retro-border-dark: #3a3a3a;
+        --retro-radius: 8px;
+        --retro-field-bg: #ffffff;
+        --retro-field-text: #141414;
+        --retro-field-placeholder: #6b7280;
+    }
+    .dark {
+        color-scheme: dark;
+        --background: 214 19% 17%;
+        --foreground: 210 20% 90%;
+        --card: 215 15% 24%;
+        --card-foreground: 210 20% 90%;
+        --popover: 215 15% 24%;
+        --popover-foreground: 210 20% 90%;
+        --primary: 198 85% 62%;
+        --primary-foreground: 216 24% 10%;
+        --secondary: 215 14% 28%;
+        --secondary-foreground: 210 20% 90%;
+        --muted: 215 13% 22%;
+        --muted-foreground: 214 15% 72%;
+        --accent: 215 13% 30%;
+        --accent-foreground: 210 20% 90%;
+        --destructive: 0 63% 31%;
+        --destructive-foreground: 210 40% 98%;
+        --border: 215 14% 36%;
+        --input: 215 14% 36%;
+        --ring: 198 85% 62%;
+        --chart-1: 220 70% 50%;
+        --chart-2: 160 60% 45%;
+        --chart-3: 30 80% 55%;
+        --chart-4: 280 65% 60%;
+        --chart-5: 340 75% 55%;
+        --retro-app-bg: #1d3b45;
+        --retro-surface: #394552;
+        --retro-surface-alt: #323e4a;
+        --retro-text: #e8edf2;
+        --retro-text-inverse: #f5f7fa;
+        --retro-title-start: #244f95;
+        --retro-title-end: #3d70c2;
+        --retro-accent: #3f72c5;
+        --retro-accent-2: #4b82d8;
+        --retro-border-light: #748291;
+        --retro-border-mid: #556271;
+        --retro-border-dark: #1f2730;
+        --retro-field-bg: #1f2730;
+        --retro-field-text: #f5f7fa;
+        --retro-field-placeholder: #9aa4b1;
+    }
+    .dark[data-retro-theme="mac-classic"] {
+        --retro-app-bg: #2f4a5b;
+        --retro-surface: #4a5562;
+        --retro-surface-alt: #434f5c;
+        --retro-text: #f0f3f6;
+        --retro-text-inverse: #ffffff;
+        --retro-title-start: #6a727a;
+        --retro-title-end: #59626b;
+        --retro-accent: #7a838c;
+        --retro-accent-2: #8b949d;
+        --retro-border-light: #7d8894;
+        --retro-border-mid: #5b6673;
+        --retro-border-dark: #222a33;
+        --retro-field-bg: #222a33;
+        --retro-field-text: #f2f4f7;
+        --retro-field-placeholder: #a0a9b4;
+    }
+
+    body {
+        color: hsl(var(--foreground));
+        background-color: hsl(var(--background));
+        background-image:
+            linear-gradient(0deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.12)),
+            repeating-linear-gradient(
+                0deg,
+                transparent 0,
+                transparent 2px,
+                rgba(0, 0, 0, 0.03) 2px,
+                rgba(0, 0, 0, 0.03) 3px
+            );
+    }
+}
+
+@layer utilities {
+    .retro-panel {
+        border: 2px solid var(--retro-border-mid);
+        border-top-color: var(--retro-border-light);
+        border-left-color: var(--retro-border-light);
+        border-right-color: var(--retro-border-dark);
+        border-bottom-color: var(--retro-border-dark);
+        border-radius: 0;
+        box-shadow: none;
+    }
+
+    .retro-inset {
+        border: 2px solid var(--retro-border-mid);
+        border-top-color: var(--retro-border-dark);
+        border-left-color: var(--retro-border-dark);
+        border-right-color: var(--retro-border-light);
+        border-bottom-color: var(--retro-border-light);
+        border-radius: 0;
+    }
+
+    .retro-titlebar {
+        background: linear-gradient(90deg, var(--retro-title-start) 0%, var(--retro-title-end) 100%);
+        color: var(--retro-text-inverse);
+    }
+    [data-retro-theme="mac-classic"] .retro-titlebar {
+        background-image:
+            linear-gradient(180deg, rgba(255, 255, 255, 0.45), rgba(255, 255, 255, 0)),
+            repeating-linear-gradient(
+                90deg,
+                rgba(255, 255, 255, 0.2) 0,
+                rgba(255, 255, 255, 0.2) 2px,
+                rgba(0, 0, 0, 0.04) 2px,
+                rgba(0, 0, 0, 0.04) 4px
+            );
+        color: #101010;
+    }
+    .retro-mac-lights {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+    }
+    .retro-mac-lights > span {
+        width: 8px;
+        height: 8px;
+        border-radius: 999px;
+        border: 1px solid rgba(0, 0, 0, 0.35);
+        background: #9a9a9a;
+    }
+    .retro-mac-lights > span:nth-child(1) { background: #8f8f8f; }
+    .retro-mac-lights > span:nth-child(2) { background: #b0b0b0; }
+    .retro-mac-lights > span:nth-child(3) { background: #777777; }
+
+    /* 배경 부유 파티클 */
+    @keyframes bgFloat {
+        0%, 100% {
+            transform: translate(0, 0);
+        }
+        25% {
+            transform: translate(15px, -20px);
+        }
+        50% {
+            transform: translate(-10px, -35px);
+        }
+        75% {
+            transform: translate(-20px, -15px);
+        }
+    }
+
+    /* 페이지 전환 */
+    @keyframes pageIn {
+        from {
+            opacity: 0;
+            transform: translateY(6px);
+        }
+        to {
+            opacity: 1;
+            transform: none;
+        }
+    }
+    .animate-page-in {
+        animation: pageIn 250ms ease-out both;
+    }
+
+    /* 레벨업 토스트 */
+    @keyframes levelUp {
+        0% {
+            opacity: 0;
+            transform: translate(-50%, -50%) scale(0.6);
+        }
+        15% {
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1.1);
+        }
+        30% {
+            transform: translate(-50%, -50%) scale(1);
+        }
+        80% {
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1);
+        }
+        100% {
+            opacity: 0;
+            transform: translate(-50%, -50%) scale(0.9);
+        }
+    }
+    .animate-level-up {
+        animation: levelUp 2s ease-out forwards;
+    }
+
+    @keyframes panelIn {
+        from {
+            opacity: 0;
+            transform: translateY(8px) scale(0.995);
+        }
+        to {
+            opacity: 1;
+            transform: none;
+        }
+    }
+
+    @keyframes softPulse {
+        0%,
+        100% {
+            box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
+        }
+        50% {
+            box-shadow: 0 0 0 8px rgba(59, 130, 246, 0.08);
+        }
+    }
+
+    @keyframes shimmer {
+        0% {
+            background-position: -200% center;
+        }
+        100% {
+            background-position: 200% center;
+        }
+    }
+
+    @keyframes glowPulse {
+        0%, 100% {
+            filter: drop-shadow(0 0 2px rgba(56, 189, 248, 0.3));
+        }
+        50% {
+            filter: drop-shadow(0 0 8px rgba(56, 189, 248, 0.5));
+        }
+    }
+
+    /* 소나기 - 단어 등장 애니메이션 */
+    @keyframes wordSpawn {
+        from {
+            opacity: 0;
+            transform: scale(0.5) translateY(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: scale(1) translateY(0);
+        }
+    }
+
+    /* 소나기 - 단어 매칭 성공 이펙트 */
+    @keyframes wordMatched {
+        0% {
+            opacity: 1;
+            transform: scale(1);
+        }
+        50% {
+            opacity: 0.8;
+            transform: scale(1.4);
+        }
+        100% {
+            opacity: 0;
+            transform: scale(1.8) translateY(-20px);
+        }
+    }
+
+    /* 소나기 - 단어 놓침 이펙트 */
+    @keyframes wordMissed {
+        0% {
+            opacity: 1;
+            transform: scale(1);
+        }
+        100% {
+            opacity: 0;
+            transform: scale(0.6) translateY(10px);
+            color: #ef4444;
+        }
+    }
+
+    /* 소나기 - 점수 팝업 */
+    @keyframes scorePopup {
+        0% {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+        100% {
+            opacity: 0;
+            transform: translateY(-40px) scale(0.8);
+        }
+    }
+
+    /* 소나기 - 부드러운 흔들림 */
+    @keyframes wordFloat {
+        0%, 100% {
+            transform: translateX(0);
+        }
+        25% {
+            transform: translateX(2px);
+        }
+        75% {
+            transform: translateX(-2px);
+        }
+    }
+
+    .animate-panel-in {
+        animation: panelIn 380ms ease-out both;
+    }
+
+    .animate-soft-pulse {
+        animation: softPulse 2.4s ease-in-out infinite;
+    }
+
+    .animate-shimmer {
+        background-size: 200% 100%;
+        animation: shimmer 3s linear infinite;
+    }
+
+    .animate-glow {
+        animation: glowPulse 2s ease-in-out infinite;
+    }
+
+    .animate-word-spawn {
+        animation: wordSpawn 300ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+    }
+
+    .animate-word-matched {
+        animation: wordMatched 400ms ease-out forwards;
+        pointer-events: none;
+    }
+
+    .animate-word-missed {
+        animation: wordMissed 300ms ease-in forwards;
+        pointer-events: none;
+    }
+
+    .animate-score-popup {
+        animation: scorePopup 800ms ease-out forwards;
+        pointer-events: none;
+    }
+
+    .animate-word-float {
+        animation: wordFloat 3s ease-in-out infinite;
+    }
+
+    /* 채팅 말풍선 등장 */
+    @keyframes chatBubbleIn {
+        from {
+            opacity: 0;
+            transform: translateY(10px) scale(0.95);
+        }
+        to {
+            opacity: 1;
+            transform: none;
+        }
+    }
+    .animate-chat-bubble {
+        animation: chatBubbleIn 300ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+    }
+
+    /* 카운트다운 팝 */
+    @keyframes countdownPop {
+        0% {
+            opacity: 0;
+            transform: scale(2);
+        }
+        50% {
+            opacity: 1;
+            transform: scale(0.9);
+        }
+        100% {
+            opacity: 1;
+            transform: scale(1);
+        }
+    }
+
+    .animate-countdown {
+        animation: countdownPop 600ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+    }
+
+    /* 적 파괴 */
+    @keyframes enemyDestroy {
+        0% {
+            opacity: 1;
+            transform: scale(1);
+        }
+        100% {
+            opacity: 0;
+            transform: scale(1.5);
+        }
+    }
+    .animate-enemy-destroy {
+        animation: enemyDestroy 300ms ease-out forwards;
+        pointer-events: none;
+    }
+
+    /* 러너 게임 - 지면 스크롤 */
+    @keyframes runnerGround {
+        from { background-position-x: 0; }
+        to { background-position-x: -40px; }
+    }
+
+    /* 러너 게임 - 달리기 바운스 */
+    @keyframes runnerBounce {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-4px); }
+    }
+    .animate-runner-bounce {
+        animation: runnerBounce 350ms ease-in-out infinite;
+    }
+
+    /* 러너 게임 - 점프 (squash/stretch) */
+    @keyframes runnerJump {
+        0% { transform: translateY(0) scaleY(1) scaleX(1); }
+        8% { transform: translateY(2px) scaleY(0.85) scaleX(1.15); }
+        20% { transform: translateY(-75px) scaleY(1.1) scaleX(0.9); }
+        55% { transform: translateY(-80px) scaleY(1) scaleX(1); }
+        100% { transform: translateY(0) scaleY(1) scaleX(1); }
+    }
+    .animate-runner-jump {
+        animation: runnerJump 650ms cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
+    }
+
+    /* 러너 게임 - 피격 (brightness 플래시) */
+    @keyframes runnerHit {
+        0% { transform: translate(0); filter: brightness(1); }
+        15% { transform: translate(-8px, -10px); filter: brightness(2) saturate(0); }
+        30% { transform: translate(6px, 0); filter: brightness(1.5); }
+        100% { transform: translate(0); filter: brightness(1); }
+    }
+    .animate-runner-hit {
+        animation: runnerHit 500ms ease-out forwards;
+    }
+
+    /* 러너 게임 - 무적 깜빡임 */
+    @keyframes runnerBlink {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.3; }
+    }
+    .animate-runner-blink {
+        animation: runnerBlink 200ms ease-in-out infinite;
+    }
+
+    /* 러너 게임 - 구름 이동 */
+    @keyframes runnerCloud {
+        0% { transform: translateX(40px); }
+        100% { transform: translateX(-150px); }
+    }
+    .animate-runner-cloud {
+        animation: runnerCloud 14s linear infinite;
+    }
+    .animate-runner-cloud-slow {
+        animation: runnerCloud 22s linear infinite;
+    }
+
+    /* 러너 게임 - 패럴랙스 수평 스크롤 */
+    @keyframes runnerParallax {
+        from { transform: translateX(0); }
+        to { transform: translateX(-50%); }
+    }
+
+    /* 러너 게임 - 별 반짝임 (다크모드) */
+    @keyframes runnerTwinkle {
+        0%, 100% { opacity: 0.3; }
+        50% { opacity: 0.9; }
+    }
+
+    /* 러너 게임 - 장애물 제거 버스트 */
+    @keyframes runnerObstacleClear {
+        0% { transform: scale(1); opacity: 1; }
+        50% { transform: scale(1.3); opacity: 0.5; }
+        100% { transform: scale(0.5) translateY(-20px); opacity: 0; }
+    }
+    .animate-runner-obstacle-clear {
+        animation: runnerObstacleClear 400ms ease-out forwards;
+        pointer-events: none;
+    }
+
+    /* 러너 게임 - 불꽃 흔들림 */
+    @keyframes runnerFlameFlicker {
+        0%, 100% { transform: scaleY(1); }
+        50% { transform: scaleY(0.85); opacity: 0.8; }
+    }
+    .animate-runner-flame {
+        animation: runnerFlameFlicker 300ms ease-in-out infinite;
+    }
+
+    /* 파티클 버스트 (ParticleEffect용) */
+    @keyframes particleBurst {
+        0% { transform: translate(0, 0) scale(1); opacity: 1; }
+        100% { transform: translate(calc(cos(var(--angle)) * 40px), calc(sin(var(--angle)) * 40px)) scale(0); opacity: 0; }
+    }
+    .animate-particle-burst {
+        animation: particleBurst 500ms ease-out forwards;
+    }
+
+    /* 러너 게임 - 점프/착지 먼지 */
+    @keyframes runnerDust {
+        0% { transform: translate(0, 0) scale(1); opacity: 0.6; }
+        100% { transform: translate(var(--dx), 10px) scale(0.3); opacity: 0; }
+    }
+    .animate-runner-dust {
+        animation: runnerDust 400ms ease-out forwards;
+    }
+
+    /* 러너 게임 - 히트 화면 흔들림 */
+    @keyframes runnerShake {
+        0%, 100% { transform: translate(0); }
+        10% { transform: translate(-4px, 2px); }
+        30% { transform: translate(4px, -2px); }
+        50% { transform: translate(-3px, 1px); }
+        70% { transform: translate(3px, -1px); }
+    }
+    .animate-runner-shake {
+        animation: runnerShake 400ms ease-out;
+    }
+
+    /* 러너 게임 - 히트 빨간 플래시 */
+    @keyframes runnerHitFlash {
+        0% { opacity: 1; }
+        100% { opacity: 0; }
+    }
+    .animate-runner-hit-flash {
+        animation: runnerHitFlash 300ms ease-out forwards;
+    }
+}

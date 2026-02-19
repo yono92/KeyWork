@@ -1,5 +1,6 @@
 import React, { useRef } from "react";
 import useTypingStore from "../../store/store";
+import { Input } from "@/components/ui/input";
 
 interface GameInputProps {
     value: string;
@@ -7,6 +8,7 @@ interface GameInputProps {
     onSubmit?: () => void;
     disabled?: boolean;
     placeholder?: string;
+    ariaLabel?: string;
     inputRef?: React.Ref<HTMLInputElement>;
     className?: string;
 }
@@ -17,15 +19,16 @@ const GameInput: React.FC<GameInputProps> = ({
     onSubmit,
     disabled,
     placeholder,
+    ariaLabel,
     inputRef,
     className,
 }) => {
-    const darkMode = useTypingStore((s) => s.darkMode);
+    const retroTheme = useTypingStore((s) => s.retroTheme);
     const isComposingRef = useRef(false);
     const pendingSubmitRef = useRef(false);
 
     return (
-        <input
+        <Input
             ref={inputRef}
             type="text"
             value={value}
@@ -56,13 +59,18 @@ const GameInput: React.FC<GameInputProps> = ({
                 }
             }}
             disabled={disabled}
-            className={`px-3 py-2 text-base sm:px-4 sm:py-3 sm:text-lg rounded-xl outline-none transition-all duration-200 border-2 ${
-                darkMode
-                    ? "bg-white/[0.04] text-white border-white/[0.08] focus:border-sky-500/50 focus:bg-white/[0.06]"
-                    : "bg-white text-slate-800 border-sky-200/60 focus:border-sky-400"
-            } focus:ring-2 focus:ring-sky-500/20 disabled:opacity-50 ${className ?? "w-full"}`}
-            placeholder={placeholder}
+            name="game-input"
+            spellCheck={false}
+            autoCapitalize="none"
             autoComplete="off"
+            inputMode="text"
+            aria-label={ariaLabel ?? placeholder ?? "Game input"}
+            className={`h-auto px-3 py-2 text-base sm:px-4 sm:py-3 sm:text-lg outline-none border-2 disabled:opacity-50 ${
+                retroTheme === "mac-classic"
+                    ? "rounded-lg border-[var(--retro-border-mid)] border-t-[var(--retro-border-dark)] border-l-[var(--retro-border-dark)] border-r-[var(--retro-border-light)] border-b-[var(--retro-border-light)] bg-[var(--retro-field-bg)] text-[var(--retro-field-text)] placeholder:text-[var(--retro-field-placeholder)]"
+                    : "rounded-none border-[var(--retro-border-mid)] border-t-[var(--retro-border-dark)] border-l-[var(--retro-border-dark)] border-r-[var(--retro-border-light)] border-b-[var(--retro-border-light)] bg-[var(--retro-field-bg)] text-[var(--retro-field-text)] placeholder:text-[var(--retro-field-placeholder)]"
+            } focus:ring-2 focus:ring-[var(--retro-accent)] ${className ?? "w-full"}`}
+            placeholder={placeholder}
         />
     );
 };
