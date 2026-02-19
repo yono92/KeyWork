@@ -59,6 +59,26 @@ const MODIFIER_KEYS = [
     "metaright",
 ] as const;
 
+const NON_TYPING_KEYS = new Set([
+    "Shift",
+    "Control",
+    "Alt",
+    "Meta",
+    "CapsLock",
+    "Tab",
+    "Escape",
+    "ArrowLeft",
+    "ArrowRight",
+    "ArrowUp",
+    "ArrowDown",
+    "Home",
+    "End",
+    "PageUp",
+    "PageDown",
+    "Insert",
+    "Delete",
+]);
+
 const syncModifierKeys = (keys: string[], e: KeyboardEvent): string[] => {
     const next = keys.filter((key) => !MODIFIER_KEYS.includes(key as (typeof MODIFIER_KEYS)[number]));
     if (e.shiftKey) next.push("shiftleft");
@@ -89,7 +109,7 @@ const TypingInput: React.FC = () => {
     const [isMobile, setIsMobile] = useState<boolean>(false);
     const [isShortScreen, setIsShortScreen] = useState<boolean>(false);
     const [isLargeScreen, setIsLargeScreen] = useState<boolean>(false);
-const [platform, setPlatform] = useState<"mac" | "windows">("windows");
+    const [platform, setPlatform] = useState<"mac" | "windows">("windows");
     const audioContextRef = useRef<AudioContext | null>(null);
     const initializedRef = useRef(false);
     const isMuted = useTypingStore((state) => state.isMuted);
@@ -214,7 +234,7 @@ const [platform, setPlatform] = useState<"mac" | "windows">("windows");
         };
     }, []);
 
-    // 정확도를 계산하는 useEffect
+    // 속도/정확도 계산
     useEffect(() => {
         const progress = text.length > 0 ? (input.length / text.length) * 100 : 0;
         setProgress(progress);
@@ -226,16 +246,25 @@ const [platform, setPlatform] = useState<"mac" | "windows">("windows");
                 (currentTime - startTime) / 60000
             );
 
-            // 실제 키 입력 횟수를 계산
-            const keystrokes = countKeystrokes(input);
+            // Net KPM: 정확하게 입력한 자모 수만 카운트 (오타 자동 차감)
+            let correctKeystrokes = 0;
+            for (let i = 0; i < input.length && i < text.length; i++) {
+                if (input[i] === text[i]) {
+                    correctKeystrokes += countKeystrokes(input[i]);
+                }
+            }
 
-            // 분당 타자수 계산 (실제 키 입력 횟수 기준)
-            let calculatedSpeed = Math.round(keystrokes / timeElapsedInMinutes);
+            // 영어: WPM (1 word = 5 chars), 한국어: KPM (자모 기준)
+            const rawSpeed = language === "english"
+                ? correctKeystrokes / 5 / timeElapsedInMinutes
+                : correctKeystrokes / timeElapsedInMinutes;
 
-            // 짧은 시간 동안의 타수 계산 보정 (초기 타수가 비현실적으로 높게 나오는 것 방지)
+            let calculatedSpeed = Math.round(rawSpeed);
+
+            // 12초 미만일 경우 상한 보정
             if (timeElapsedInMinutes < 0.2) {
-                // 12초 미만일 경우
-                calculatedSpeed = Math.min(calculatedSpeed, 700);
+                const cap = language === "english" ? 200 : 700;
+                calculatedSpeed = Math.min(calculatedSpeed, cap);
             }
 
             setTypingSpeed(calculatedSpeed);
@@ -297,15 +326,22 @@ const [platform, setPlatform] = useState<"mac" | "windows">("windows");
             return;
         }
 
-        if (input.length === 0 && startTime === null) {
-            setStartTime(Date.now());
-        }
-
         playKeyClickSound();
         setInput(value);
     };
 
-    const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        const isTypingKey =
+            !e.repeat &&
+            !e.ctrlKey &&
+            !e.metaKey &&
+            !e.altKey &&
+            !NON_TYPING_KEYS.has(e.key);
+
+        if (isTypingKey && startTime === null) {
+            setStartTime(Date.now());
+        }
+
         if (e.key === "Enter") {
             // 현재 속도와 정확도가 0이 아닌 경우에만 기록
             if (typingSpeed > 0 && accuracy > 0) {
@@ -436,7 +472,7 @@ const [platform, setPlatform] = useState<"mac" | "windows">("windows");
                     type="text"
                     value={input}
                     onChange={handleInputChange}
-                    onKeyDown={handleKeyPress}
+                    onKeyDown={handleInputKeyDown}
                     className={`w-full ${lg ? "px-5 py-4 text-2xl" : "px-4 py-3.5 text-xl"} outline-none border-2 ${
                         retroTheme === "mac-classic"
                             ? "rounded-lg border-[var(--retro-border-mid)] border-t-[var(--retro-border-dark)] border-l-[var(--retro-border-dark)] border-r-[var(--retro-border-light)] border-b-[var(--retro-border-light)] bg-[var(--retro-field-bg)] text-[var(--retro-field-text)] placeholder:text-[var(--retro-field-placeholder)]"
@@ -468,7 +504,7 @@ const [platform, setPlatform] = useState<"mac" | "windows">("windows");
                         <span className={`${lg ? "text-3xl" : "text-2xl"} font-bold tabular-nums text-[var(--retro-text)]`}>
                             {typingSpeed}
                         </span>
-                        <span className={`${lg ? "text-sm" : "text-xs"} text-[var(--retro-text)]/70`}>타/분</span>
+                        <span className={`${lg ? "text-sm" : "text-xs"} text-[var(--retro-text)]/70`}>{language === "english" ? "WPM" : "타/분"}</span>
                     </div>
                 </div>
                 <div className={`${retroTheme === "mac-classic" ? "rounded-xl" : "rounded-none"} ${lg ? "px-6 py-5" : "px-4 py-3.5"} transition-all duration-300 border-2 border-[var(--retro-border-mid)] border-t-[var(--retro-border-light)] border-l-[var(--retro-border-light)] border-r-[var(--retro-border-dark)] border-b-[var(--retro-border-dark)] bg-[var(--retro-surface)]`}>
@@ -490,7 +526,7 @@ const [platform, setPlatform] = useState<"mac" | "windows">("windows");
                         <span className={`${lg ? "text-3xl" : "text-2xl"} font-bold tabular-nums text-[var(--retro-text)]`}>
                             {allSpeeds.length > 0 ? averageSpeed : 0}
                         </span>
-                        <span className={`${lg ? "text-sm" : "text-xs"} text-[var(--retro-text)]/70`}>타/분</span>
+                        <span className={`${lg ? "text-sm" : "text-xs"} text-[var(--retro-text)]/70`}>{language === "english" ? "WPM" : "타/분"}</span>
                     </div>
                 </div>
                 <div className={`${retroTheme === "mac-classic" ? "rounded-xl" : "rounded-none"} ${lg ? "px-6 py-5" : "px-4 py-3.5"} transition-all duration-300 border-2 border-[var(--retro-border-mid)] border-t-[var(--retro-border-light)] border-l-[var(--retro-border-light)] border-r-[var(--retro-border-dark)] border-b-[var(--retro-border-dark)] bg-[var(--retro-surface)]`}>
