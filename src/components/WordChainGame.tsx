@@ -70,6 +70,7 @@ const WordChainGame: React.FC = () => {
     const gameStartTimeRef = useRef(Date.now());
     const maxComboRef = useRef(0);
     const wordsTypedRef = useRef(0);
+    const submitLockRef = useRef(false);
     const currentCharRef = useRef("");
     const doAiTurnRef = useRef<(startChar: string) => void>(() => {});
 
@@ -311,74 +312,80 @@ const WordChainGame: React.FC = () => {
     }, [gameStarted, gameOver, isPaused, isAiTurn, isValidatingWord]);
 
     const handleSubmit = async () => {
-        if (!input.trim() || isAiTurn || isValidatingWord) return;
+        if (!input.trim() || isAiTurn || isValidatingWord || submitLockRef.current) return;
+        submitLockRef.current = true;
 
-        const word = input.trim();
-        setInput("");
-        if (inputRef.current) inputRef.current.value = "";
+        try {
+            const word = input.trim();
+            setInput("");
+            if (inputRef.current) inputRef.current.value = "";
 
-        // Validate chain rule first.
-        if (currentChar && !isChainValid(currentChar, word)) {
-            addMessage(word, "player", false);
-            playSound("wrong");
-            setCombo(0);
-            return;
+            // Validate chain rule first.
+            if (currentChar && !isChainValid(currentChar, word)) {
+                addMessage(word, "player", false);
+                playSound("wrong");
+                setCombo(0);
+                return;
+            }
+
+            if (!HANGUL_WORD_REGEX.test(word)) {
+                addMessage(word, "player", false);
+                playSound("wrong");
+                setCombo(0);
+                return;
+            }
+
+            let isWordValid = false;
+            let definition: string | null = null;
+
+            setIsValidatingWord(true);
+            const krdictResult = await validateWordWithKrdict(word);
+            setIsValidatingWord(false);
+
+            if (!krdictResult) {
+                addMessage("사전 연결 오류", "player", false);
+                playSound("wrong");
+                setCombo(0);
+                return;
+            }
+            isWordValid = krdictResult.exists;
+            definition = krdictResult.definition;
+
+            if (!isWordValid) {
+                addMessage(word, "player", false);
+                playSound("wrong");
+                setCombo(0);
+                return;
+            }
+
+            if (usedWordsRef.current.has(word.toLowerCase())) {
+                addMessage(word, "player", false);
+                playSound("wrong");
+                setCombo(0);
+                return;
+            }
+
+            usedWordsRef.current.add(word.toLowerCase());
+            addMessage(word, "player", true, definition);
+            playSound("match");
+            wordsTypedRef.current++;
+
+            const newCombo = combo + 1;
+            setCombo(newCombo);
+            if (newCombo > maxComboRef.current) maxComboRef.current = newCombo;
+
+            const timeBonus = timer / config.timeLimit;
+            const comboMultiplier = Math.min(1 + newCombo * 0.2, 2);
+            const wordScore = Math.round(word.length * 10 * timeBonus * comboMultiplier);
+            setScore((prev) => prev + wordScore);
+
+            const nextChar = getLastChar(word);
+            setCurrentChar(nextChar);
+            doAiTurn(nextChar);
+        } finally {
+            setIsValidatingWord(false);
+            submitLockRef.current = false;
         }
-
-        if (!HANGUL_WORD_REGEX.test(word)) {
-            addMessage(word, "player", false);
-            playSound("wrong");
-            setCombo(0);
-            return;
-        }
-
-        let isWordValid = false;
-        let definition: string | null = null;
-
-        setIsValidatingWord(true);
-        const krdictResult = await validateWordWithKrdict(word);
-        setIsValidatingWord(false);
-
-        if (!krdictResult) {
-            addMessage("사전 연결 오류", "player", false);
-            playSound("wrong");
-            setCombo(0);
-            return;
-        }
-        isWordValid = krdictResult.exists;
-        definition = krdictResult.definition;
-
-        if (!isWordValid) {
-            addMessage(word, "player", false);
-            playSound("wrong");
-            setCombo(0);
-            return;
-        }
-
-        if (usedWordsRef.current.has(word.toLowerCase())) {
-            addMessage(word, "player", false);
-            playSound("wrong");
-            setCombo(0);
-            return;
-        }
-
-        usedWordsRef.current.add(word.toLowerCase());
-        addMessage(word, "player", true, definition);
-        playSound("match");
-        wordsTypedRef.current++;
-
-        const newCombo = combo + 1;
-        setCombo(newCombo);
-        if (newCombo > maxComboRef.current) maxComboRef.current = newCombo;
-
-        const timeBonus = timer / config.timeLimit;
-        const comboMultiplier = Math.min(1 + newCombo * 0.2, 2);
-        const wordScore = Math.round(word.length * 10 * timeBonus * comboMultiplier);
-        setScore((prev) => prev + wordScore);
-
-        const nextChar = getLastChar(word);
-        setCurrentChar(nextChar);
-        doAiTurn(nextChar);
     };
 
     const handlePass = () => {
