@@ -38,7 +38,7 @@ export default function SideNav() {
             <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
                 <SheetContent
                     side="left"
-                    className="md:hidden w-72 p-0 border-r-2 border-r-[var(--retro-border-dark)] bg-[var(--retro-surface)]"
+                    className="md:hidden w-72 p-0 border-r-2 border-r-[var(--retro-border-dark)] bg-[var(--retro-surface)] flex flex-col"
                 >
                     <SheetHeader className={`retro-titlebar h-10 px-3 flex-row items-center justify-between space-y-0 border-b border-black/25 ${retroTheme === "mac-classic" ? "justify-center" : ""}`}>
                         {retroTheme === "mac-classic" && (
@@ -60,7 +60,7 @@ export default function SideNav() {
                     </p>
                     <NavMenu language={language} pathname={pathname} onNavigate={navigateTo} />
 
-                    <div className="absolute bottom-0 left-0 right-0 p-3 border-t-2 border-t-[var(--retro-border-mid)]">
+                    <div className="mt-auto p-3 border-t-2 border-t-[var(--retro-border-mid)]">
                         <ControlTray />
                     </div>
                 </SheetContent>
@@ -101,7 +101,7 @@ export default function SideNav() {
                     variant="compact"
                 />
 
-                <div className="p-3 border-t-2 border-t-[var(--retro-border-mid)]">
+                <div className="mt-auto p-3 border-t-2 border-t-[var(--retro-border-mid)]">
                     <ControlTray />
                 </div>
             </Card>

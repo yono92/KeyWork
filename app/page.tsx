@@ -1,16 +1,11 @@
 import Link from "next/link";
-import { Keyboard, CloudRain, Shield, GaugeCircle, Rabbit, NotebookPen, Link2 } from "lucide-react";
+import { Keyboard, Link2 } from "lucide-react";
 import AppFrame from "../src/components/AppFrame";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
 const MODES = [
     { href: "/practice", label: "문장연습", icon: Keyboard, desc: "정확도와 속도를 같이 올리는 기본 모드" },
-    { href: "/falling-words", label: "단어낙하", icon: CloudRain, desc: "떨어지는 단어를 빠르게 입력하는 반응 훈련" },
-    { href: "/typing-defense", label: "타이핑 디펜스", icon: Shield, desc: "웨이브를 버티며 집중력을 유지하는 모드" },
-    { href: "/typing-race", label: "타이핑 레이스", icon: GaugeCircle, desc: "AI와 WPM 속도를 겨루는 경쟁 모드" },
-    { href: "/typing-runner", label: "타이핑 러너", icon: Rabbit, desc: "리듬을 타며 장애물을 넘는 액션 모드" },
-    { href: "/dictation", label: "받아쓰기", icon: NotebookPen, desc: "음성을 듣고 정확히 입력하는 청취 훈련" },
     { href: "/word-chain", label: "끝말잇기", icon: Link2, desc: "AI와 번갈아 단어를 이어가는 어휘 모드" },
 ] as const;
 

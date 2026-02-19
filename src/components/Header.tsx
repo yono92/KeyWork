@@ -5,7 +5,6 @@ import { usePathname } from "next/navigation";
 import { Menu, Keyboard, CloudRain, Shield, GaugeCircle, Rabbit, NotebookPen, Link2 } from "lucide-react";
 import useTypingStore from "../store/store";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { getPageTitle, getModeByPathname } from "@/features/game-shell/config";
 
 export default function Header() {
@@ -51,22 +50,8 @@ export default function Header() {
                     <h1 className="truncate text-sm sm:text-[15px] font-semibold text-current">
                         {pageTitle}
                     </h1>
-                    {retroTheme !== "mac-classic" && (
-                        <Badge
-                            variant="secondary"
-                            className="hidden sm:inline-flex border-white/50 bg-white/15 text-white"
-                        >
-                            ESC Pause
-                        </Badge>
-                    )}
                 </div>
             </div>
-
-            {retroTheme === "mac-classic" && (
-                <Badge variant="outline" className="hidden sm:inline-flex border-black/25 bg-white/35 text-black">
-                    ESC
-                </Badge>
-            )}
         </header>
     );
 }
