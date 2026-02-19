@@ -9,6 +9,7 @@ import { usePauseHandler } from "../hooks/usePauseHandler";
 import PauseOverlay from "./game/PauseOverlay";
 import GameOverModal from "./game/GameOverModal";
 import GameInput from "./game/GameInput";
+import { Button } from "@/components/ui/button";
 
 
 interface Word {
@@ -46,6 +47,7 @@ import { pickRandomStarts, HANGUL_WORD_REGEX } from "../utils/koreanConstants";
 
 const FallingWordsGame: React.FC = () => {
     const darkMode = useTypingStore((state) => state.darkMode);
+    const retroTheme = useTypingStore((state) => state.retroTheme);
     const language = useTypingStore((state) => state.language);
     const highScore = useTypingStore((state) => state.highScore);
     const setHighScore = useTypingStore((state) => state.setHighScore);
@@ -713,7 +715,8 @@ const FallingWordsGame: React.FC = () => {
                         onChange={setInput}
                         onSubmit={handleSubmit}
                         disabled={!gameStarted || isPaused || gameOver}
-                        placeholder={language === "korean" ? "" : "Type the word..."}
+                        placeholder={language === "korean" ? "" : "Type the word…"}
+                        ariaLabel={language === "korean" ? "단어 낙하 입력" : "Falling words input"}
                     />
                 </div>
             </div>
@@ -738,12 +741,13 @@ const FallingWordsGame: React.FC = () => {
                                 ? "콤보를 쌓아 높은 점수를 노리세요"
                                 : "Build combos for higher scores"}
                         </p>
-                        <button
+                        <Button
                             onClick={() => restartGame()}
-                            className="w-full px-6 py-3 rounded-xl font-bold text-white bg-gradient-to-r from-emerald-500 to-cyan-400 hover:from-emerald-400 hover:to-cyan-300 transition-all shadow-lg hover:shadow-emerald-500/25 text-lg"
+                            variant="secondary"
+                            className={`w-full h-auto px-6 py-3 font-bold text-lg ${retroTheme === "mac-classic" ? "rounded-lg" : "rounded-none"}`}
                         >
                             {language === "korean" ? "시작" : "Start"}
-                        </button>
+                        </Button>
                     </div>
                 </div>
             )}

@@ -1,22 +1,20 @@
 "use client";
 
 import { create } from "zustand";
-
-type GameMode =
-    | "practice"
-    | "falling-words"
-    | "typing-defense"
-    | "typing-race"
-    | "typing-runner"
-    | "dictation"
-    | "word-chain";
+import type { GameMode } from "@/features/game-shell/config";
 
 type Difficulty = "easy" | "normal" | "hard";
+type RetroTheme = "win98" | "mac-classic";
 const VALID_DIFFICULTIES: readonly Difficulty[] = ["easy", "normal", "hard"];
+const VALID_RETRO_THEMES: readonly RetroTheme[] = ["win98", "mac-classic"];
 
 const isValidDifficulty = (value: unknown): value is Difficulty =>
     typeof value === "string" &&
     VALID_DIFFICULTIES.includes(value as Difficulty);
+
+const isValidRetroTheme = (value: unknown): value is RetroTheme =>
+    typeof value === "string" &&
+    VALID_RETRO_THEMES.includes(value as RetroTheme);
 
 const canUseStorage = (): boolean => typeof window !== "undefined";
 
@@ -26,6 +24,13 @@ const getStored = (key: string): string | null =>
 const setStored = (key: string, value: string): void => {
     if (!canUseStorage()) return;
     localStorage.setItem(key, value);
+};
+
+const detectDefaultRetroTheme = (): RetroTheme => {
+    if (!canUseStorage()) return "win98";
+    const nav = navigator as Navigator & { userAgentData?: { platform?: string } };
+    const source = `${nav.userAgentData?.platform || ""} ${navigator.platform || ""} ${navigator.userAgent || ""}`.toLowerCase();
+    return /mac|iphone|ipad|ipod/.test(source) ? "mac-classic" : "win98";
 };
 
 interface TypingState {
@@ -41,6 +46,7 @@ interface TypingState {
     difficulty: Difficulty;
     xp: number;
     mobileMenuOpen: boolean;
+    retroTheme: RetroTheme;
     _hydrate: () => void;
     toggleDarkMode: () => void;
     setProgress: (progress: number) => void;
@@ -54,6 +60,8 @@ interface TypingState {
     setDifficulty: (difficulty: Difficulty) => void;
     setMobileMenuOpen: (open: boolean) => void;
     addXp: (amount: number) => void;
+    setRetroTheme: (theme: RetroTheme) => void;
+    cycleRetroTheme: () => void;
 }
 
 const useTypingStore = create<TypingState>((set) => ({
@@ -70,10 +78,12 @@ const useTypingStore = create<TypingState>((set) => ({
     difficulty: "normal",
     xp: 0,
     mobileMenuOpen: false,
+    retroTheme: "win98",
     // 마운트 후 localStorage에서 복원
     _hydrate: () =>
         set(() => {
             const raw = getStored("difficulty");
+            const themeRaw = getStored("retroTheme");
             return {
                 _hydrated: true,
                 darkMode: getStored("darkMode") === "true",
@@ -81,6 +91,7 @@ const useTypingStore = create<TypingState>((set) => ({
                 highScore: Number(getStored("highScore")) || 0,
                 difficulty: isValidDifficulty(raw) ? raw : "normal",
                 xp: Number(getStored("xp")) || 0,
+                retroTheme: isValidRetroTheme(themeRaw) ? themeRaw : detectDefaultRetroTheme(),
             };
         }),
     toggleDarkMode: () =>
@@ -119,6 +130,17 @@ const useTypingStore = create<TypingState>((set) => ({
             const xp = state.xp + Math.round(amount);
             setStored("xp", String(xp));
             return { xp };
+        }),
+    setRetroTheme: (retroTheme: RetroTheme) => {
+        if (!isValidRetroTheme(retroTheme)) return;
+        setStored("retroTheme", retroTheme);
+        set({ retroTheme });
+    },
+    cycleRetroTheme: () =>
+        set((state) => {
+            const retroTheme = state.retroTheme === "win98" ? "mac-classic" : "win98";
+            setStored("retroTheme", retroTheme);
+            return { retroTheme };
         }),
 }));
 

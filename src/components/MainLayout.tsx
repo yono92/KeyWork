@@ -10,15 +10,26 @@ import DictationGame from "./DictationGame";
 import WordChainGame from "./WordChainGame";
 import TypingRunnerGame from "./TypingRunnerGame";
 import useTypingStore from "../store/store";
+import { Card } from "@/components/ui/card";
+import type { GameMode } from "@/features/game-shell/config";
 
 // Props 타입 정의 추가
 interface MainLayoutProps {
-    gameMode: "practice" | "falling-words" | "typing-defense" | "typing-race" | "typing-runner" | "dictation" | "word-chain";
+    gameMode: GameMode;
 }
 
 // Props 타입을 컴포넌트에 적용
 const MainLayout: React.FC<MainLayoutProps> = ({ gameMode }) => {
     const setGameMode = useTypingStore((state) => state.setGameMode);
+    const modeViewMap: Record<GameMode, React.ReactNode> = {
+        practice: <TypingInput />,
+        "falling-words": <FallingWordsGame />,
+        "typing-defense": <TypingDefenseGame />,
+        "typing-race": <TypingRaceGame />,
+        "typing-runner": <TypingRunnerGame />,
+        dictation: <DictationGame />,
+        "word-chain": <WordChainGame />,
+    };
 
     // URL에서 받은 gameMode를 스토어에 동기화
     useEffect(() => {
@@ -27,27 +38,13 @@ const MainLayout: React.FC<MainLayoutProps> = ({ gameMode }) => {
 
     return (
         <div className="h-full min-h-0 flex flex-col gap-2.5 md:gap-3 text-gray-800 dark:text-gray-100">
-            <div className="rounded-2xl border border-sky-200/40 dark:border-sky-500/10 bg-white/80 dark:bg-[#162032]/80 backdrop-blur-xl shadow-lg shadow-sky-900/5 dark:shadow-black/20 animate-panel-in">
+            <Card className="animate-panel-in bg-[var(--retro-surface)]">
                 <Header />
-            </div>
+            </Card>
 
-            <main key={gameMode} className="flex-1 min-h-0 rounded-2xl border border-sky-200/40 dark:border-sky-500/10 bg-white/80 dark:bg-[#162032]/80 backdrop-blur-xl shadow-lg shadow-sky-900/5 dark:shadow-black/20 overflow-y-auto overscroll-contain animate-page-in">
-                <div className="w-full max-w-5xl 2xl:max-w-7xl mx-auto px-2 sm:px-4 md:px-8 py-2 sm:py-4 md:py-6 min-h-full flex flex-col">
-                    {gameMode === "falling-words" ? (
-                        <FallingWordsGame />
-                    ) : gameMode === "typing-defense" ? (
-                        <TypingDefenseGame />
-                    ) : gameMode === "typing-race" ? (
-                        <TypingRaceGame />
-                    ) : gameMode === "typing-runner" ? (
-                        <TypingRunnerGame />
-                    ) : gameMode === "dictation" ? (
-                        <DictationGame />
-                    ) : gameMode === "word-chain" ? (
-                        <WordChainGame />
-                    ) : (
-                        <TypingInput />
-                    )}
+            <main key={gameMode} className="flex-1 min-h-0 border-2 border-[var(--retro-border-mid)] border-t-[var(--retro-border-dark)] border-l-[var(--retro-border-dark)] border-r-[var(--retro-border-light)] border-b-[var(--retro-border-light)] bg-[var(--retro-surface-alt)] overflow-y-auto overscroll-contain animate-page-in">
+                <div className="w-full max-w-[1200px] 2xl:max-w-[1500px] mx-auto px-2 sm:px-4 md:px-8 py-2 sm:py-4 md:py-6 min-h-full flex flex-col">
+                    {modeViewMap[gameMode]}
                 </div>
             </main>
         </div>

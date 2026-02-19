@@ -1,4 +1,5 @@
 import React from "react";
+import useTypingStore from "../store/store";
 
 type KeyboardSize = "compact" | "normal" | "large";
 
@@ -36,6 +37,7 @@ const Keyboard: React.FC<KeyboardProps> = ({
     compact = false,
     size: sizeProp,
 }) => {
+    const retroTheme = useTypingStore((s) => s.retroTheme);
     const size: KeyboardSize = sizeProp ?? (compact ? "compact" : "normal");
     const baseLayout = language === "korean" ? KOREAN_LAYOUT_BASE : ENGLISH_LAYOUT_BASE;
     const bottomRow = platform === "mac" ? MAC_BOTTOM_ROW : WINDOWS_BOTTOM_ROW;
@@ -107,20 +109,16 @@ const Keyboard: React.FC<KeyboardProps> = ({
 
         const pressed = isKeyPressed();
 
-        let baseClass = "flex items-center justify-center rounded-lg cursor-pointer transition-all duration-75 ease-out font-semibold select-none ";
+        let baseClass = `flex items-center justify-center cursor-pointer font-semibold select-none border-2 transition-transform duration-75 ease-out ${
+            retroTheme === "mac-classic" ? "rounded-[var(--retro-radius)]" : "rounded-none"
+        } `;
 
-        if (darkMode) {
-            if (pressed) {
-                baseClass += "bg-sky-500 text-white shadow-[0_0_12px_rgba(56,189,248,0.4)] border border-sky-400/50 scale-[0.97] ";
-            } else {
-                baseClass += "bg-[#1e2a3e] text-slate-300 border border-white/[0.06] hover:bg-[#253349] hover:text-white ";
-            }
+        if (pressed) {
+            baseClass += "bg-[var(--retro-accent)] text-[var(--retro-text-inverse)] border-[var(--retro-border-mid)] border-t-[var(--retro-border-dark)] border-l-[var(--retro-border-dark)] border-r-[var(--retro-border-light)] border-b-[var(--retro-border-light)] scale-[0.97] ";
         } else {
-            if (pressed) {
-                baseClass += "bg-sky-400 text-white shadow-lg shadow-sky-400/30 border border-sky-300 scale-[0.97] ";
-            } else {
-                baseClass += "bg-white text-slate-700 border border-slate-200/80 shadow-sm hover:bg-slate-50 hover:shadow-md ";
-            }
+            baseClass += `text-[var(--retro-text)] border-[var(--retro-border-mid)] border-t-[var(--retro-border-light)] border-l-[var(--retro-border-light)] border-r-[var(--retro-border-dark)] border-b-[var(--retro-border-dark)] hover:bg-[var(--retro-surface-alt)] ${
+                darkMode ? "bg-[color-mix(in_oklab,var(--retro-surface)_84%,#000)]" : "bg-[var(--retro-surface)]"
+            } `;
         }
 
         const S = {
@@ -185,12 +183,8 @@ const Keyboard: React.FC<KeyboardProps> = ({
     return (
         <div
             className={`
-                flex flex-col items-center ${wrapPad} rounded-2xl ${isLg ? "" : "mx-auto"}
-                ${
-                    darkMode
-                        ? "bg-white/[0.02] border border-white/[0.05]"
-                        : "bg-slate-50/50 border border-slate-200/40"
-                }
+                flex flex-col items-center ${wrapPad} ${retroTheme === "mac-classic" ? "rounded-xl" : "rounded-none"} ${isLg ? "" : "mx-auto"}
+                border-2 border-[var(--retro-border-mid)] border-t-[var(--retro-border-light)] border-l-[var(--retro-border-light)] border-r-[var(--retro-border-dark)] border-b-[var(--retro-border-dark)] bg-[var(--retro-surface-alt)]
             `}
         >
             {layout.map((row, rowIndex) => (

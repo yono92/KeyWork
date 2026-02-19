@@ -8,6 +8,7 @@ import { usePauseHandler } from "../hooks/usePauseHandler";
 import PauseOverlay from "./game/PauseOverlay";
 import GameOverModal from "./game/GameOverModal";
 import GameInput from "./game/GameInput";
+import { Button } from "@/components/ui/button";
 
 // 라운드별 AI 속도: 15 WPM에서 시작, 라운드마다 +5 WPM (R1=15, R2=20, R3=25...)
 const BASE_AI_WPM = 15;
@@ -16,6 +17,7 @@ const INITIAL_LIVES = 3;
 
 const TypingRaceGame: React.FC = () => {
     const darkMode = useTypingStore((s) => s.darkMode);
+    const retroTheme = useTypingStore((s) => s.retroTheme);
     const language = useTypingStore((s) => s.language);
     const difficulty = useTypingStore((s) => s.difficulty);
     const addXp = useTypingStore((s) => s.addXp);
@@ -235,16 +237,18 @@ const TypingRaceGame: React.FC = () => {
     }, [gameOver, addXp, difficulty]);
 
     return (
-        <div className="relative w-full flex-1 min-h-[280px] sm:min-h-[400px] rounded-2xl overflow-hidden border border-sky-200/40 dark:border-sky-500/10">
-            <div className={`absolute inset-0 flex flex-col ${darkMode ? "bg-[#0e1825]" : "bg-gradient-to-b from-sky-50/80 to-white"}`}>
+        <div className={`relative w-full flex-1 min-h-[280px] sm:min-h-[400px] overflow-hidden border-2 ${
+            retroTheme === "mac-classic"
+                ? "rounded-xl border-[var(--retro-border-mid)] border-t-[var(--retro-border-light)] border-l-[var(--retro-border-light)] border-r-[var(--retro-border-dark)] border-b-[var(--retro-border-dark)]"
+                : "rounded-none border-[var(--retro-border-mid)] border-t-[var(--retro-border-light)] border-l-[var(--retro-border-light)] border-r-[var(--retro-border-dark)] border-b-[var(--retro-border-dark)]"
+        }`}>
+            <div className="absolute inset-0 flex flex-col bg-[var(--retro-surface)]">
                 {/* 상단 스코어바 */}
-                <div className={`flex justify-between items-center px-2.5 py-2 sm:px-5 sm:py-3 backdrop-blur-sm border-b z-10 ${
-                    darkMode ? "bg-white/[0.04] border-white/[0.06]" : "bg-white/70 border-sky-100/50"
-                }`}>
-                    <div className={`text-xs sm:text-sm font-medium ${darkMode ? "text-slate-300" : "text-slate-600"}`}>
+                <div className="flex justify-between items-center px-2.5 py-2 sm:px-5 sm:py-3 border-b border-[var(--retro-border-mid)] z-10">
+                    <div className="text-xs sm:text-sm font-medium text-[var(--retro-text)]">
                         Round <span className="font-bold tabular-nums">{round}</span>
                     </div>
-                    <div className={`text-sm sm:text-lg font-bold ${darkMode ? "text-white" : "text-slate-800"}`}>
+                    <div className="text-sm sm:text-lg font-bold text-[var(--retro-text)]">
                         {"❤️".repeat(Math.max(lives, 0))}
                         {"🖤".repeat(Math.max(INITIAL_LIVES - lives, 0))}
                     </div>
@@ -255,14 +259,16 @@ const TypingRaceGame: React.FC = () => {
                     {/* 플레이어 트랙 */}
                     <div>
                         <div className="flex items-center justify-between mb-2">
-                            <span className={`text-sm font-medium ${darkMode ? "text-sky-300" : "text-sky-600"}`}>
+                            <span className="text-sm font-medium text-[var(--retro-text)]">
                                 Player
                             </span>
-                            <span className={`text-xs tabular-nums ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
+                            <span className="text-xs tabular-nums text-[var(--retro-text)]/70">
                                 {playerWpm} WPM
                             </span>
                         </div>
-                        <div className={`relative h-7 sm:h-10 rounded-xl overflow-hidden ${darkMode ? "bg-white/[0.06]" : "bg-sky-50 border border-sky-100"}`}>
+                        <div className={`relative h-7 sm:h-10 overflow-hidden border-2 border-[var(--retro-border-mid)] border-t-[var(--retro-border-dark)] border-l-[var(--retro-border-dark)] border-r-[var(--retro-border-light)] border-b-[var(--retro-border-light)] ${
+                            retroTheme === "mac-classic" ? "rounded-lg" : "rounded-none"
+                        }`}>
                             <div
                                 className="absolute inset-y-0 left-0 bg-gradient-to-r from-sky-500 to-cyan-400 rounded-xl transition-all duration-150 ease-out"
                                 style={{ width: `${Math.min(playerProgress, 100)}%` }}
@@ -279,14 +285,16 @@ const TypingRaceGame: React.FC = () => {
                     {/* AI 트랙 */}
                     <div>
                         <div className="flex items-center justify-between mb-2">
-                            <span className={`text-sm font-medium ${darkMode ? "text-rose-300" : "text-rose-600"}`}>
+                            <span className="text-sm font-medium text-[var(--retro-text)]">
                                 AI
                             </span>
-                            <span className={`text-xs tabular-nums ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
+                            <span className="text-xs tabular-nums text-[var(--retro-text)]/70">
                                 {aiWpm} WPM
                             </span>
                         </div>
-                        <div className={`relative h-7 sm:h-10 rounded-xl overflow-hidden ${darkMode ? "bg-white/[0.06]" : "bg-rose-50 border border-rose-100"}`}>
+                        <div className={`relative h-7 sm:h-10 overflow-hidden border-2 border-[var(--retro-border-mid)] border-t-[var(--retro-border-dark)] border-l-[var(--retro-border-dark)] border-r-[var(--retro-border-light)] border-b-[var(--retro-border-light)] ${
+                            retroTheme === "mac-classic" ? "rounded-lg" : "rounded-none"
+                        }`}>
                             <div
                                 className="absolute inset-y-0 left-0 bg-gradient-to-r from-rose-500 to-pink-400 rounded-xl transition-all duration-150 ease-out"
                                 style={{ width: `${Math.min(aiProgress, 100)}%` }}
@@ -298,14 +306,16 @@ const TypingRaceGame: React.FC = () => {
                                 🤖
                             </div>
                         </div>
-                        <div className={`text-[10px] mt-1 text-right tabular-nums ${darkMode ? "text-slate-500" : "text-slate-400"}`}>
+                        <div className="text-[10px] mt-1 text-right tabular-nums text-[var(--retro-text)]/60">
                             {aiWpm} WPM
                         </div>
                     </div>
 
                     {/* 문장 표시 */}
                     {sentence && (
-                        <div className={`p-4 rounded-xl border ${darkMode ? "bg-white/[0.03] border-white/[0.06]" : "bg-white border-sky-100"}`}>
+                        <div className={`p-4 border-2 border-[var(--retro-border-mid)] border-t-[var(--retro-border-light)] border-l-[var(--retro-border-light)] border-r-[var(--retro-border-dark)] border-b-[var(--retro-border-dark)] bg-[var(--retro-surface-alt)] ${
+                            retroTheme === "mac-classic" ? "rounded-lg" : "rounded-none"
+                        }`}>
                             <p className="text-sm sm:text-lg leading-relaxed font-mono tracking-wide">
                                 {sentence.split("").map((char, idx) => {
                                     let className = darkMode ? "text-slate-500" : "text-slate-400";
@@ -322,9 +332,7 @@ const TypingRaceGame: React.FC = () => {
                 </div>
 
                 {/* 하단 입력 */}
-                <div className={`p-2.5 sm:p-4 backdrop-blur-sm border-t ${
-                    darkMode ? "bg-white/[0.04] border-white/[0.06]" : "bg-white/70 border-sky-100/50"
-                }`}>
+                <div className="p-2.5 sm:p-4 border-t border-[var(--retro-border-mid)] bg-[var(--retro-surface)]">
                     <GameInput
                         inputRef={inputRef}
                         value={input}
@@ -337,22 +345,29 @@ const TypingRaceGame: React.FC = () => {
 
             {/* 시작 오버레이 */}
             {!gameStarted && !gameOver && countdown === 0 && (
-                <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-                    <div className="text-center">
-                        <h2 className="text-2xl sm:text-4xl font-black text-white mb-2">
+                <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/40">
+                    <div className={`text-center border-2 px-8 py-7 bg-[var(--retro-surface)] ${
+                        retroTheme === "mac-classic"
+                            ? "rounded-xl border-[var(--retro-border-mid)] border-t-[var(--retro-border-light)] border-l-[var(--retro-border-light)] border-r-[var(--retro-border-dark)] border-b-[var(--retro-border-dark)]"
+                            : "rounded-none border-[var(--retro-border-mid)] border-t-[var(--retro-border-light)] border-l-[var(--retro-border-light)] border-r-[var(--retro-border-dark)] border-b-[var(--retro-border-dark)]"
+                    }`}>
+                        <h2 className="text-2xl sm:text-4xl font-black text-[var(--retro-text)] mb-2">
                             {language === "korean" ? "타이핑 레이스" : "Typing Race"}
                         </h2>
-                        <p className={`text-sm sm:text-base mb-6 ${darkMode ? "text-slate-300" : "text-slate-200"}`}>
+                        <p className="text-sm sm:text-base mb-6 text-[var(--retro-text)]/80">
                             {language === "korean"
                                 ? "AI와 속도 대결! 라운드마다 AI가 빨라집니다"
                                 : "Race the AI! It gets faster each round"}
                         </p>
-                        <button
+                        <Button
                             onClick={() => restartGame()}
-                            className="px-8 py-3 rounded-xl font-bold text-white bg-gradient-to-r from-sky-500 to-cyan-400 hover:from-sky-400 hover:to-cyan-300 transition-all shadow-lg hover:shadow-sky-500/25 text-lg"
+                            variant="secondary"
+                            className={`px-8 py-3 font-bold text-lg ${
+                                retroTheme === "mac-classic" ? "rounded-lg" : "rounded-none"
+                            }`}
                         >
                             {language === "korean" ? "시작" : "Start"}
-                        </button>
+                        </Button>
                     </div>
                 </div>
             )}

@@ -8,6 +8,7 @@ import PauseOverlay from "./game/PauseOverlay";
 import GameOverModal from "./game/GameOverModal";
 import GameInput from "./game/GameInput";
 import { KOREAN_START_POOL, HANGUL_WORD_REGEX } from "../utils/koreanConstants";
+import { Button } from "@/components/ui/button";
 
 interface ChatMessage {
     id: number;
@@ -35,6 +36,7 @@ const DIFFICULTY_CONFIG = {
 
 const WordChainGame: React.FC = () => {
     const darkMode = useTypingStore((s) => s.darkMode);
+    const retroTheme = useTypingStore((s) => s.retroTheme);
     const language = useTypingStore((s) => s.language);
     const setLanguage = useTypingStore((s) => s.setLanguage);
     const addXp = useTypingStore((s) => s.addXp);
@@ -207,7 +209,7 @@ const WordChainGame: React.FC = () => {
         aiTurnTimeoutRef.current = setTimeout(async () => {
             const aiWord = await findAiWord(startChar);
             if (!aiWord) {
-                addMessage("...단어가 없어.", "ai", true);
+                addMessage("…단어가 없어.", "ai", true);
                 setPlayerWon(true);
                 setGameOver(true);
                 playSound("win");
@@ -559,11 +561,11 @@ const WordChainGame: React.FC = () => {
                         </div>
                     ))}
                     {isAiTurn && (
-                        <div className="flex justify-start animate-chat-bubble">
+                        <div className="flex justify-start animate-chat-bubble" aria-live="polite">
                             <div className={`px-4 py-2.5 rounded-2xl rounded-bl-md text-sm ${
                                 darkMode ? "bg-white/[0.08] text-white" : "bg-slate-100 text-slate-800"
                             }`}>
-                                상대 입력 중 <span className="animate-pulse">...</span>
+                                상대 입력 중 <span className="animate-pulse">…</span>
                             </div>
                         </div>
                     )}
@@ -583,9 +585,9 @@ const WordChainGame: React.FC = () => {
                             className="flex-1"
                             placeholder={
                                 isAiTurn
-                                    ? "상대 차례입니다..."
+                                    ? "상대 차례입니다…"
                                     : isValidatingWord
-                                        ? "단어 검증 중..."
+                                        ? "단어 검증 중…"
                                         : currentChar
                                             ? (() => {
                                                 const chars = getStartChars(currentChar);
@@ -593,28 +595,33 @@ const WordChainGame: React.FC = () => {
                                                     ? `"${chars.join('" / "')}"로 시작하는 단어 입력`
                                                     : `"${currentChar}"로 시작하는 단어 입력`;
                                             })()
-                                            : "단어를 입력하세요..."
+                                            : "단어를 입력하세요…"
                             }
+                            ariaLabel="끝말잇기 단어 입력"
                         />
-                        <button
+                        <Button
                             onClick={handlePass}
                             disabled={!gameStarted || isPaused || gameOver || isAiTurn || isValidatingWord}
                             title="단어를 모를 때 패스 (목숨 -1)"
-                            className={`px-3 py-2 sm:px-4 sm:py-3 rounded-xl font-medium text-sm sm:text-base transition-all duration-200 border-2 disabled:opacity-50 ${
+                            variant="outline"
+                            className={`h-auto px-3 py-2 sm:px-4 sm:py-3 font-medium text-sm sm:text-base transition-all duration-200 border-2 disabled:opacity-50 ${
+                                retroTheme === "mac-classic" ? "rounded-lg" : "rounded-none"
+                            } ${
                                 darkMode
-                                    ? "border-white/10 text-slate-400 hover:border-rose-500/30 hover:text-rose-400"
+                                    ? "bg-transparent border-white/10 text-slate-400 hover:border-rose-500/30 hover:text-rose-400"
                                     : "border-slate-200 text-slate-500 hover:border-rose-300 hover:text-rose-500"
                             }`}
                         >
                             패스
-                        </button>
-                        <button
+                        </Button>
+                        <Button
                             onClick={() => void handleSubmit()}
                             disabled={!gameStarted || isPaused || gameOver || isAiTurn || isValidatingWord || !input.trim()}
-                            className="px-4 py-2 sm:px-6 sm:py-3 bg-gradient-to-r from-sky-500 to-cyan-500 text-white rounded-xl hover:shadow-lg hover:shadow-sky-500/25 transition-all duration-200 font-medium text-sm sm:text-base disabled:opacity-50"
+                            variant="secondary"
+                            className={`h-auto px-4 py-2 sm:px-6 sm:py-3 font-medium text-sm sm:text-base disabled:opacity-50 ${retroTheme === "mac-classic" ? "rounded-lg" : "rounded-none"}`}
                         >
-                            {isValidatingWord ? "검증중..." : "입력"}
-                        </button>
+                            {isValidatingWord ? "검증중…" : "입력"}
+                        </Button>
                     </div>
                 </div>
             </div>
