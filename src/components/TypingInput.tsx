@@ -6,8 +6,6 @@ import { calculateGameXp } from "../utils/xpUtils";
 import Keyboard from "./Keyboard";
 import ProgressBar from "./ProgressBar";
 
-type TextSource = "proverbs" | "longtext";
-
 type AudioContextClass = typeof AudioContext;
 
 const getAudioContextClass = (): AudioContextClass | undefined => {
@@ -96,9 +94,6 @@ const [platform, setPlatform] = useState<"mac" | "windows">("windows");
     const initializedRef = useRef(false);
     const isMuted = useTypingStore((state) => state.isMuted);
     const retroTheme = useTypingStore((state) => state.retroTheme);
-    const [textSource, setTextSource] = useState<TextSource>("proverbs");
-    const [isLoadingText, setIsLoadingText] = useState(false);
-    const [wikiTitle, setWikiTitle] = useState<string | null>(null);
 
     const handleKeyDown = useCallback((e: KeyboardEvent) => {
         const keyCode = normalizeCode(e.code);
@@ -139,39 +134,11 @@ const [platform, setPlatform] = useState<"mac" | "windows">("windows");
         };
     }, [handleKeyDown, handleKeyUp]);
 
-    const getRandomProverb = (language: "korean" | "english") => {
-        const arr = proverbsData[language];
+    const getRandomProverb = useCallback((nextLanguage: "korean" | "english") => {
+        const arr = proverbsData[nextLanguage];
         return arr[Math.floor(Math.random() * arr.length)];
-    };
-
-    const fetchWikipediaText = useCallback(async (lang: "korean" | "english") => {
-        const apiLang = lang === "korean" ? "ko" : "en";
-        const res = await fetch(`/api/wikipedia?lang=${apiLang}`);
-        if (!res.ok) throw new Error("Wikipedia fetch failed");
-        const data: { title: string; text: string } = await res.json();
-        return data;
     }, []);
-
-    const loadText = useCallback(async (source: TextSource, lang: "korean" | "english") => {
-        if (source === "proverbs") {
-            setWikiTitle(null);
-            return getRandomProverb(lang);
-        }
-        // longtext
-        setIsLoadingText(true);
-        try {
-            const data = await fetchWikipediaText(lang);
-            setWikiTitle(data.title);
-            return data.text;
-        } catch {
-            setWikiTitle(null);
-            return lang === "korean"
-                ? "위키백과에서 텍스트를 불러오지 못했습니다. 다시 시도해주세요."
-                : "Failed to load text from Wikipedia. Please try again.";
-        } finally {
-            setIsLoadingText(false);
-        }
-    }, [fetchWikipediaText]);
+    const proverbSet = useMemo(() => new Set(proverbsData[language]), [language]);
 
     const beep = useCallback(
         (frequency = 800, duration = 30, volume = 0.2) => {
@@ -202,30 +169,28 @@ const [platform, setPlatform] = useState<"mac" | "windows">("windows");
         []
     );
 
-    // 텍스트 초기화 (마운트 시, 언어 변경 시, 탭 변경 시)
+    // 텍스트 초기화 (마운트 시, 언어 변경 시)
     useEffect(() => {
-        let cancelled = false;
+        const newText = getRandomProverb(language);
+        setText(newText);
+        setInput("");
+        setStartTime(null);
+        setTypingSpeed(0);
+        setAccuracy(0);
+        setProgress(0);
 
-        const load = async () => {
-            const newText = await loadText(textSource, language);
-            if (cancelled) return;
-            setText(newText);
-            setInput("");
-            setStartTime(null);
-            setTypingSpeed(0);
-            setAccuracy(0);
-            setProgress(0);
+        if (!initializedRef.current) {
+            initializedRef.current = true;
+            if (inputRef.current) inputRef.current.focus();
+        }
+    }, [language, setProgress, setText, getRandomProverb]);
 
-            if (!initializedRef.current) {
-                initializedRef.current = true;
-                if (inputRef.current) inputRef.current.focus();
-            }
-        };
-
-        load();
-
-        return () => { cancelled = true; };
-    }, [language, textSource, setProgress, setText, loadText]);
+    // 안전장치: 속담 외 텍스트(기본 문구/장문 잔존 등)가 들어오면 즉시 속담으로 교정
+    useEffect(() => {
+        if (!text || !proverbSet.has(text)) {
+            setText(getRandomProverb(language));
+        }
+    }, [text, proverbSet, language, setText, getRandomProverb]);
 
     // AudioContext 초기화 (사용자 상호작용 시)
     useEffect(() => {
@@ -416,10 +381,7 @@ const [platform, setPlatform] = useState<"mac" | "windows">("windows");
             setStartTime(null);
             setTypingSpeed(0);
             setAccuracy(0);
-            // 현재 소스에서 새로운 텍스트 가져오기
-            loadText(textSource, language).then((newText) => {
-                setText(newText);
-            });
+            setText(getRandomProverb(language));
         }
     };
 
@@ -455,42 +417,8 @@ const [platform, setPlatform] = useState<"mac" | "windows">("windows");
 
     const lg = isLargeScreen;
 
-    const tabs: { key: TextSource; label: string }[] = [
-        { key: "proverbs", label: "속담" },
-        { key: "longtext", label: "장문" },
-    ];
-
-    const handleTabChange = (source: TextSource) => {
-        if (source === textSource) return;
-        setTextSource(source);
-        // 세션 리셋은 useEffect에서 자동 처리됨
-    };
-
     return (
         <div className={`w-full ${lg ? "" : "max-w-4xl mx-auto"} animate-panel-in ${lg ? "space-y-8" : "space-y-4 md:space-y-6"} my-auto`}>
-            {/* 텍스트 소스 탭 */}
-            <div className="flex justify-center gap-1">
-                {tabs.map((tab) => (
-                    <button
-                        key={tab.key}
-                        onClick={() => handleTabChange(tab.key)}
-                        className={`px-4 py-1.5 text-sm font-medium transition-all duration-200 ${
-                            retroTheme === "mac-classic" ? "rounded-lg" : "rounded-none"
-                        }
-                            ${textSource === tab.key
-                                ? darkMode
-                                    ? "bg-sky-500/20 text-sky-400 border border-sky-500/30"
-                                    : "bg-sky-100 text-sky-700 border border-sky-200"
-                                : darkMode
-                                    ? "text-slate-500 hover:text-slate-300 border border-transparent hover:border-white/[0.08]"
-                                    : "text-slate-400 hover:text-slate-600 border border-transparent hover:border-sky-100"
-                            }`}
-                    >
-                        {tab.label}
-                    </button>
-                ))}
-            </div>
-
             {/* 타이핑 영역 */}
             <div
                 className={`${lg ? "px-12 py-10" : "px-6 py-6 md:px-8 md:py-8"} transition-all duration-300 border-2 ${
@@ -499,25 +427,8 @@ const [platform, setPlatform] = useState<"mac" | "windows">("windows");
                         : "rounded-none border-[var(--retro-border-mid)] border-t-[var(--retro-border-light)] border-l-[var(--retro-border-light)] border-r-[var(--retro-border-dark)] border-b-[var(--retro-border-dark)] bg-[var(--retro-surface)]"
                 }`}
             >
-                {/* 장문 모드: 위키 제목 표시 */}
-                {textSource === "longtext" && wikiTitle && !isLoadingText && (
-                    <div className={`text-center text-xs mb-3 ${darkMode ? "text-slate-600" : "text-slate-400"}`}>
-                        출처: 위키백과 &mdash; {wikiTitle}
-                    </div>
-                )}
-
-                <div className={`text-center ${
-                    textSource === "longtext"
-                        ? lg ? "text-2xl leading-relaxed mb-8" : "text-lg md:text-xl leading-relaxed mb-6"
-                        : lg ? "text-4xl leading-relaxed mb-8" : "text-2xl md:text-3xl leading-loose mb-6"
-                } font-semibold tracking-wide`}>
-                    {isLoadingText ? (
-                        <span className={`inline-block animate-pulse ${darkMode ? "text-slate-600" : "text-slate-300"}`}>
-                            텍스트를 불러오는 중...
-                        </span>
-                    ) : (
-                        renderedText
-                    )}
+                <div className={`text-center ${lg ? "text-4xl leading-relaxed mb-8" : "text-2xl md:text-3xl leading-loose mb-6"} font-semibold tracking-wide`}>
+                    {renderedText}
                 </div>
                 <ProgressBar trackWidth={progressBarWidth} className={lg ? "mb-7" : "mb-5"} />
                 <input
@@ -533,7 +444,6 @@ const [platform, setPlatform] = useState<"mac" | "windows">("windows");
                     } focus:ring-2 focus:ring-[var(--retro-accent)]`}
                     placeholder=""
                     autoFocus
-                    disabled={isLoadingText}
                 />
             </div>
 

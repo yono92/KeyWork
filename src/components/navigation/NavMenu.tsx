@@ -15,6 +15,8 @@ import {
     Link2,
 } from "lucide-react";
 
+const VISIBLE_MENU_ITEMS: readonly GameMode[] = ["practice", "word-chain"];
+
 interface NavMenuProps {
     language: AppLanguage;
     pathname: string;
@@ -40,7 +42,7 @@ export default function NavMenu({
 }: NavMenuProps) {
     return (
         <nav className="p-3 space-y-1.5 flex-1">
-            {NAV_ITEMS.map((item) => {
+            {NAV_ITEMS.filter((item) => VISIBLE_MENU_ITEMS.includes(item.id)).map((item) => {
                 const active = pathname === `/${item.id}`;
                 const Icon = iconByType[item.icon];
                 return (
