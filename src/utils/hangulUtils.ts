@@ -19,7 +19,11 @@ export const isHangul = (char: string): boolean => {
     return code >= 0xac00 && code <= 0xd7a3;
 };
 
-// 한글 문자열의 실제 키 입력 횟수를 계산하는 함수 (개선된 버전)
+// 겹받침 종성 인덱스 (두 자음으로 구성되어 실제 2타가 필요한 종성)
+// ㄳ(3) ㄵ(5) ㄶ(6) ㄺ(9) ㄻ(10) ㄼ(11) ㄽ(12) ㄾ(13) ㄿ(14) ㅀ(15) ㅄ(18)
+const COMPOUND_JONGSEONG = new Set([3, 5, 6, 9, 10, 11, 12, 13, 14, 15, 18]);
+
+// 한글 문자 하나의 실제 키 입력 횟수를 계산 (Net KPM 계산용)
 export const countKeystrokes = (text: string): number => {
     let keystrokes = 0;
 
@@ -27,10 +31,13 @@ export const countKeystrokes = (text: string): number => {
         const char = text[i];
 
         if (isHangul(char)) {
-            // 실제 입력 횟수에 가깝게 자모 개수 기준으로 계산
-            keystrokes += decomposeHangul(char).length;
+            const code = char.charCodeAt(0) - 0xac00;
+            const jong = code % 28;
+            keystrokes += 2; // 초성 + 중성
+            if (jong > 0) {
+                keystrokes += COMPOUND_JONGSEONG.has(jong) ? 2 : 1;
+            }
         } else {
-            // 영문, 숫자, 공백, 특수문자 등은 1회 입력으로 계산
             keystrokes += 1;
         }
     }
