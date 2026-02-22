@@ -35,7 +35,7 @@ describe("UI components", () => {
                 <Footer />
             </>
         );
-        expect(screen.getByText("Key")).toBeInTheDocument();
+        expect(screen.getByText("KEYWORK")).toBeInTheDocument();
         expect(screen.getByText(/All rights reserved/)).toBeInTheDocument();
     });
 

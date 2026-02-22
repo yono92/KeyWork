@@ -2,6 +2,7 @@ import React, { ReactNode } from "react";
 import useTypingStore from "../../store/store";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import CoupangAffiliateSection from "../affiliate/CoupangAffiliateSection";
 
 interface GameOverModalProps {
     title: string;
@@ -54,6 +55,7 @@ const GameOverModal: React.FC<GameOverModalProps> = ({
                 </div>
 
                 {children}
+                <CoupangAffiliateSection />
 
                 <div className="flex flex-col sm:flex-row gap-2.5 sm:gap-3 justify-center">
                     {buttons.map((btn, i) => (

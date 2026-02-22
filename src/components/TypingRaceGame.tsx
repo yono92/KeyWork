@@ -136,7 +136,7 @@ const TypingRaceGame: React.FC = () => {
             });
             setAiProgress(0);
         }
-    }, [aiProgress, gameStarted, gameOver]);
+    }, [aiProgress, gameStarted, gameOver, playSound, startRound]);
 
     // 플레이어 WPM 계산
     useEffect(() => {

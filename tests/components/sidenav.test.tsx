@@ -26,13 +26,14 @@ describe("SideNav", () => {
     it("renders menu labels by language", () => {
         render(<SideNav />);
         expect(screen.getAllByText("Practice").length).toBeGreaterThan(0);
+        expect(screen.getAllByText("Word Chain").length).toBeGreaterThan(0);
     });
 
     it("calls router push when menu is clicked", () => {
         render(<SideNav />);
-        const target = screen.getAllByRole("button", { name: "Falling Words" })[0];
+        const target = screen.getAllByRole("button", { name: "Word Chain" })[0];
         fireEvent.click(target);
         const mockPush = (nav as unknown as { __mockPush: ReturnType<typeof vi.fn> }).__mockPush;
-        expect(mockPush).toHaveBeenCalledWith("/falling-words");
+        expect(mockPush).toHaveBeenCalledWith("/word-chain");
     });
 });
