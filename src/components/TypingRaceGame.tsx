@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 import useTypingStore from "../store/store";
 import proverbsData from "../data/proverbs.json";
 import { formatPlayTime } from "../utils/formatting";
-import { calculateGameXp } from "../utils/xpUtils";
 import { useGameAudio } from "../hooks/useGameAudio";
 import { usePauseHandler } from "../hooks/usePauseHandler";
 import PauseOverlay from "./game/PauseOverlay";
@@ -19,8 +18,6 @@ const TypingRaceGame: React.FC = () => {
     const darkMode = useTypingStore((s) => s.darkMode);
     const retroTheme = useTypingStore((s) => s.retroTheme);
     const language = useTypingStore((s) => s.language);
-    const difficulty = useTypingStore((s) => s.difficulty);
-    const addXp = useTypingStore((s) => s.addXp);
 
     const [gameStarted, setGameStarted] = useState(false);
     const [gameOver, setGameOver] = useState(false);
@@ -227,15 +224,6 @@ const TypingRaceGame: React.FC = () => {
     };
 
     // 게임오버 시 XP 지급
-    useEffect(() => {
-        if (!gameOver) return;
-        const accuracy = totalCharsRef.current > 0
-            ? (totalCorrectRef.current / totalCharsRef.current) * 100
-            : 0;
-        const baseXp = roundsWonRef.current * 5 + accuracy * 0.1;
-        addXp(calculateGameXp(baseXp, difficulty));
-    }, [gameOver, addXp, difficulty]);
-
     return (
         <div className={`relative w-full flex-1 min-h-[280px] sm:min-h-[400px] overflow-hidden border-2 ${
             retroTheme === "mac-classic"

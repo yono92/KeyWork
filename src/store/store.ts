@@ -44,7 +44,6 @@ interface TypingState {
     isMuted: boolean;
     highScore: number;
     difficulty: Difficulty;
-    xp: number;
     mobileMenuOpen: boolean;
     retroTheme: RetroTheme;
     _hydrate: () => void;
@@ -59,7 +58,6 @@ interface TypingState {
     setHighScore: (score: number) => void;
     setDifficulty: (difficulty: Difficulty) => void;
     setMobileMenuOpen: (open: boolean) => void;
-    addXp: (amount: number) => void;
     setRetroTheme: (theme: RetroTheme) => void;
     cycleRetroTheme: () => void;
 }
@@ -76,7 +74,6 @@ const useTypingStore = create<TypingState>((set) => ({
     isMuted: false,
     highScore: 0,
     difficulty: "normal",
-    xp: 0,
     mobileMenuOpen: false,
     retroTheme: "win98",
     // 마운트 후 localStorage에서 복원
@@ -90,7 +87,6 @@ const useTypingStore = create<TypingState>((set) => ({
                 language: getStored("language") === "english" ? "english" : "korean",
                 highScore: Number(getStored("highScore")) || 0,
                 difficulty: isValidDifficulty(raw) ? raw : "normal",
-                xp: Number(getStored("xp")) || 0,
                 retroTheme: isValidRetroTheme(themeRaw) ? themeRaw : detectDefaultRetroTheme(),
             };
         }),
@@ -125,12 +121,6 @@ const useTypingStore = create<TypingState>((set) => ({
         set({ difficulty });
     },
     setMobileMenuOpen: (mobileMenuOpen: boolean) => set({ mobileMenuOpen }),
-    addXp: (amount: number) =>
-        set((state) => {
-            const xp = state.xp + Math.round(amount);
-            setStored("xp", String(xp));
-            return { xp };
-        }),
     setRetroTheme: (retroTheme: RetroTheme) => {
         if (!isValidRetroTheme(retroTheme)) return;
         setStored("retroTheme", retroTheme);

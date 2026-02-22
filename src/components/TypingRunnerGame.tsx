@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback, useRef, useMemo } from "react"
 import useTypingStore from "../store/store";
 import wordsData from "../data/word.json";
 import { formatPlayTime } from "../utils/formatting";
-import { calculateGameXp } from "../utils/xpUtils";
 import { useGameAudio } from "../hooks/useGameAudio";
 import { usePauseHandler } from "../hooks/usePauseHandler";
 import PauseOverlay from "./game/PauseOverlay";
@@ -288,8 +287,6 @@ const TypingRunnerGame: React.FC = () => {
     const darkMode = useTypingStore((s) => s.darkMode);
     const retroTheme = useTypingStore((s) => s.retroTheme);
     const language = useTypingStore((s) => s.language);
-    const difficulty = useTypingStore((s) => s.difficulty);
-    const addXp = useTypingStore((s) => s.addXp);
 
     const [gameStarted, setGameStarted] = useState(false);
     const [gameOver, setGameOver] = useState(false);
@@ -601,11 +598,6 @@ const TypingRunnerGame: React.FC = () => {
     };
 
     // --- 게임오버 XP ---
-    useEffect(() => {
-        if (!gameOver) return;
-        addXp(calculateGameXp(score / 20, difficulty));
-    }, [gameOver, score, addXp, difficulty]);
-
     // --- 포커스 (inputKey 변경 시 리마운트 후에도 재포커스) ---
     useEffect(() => {
         if (!isPaused && !gameOver && gameStarted && inputRef.current) {

@@ -15,7 +15,6 @@ describe("TypingRaceGame gameplay", () => {
             isMuted: true,
             difficulty: "normal",
             retroTheme: "win98",
-            xp: 0,
         });
     });
 

@@ -3,7 +3,6 @@
 import React, { useEffect } from "react";
 import type { ReactNode } from "react";
 import SideNav from "./SideNav";
-import LevelUpToast from "./LevelUpToast";
 import useTypingStore from "../store/store";
 
 interface AppFrameProps {
@@ -39,7 +38,6 @@ export default function AppFrame({ children }: AppFrameProps) {
                     </main>
                 </div>
             </div>
-            <LevelUpToast />
         </div>
     );
 }

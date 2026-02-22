@@ -3,7 +3,6 @@ import useTypingStore from "../store/store";
 import { useGameAudio } from "../hooks/useGameAudio";
 import { usePauseHandler } from "../hooks/usePauseHandler";
 import { formatPlayTime } from "../utils/formatting";
-import { calculateGameXp } from "../utils/xpUtils";
 import PauseOverlay from "./game/PauseOverlay";
 import GameOverModal from "./game/GameOverModal";
 import GameInput from "./game/GameInput";
@@ -39,7 +38,6 @@ const WordChainGame: React.FC = () => {
     const retroTheme = useTypingStore((s) => s.retroTheme);
     const language = useTypingStore((s) => s.language);
     const setLanguage = useTypingStore((s) => s.setLanguage);
-    const addXp = useTypingStore((s) => s.addXp);
 
     const { playSound } = useGameAudio();
 
@@ -77,10 +75,6 @@ const WordChainGame: React.FC = () => {
     usePauseHandler(gameStarted, gameOver, setIsPaused);
 
     // 게임오버 시 XP 지급
-    useEffect(() => {
-        if (gameOver) addXp(calculateGameXp(score / 15, "normal"));
-    }, [gameOver, score, addXp]);
-
     const getStartChars = (lastChar: string): string[] => {
         // Two-sound rule candidates (ASCII-safe unicode escapes).
         const dueum: Record<string, string[]> = {

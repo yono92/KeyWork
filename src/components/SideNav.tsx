@@ -4,7 +4,6 @@ import React, { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import Logo from "./Logo";
-import LevelBadge from "./LevelBadge";
 import useTypingStore from "../store/store";
 import { Card } from "@/components/ui/card";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -88,8 +87,6 @@ export default function SideNav() {
                         </div>
                     </Link>
                 </div>
-
-                <LevelBadge />
                 <p className="px-4 pt-3 text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--retro-text)]/80">
                     Modes
                 </p>

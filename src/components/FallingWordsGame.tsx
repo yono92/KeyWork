@@ -3,7 +3,6 @@ import useTypingStore from "../store/store";
 import wordsData from "../data/word.json";
 import { decomposeHangul } from "../utils/hangulUtils";
 import { formatPlayTime } from "../utils/formatting";
-import { calculateGameXp } from "../utils/xpUtils";
 import { useGameAudio } from "../hooks/useGameAudio";
 import { usePauseHandler } from "../hooks/usePauseHandler";
 import PauseOverlay from "./game/PauseOverlay";
@@ -52,7 +51,6 @@ const FallingWordsGame: React.FC = () => {
     const highScore = useTypingStore((state) => state.highScore);
     const setHighScore = useTypingStore((state) => state.setHighScore);
     const difficulty = useTypingStore((state) => state.difficulty);
-    const addXp = useTypingStore((s) => s.addXp);
 
     const config = DIFFICULTY_CONFIG[difficulty];
 
@@ -373,17 +371,6 @@ const FallingWordsGame: React.FC = () => {
     }, [gameOver, score, highScore, setHighScore]);
 
     // 게임오버 시 XP 지급 (1회만)
-    const xpAwardedRef = useRef(false);
-    useEffect(() => {
-        if (!gameOver) {
-            xpAwardedRef.current = false;
-            return;
-        }
-        if (xpAwardedRef.current) return;
-        xpAwardedRef.current = true;
-        addXp(calculateGameXp(score / 20, difficulty));
-    }, [gameOver, score, addXp, difficulty]);
-
     const getLevelRequirements = (currentLevel: number) => ({
         scoreNeeded: currentLevel * config.scorePerLevel,
     });
