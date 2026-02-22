@@ -9,6 +9,7 @@ import { Card } from "@/components/ui/card";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import NavMenu from "./navigation/NavMenu";
 import ControlTray from "./navigation/ControlTray";
+import CoupangSidebarRail from "./affiliate/CoupangSidebarRail";
 import type { GameMode } from "@/features/game-shell/config";
 
 export default function SideNav() {
@@ -99,7 +100,10 @@ export default function SideNav() {
                 />
 
                 <div className="mt-auto p-3 border-t-2 border-t-[var(--retro-border-mid)]">
-                    <ControlTray />
+                    <CoupangSidebarRail />
+                    <div className="mt-2">
+                        <ControlTray />
+                    </div>
                 </div>
             </Card>
         </>
