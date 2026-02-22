@@ -26,7 +26,7 @@ const GameOverModal: React.FC<GameOverModalProps> = ({
     return (
         <div className="absolute inset-0 flex items-center justify-center bg-black/50 z-30">
             <Card
-                className={`text-center animate-panel-in w-full max-w-xs sm:max-w-sm mx-4 ${retroTheme === "mac-classic" ? "rounded-xl" : "rounded-none"}`}
+                className={`text-center animate-panel-in w-full max-w-xs sm:max-w-sm mx-4 max-h-[90vh] overflow-y-auto ${retroTheme === "mac-classic" ? "rounded-xl" : "rounded-none"}`}
             >
                 <CardContent className="px-5 py-5 sm:px-10 sm:py-8">
                 <h2
