@@ -75,28 +75,55 @@ const WordChainGame: React.FC = () => {
     usePauseHandler(gameStarted, gameOver, setIsPaused);
 
     // 게임오버 시 XP 지급
+    // 두음법칙: 한글 음절을 분해하여 초성을 변환한 음절을 반환
+    const applyDueum = (char: string): string | null => {
+        const code = char.charCodeAt(0);
+        if (code < 0xAC00 || code > 0xD7A3) return null;
+        const offset = code - 0xAC00;
+        const initial = Math.floor(offset / (21 * 28));
+        const medial = Math.floor((offset % (21 * 28)) / 28);
+        const final_ = offset % 28;
+
+        // ㅑ(2),ㅕ(6),ㅖ(7),ㅛ(12),ㅠ(17),ㅣ(20) 앞에서 ㄹ→ㅇ, ㄴ→ㅇ
+        const yVowels = [2, 6, 7, 12, 17, 20];
+        // ㅏ(0),ㅐ(1),ㅗ(8),ㅚ(11),ㅜ(13),ㅡ(18) 앞에서 ㄹ→ㄴ
+        const aVowels = [0, 1, 8, 11, 13, 18];
+
+        let newInitial: number | null = null;
+        if (initial === 5) { // ㄹ
+            if (aVowels.includes(medial)) newInitial = 2;  // ㄹ→ㄴ (라→나, 로→노 등)
+            else if (yVowels.includes(medial)) newInitial = 11; // ㄹ→ㅇ (리→이, 려→여 등)
+        } else if (initial === 2) { // ㄴ
+            if (yVowels.includes(medial)) newInitial = 11; // ㄴ→ㅇ (니→이, 녀→여 등)
+        }
+        if (newInitial === null) return null;
+        return String.fromCharCode(0xAC00 + newInitial * 21 * 28 + medial * 28 + final_);
+    };
+
     const getStartChars = (lastChar: string): string[] => {
-        // Two-sound rule candidates (ASCII-safe unicode escapes).
-        const dueum: Record<string, string[]> = {
-            "\uB77C": ["\uB098"], // 라 -> 나
-            "\uB7B4": ["\uB0B4"], // 래 -> 내
-            "\uB7B5": ["\uC57D"], // 략 -> 약
-            "\uB7C9": ["\uC591"], // 량 -> 양
-            "\uB824": ["\uC5EC"], // 려 -> 여
-            "\uB840": ["\uC608"], // 례 -> 예
-            "\uB85C": ["\uB178"], // 로 -> 노
-            "\uB8CC": ["\uC694"], // 료 -> 요
-            "\uB958": ["\uC720"], // 류 -> 유
-            "\uB974": ["\uB290"], // 르 -> 느
-            "\uB9AC": ["\uC774"], // 리 -> 이
-        };
-
         const chars = [lastChar];
-        if (dueum[lastChar]) chars.push(...dueum[lastChar]);
+        const code = lastChar.charCodeAt(0);
+        if (code < 0xAC00 || code > 0xD7A3) return chars;
 
-        // Allow reverse pair too, so users are not over-restricted.
-        for (const [from, toList] of Object.entries(dueum)) {
-            if (toList.includes(lastChar)) chars.push(from);
+        // 정방향: 두음법칙 적용 (련→연, 님→임, 략→약 등)
+        const transformed = applyDueum(lastChar);
+        if (transformed) chars.push(transformed);
+
+        // 역방향: 두음법칙 역적용 (여→려/녀, 이→리/니, 노→로 등)
+        const offset = code - 0xAC00;
+        const initial = Math.floor(offset / (21 * 28));
+        const medial = Math.floor((offset % (21 * 28)) / 28);
+        const final_ = offset % 28;
+        const yVowels = [2, 6, 7, 12, 17, 20];
+        const aVowels = [0, 1, 8, 11, 13, 18];
+        const buildChar = (i: number) => String.fromCharCode(0xAC00 + i * 21 * 28 + medial * 28 + final_);
+
+        if (initial === 2 && aVowels.includes(medial)) {
+            // ㄴ+ㅏ/ㅐ/ㅗ/ㅚ/ㅜ/ㅡ ← ㄹ (나→라, 노→로 등)
+            chars.push(buildChar(5));
+        } else if (initial === 11 && yVowels.includes(medial)) {
+            // ㅇ+ㅑ/ㅕ/ㅖ/ㅛ/ㅠ/ㅣ ← ㄹ, ㄴ (여→려/녀, 이→리/니 등)
+            chars.push(buildChar(5), buildChar(2));
         }
 
         return [...new Set(chars)];
