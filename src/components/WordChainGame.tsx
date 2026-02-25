@@ -139,6 +139,21 @@ const WordChainGame: React.FC = () => {
         return validStarts.includes(firstChar);
     };
 
+    // 한방 단어 방어: 이을 수 없는 끝 글자 목록
+    const KILLER_ENDINGS = new Set([
+        "늄", "슘", "튬", "륨", "듐", "뮴", "붕",
+        "숍", "릅", "갈", "꿈", "늑", "릇", "맡",
+    ]);
+
+    // 초반 6턴(플레이어 3번 + AI 3번) 동안 한방 단어 차단
+    const isKillerWord = (word: string): boolean => {
+        if (usedWordsRef.current.size >= 6) return false;
+        const last = getLastChar(word);
+        // 두음법칙 적용한 모든 변환도 체크
+        const chars = getStartChars(last);
+        return chars.every((c) => KILLER_ENDINGS.has(c));
+    };
+
     const validateWordWithKrdict = useCallback(async (word: string): Promise<KrdictValidationResult | null> => {
         try {
             const response = await fetch(`/api/krdict/validate?word=${encodeURIComponent(word)}`);
@@ -200,6 +215,10 @@ const WordChainGame: React.FC = () => {
                 return validStarts.includes(first) && !usedWordsRef.current.has(w.toLowerCase());
             });
             if (apiCandidates.length > 0) {
+                // 초반에는 한방 단어를 피함
+                const safe = apiCandidates.filter((w) => !isKillerWord(w));
+                if (safe.length > 0) return safe[Math.floor(Math.random() * safe.length)];
+                // 안전한 단어가 없으면 그냥 사용
                 return apiCandidates[Math.floor(Math.random() * apiCandidates.length)];
             }
         }
@@ -381,6 +400,14 @@ const WordChainGame: React.FC = () => {
 
             if (usedWordsRef.current.has(word.toLowerCase())) {
                 addMessage(word, "player", false);
+                playSound("wrong");
+                setCombo(0);
+                return;
+            }
+
+            // 초반 한방 단어 차단
+            if (isKillerWord(word)) {
+                addMessage(`"${word}" — 초반에는 한방 단어를 사용할 수 없습니다!`, "player", false);
                 playSound("wrong");
                 setCombo(0);
                 return;
