@@ -99,7 +99,10 @@ export async function GET(request: NextRequest) {
         try {
             const result = await fetchRandomArticle(lang);
             if (result) {
-                return NextResponse.json({ ...result, source: "wikipedia" });
+                return NextResponse.json(
+                    { ...result, source: "wikipedia" },
+                    { headers: { "Cache-Control": "s-maxage=60, stale-while-revalidate=30" } }
+                );
             }
         } catch (error) {
             if (i === MAX_RETRIES - 1 && error instanceof ApiRequestError) {

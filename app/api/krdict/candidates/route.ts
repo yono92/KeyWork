@@ -115,13 +115,14 @@ export async function GET(request: NextRequest) {
     }
 
     try {
+        // 병렬로 모든 시작 글자를 동시에 fetch
+        const results = await Promise.allSettled(
+            starts.map((start) => fetchCandidatesByStart(apiKey, start))
+        );
         const allWords: string[] = [];
-        for (const start of starts) {
-            try {
-                const words = await fetchCandidatesByStart(apiKey, start);
-                allWords.push(...words);
-            } catch {
-                // 부분 실패는 무시하고 나머지 시작 글자 결과를 사용
+        for (const result of results) {
+            if (result.status === "fulfilled") {
+                allWords.push(...result.value);
             }
         }
 
@@ -132,7 +133,10 @@ export async function GET(request: NextRequest) {
             expiresAt: Date.now() + CACHE_TTL_MS,
         });
 
-        return NextResponse.json({ words: deduped, source: "krdict" });
+        return NextResponse.json(
+            { words: deduped, source: "krdict" },
+            { headers: { "Cache-Control": "s-maxage=600, stale-while-revalidate=300" } }
+        );
     } catch (error) {
         if (error instanceof ApiRequestError) {
             return jsonError(error.message, error.code, error.status, "krdict");

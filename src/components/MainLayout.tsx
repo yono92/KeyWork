@@ -1,33 +1,33 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useEffect, useMemo } from "react";
+import dynamic from "next/dynamic";
 import Header from "./Header";
-import TypingInput from "./TypingInput";
-import FallingWordsGame from "./FallingWordsGame";
-import WordChainGame from "./WordChainGame";
-import TypingRunnerGame from "./TypingRunnerGame";
-import TetrisGame from "./TetrisGame";
 import useTypingStore from "../store/store";
 import { Card } from "@/components/ui/card";
 import type { GameMode } from "@/features/game-shell/config";
 
-// Props 타입 정의 추가
+const TypingInput = dynamic(() => import("./TypingInput"), { ssr: false });
+const FallingWordsGame = dynamic(() => import("./FallingWordsGame"), { ssr: false });
+const WordChainGame = dynamic(() => import("./WordChainGame"), { ssr: false });
+const TypingRunnerGame = dynamic(() => import("./TypingRunnerGame"), { ssr: false });
+const TetrisGame = dynamic(() => import("./TetrisGame"), { ssr: false });
+
 interface MainLayoutProps {
     gameMode: GameMode;
 }
 
-// Props 타입을 컴포넌트에 적용
 const MainLayout: React.FC<MainLayoutProps> = ({ gameMode }) => {
     const setGameMode = useTypingStore((state) => state.setGameMode);
-    const modeViewMap: Record<GameMode, React.ReactNode> = {
+
+    const modeViewMap: Record<GameMode, React.ReactNode> = useMemo(() => ({
         practice: <TypingInput />,
         "falling-words": <FallingWordsGame />,
         "typing-runner": <TypingRunnerGame />,
         "word-chain": <WordChainGame />,
         tetris: <TetrisGame />,
-    };
+    }), []);
 
-    // URL에서 받은 gameMode를 스토어에 동기화
     useEffect(() => {
         setGameMode(gameMode);
     }, [gameMode, setGameMode]);

@@ -130,7 +130,10 @@ export async function GET(request: NextRequest) {
             expiresAt: Date.now() + CACHE_TTL_MS,
         });
 
-        return NextResponse.json({ exists, definition, source: "krdict" });
+        return NextResponse.json(
+            { exists, definition, source: "krdict" },
+            { headers: { "Cache-Control": "s-maxage=3600, stale-while-revalidate=600" } }
+        );
     } catch (error) {
         if (error instanceof ApiRequestError) {
             return jsonError(error.message, error.code, error.status, "krdict");
