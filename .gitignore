@@ -25,3 +25,7 @@ dist-ssr
 *.sw?
 
 .vercel
+
+# Test artifacts
+test-results/
+tests/e2e/screenshots/
