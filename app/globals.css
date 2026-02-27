@@ -603,4 +603,31 @@
     .animate-runner-hit-flash {
         animation: runnerHitFlash 300ms ease-out forwards;
     }
+
+    /* 테트리스 게임 애니메이션 */
+    @keyframes tetris-flash {
+        0%, 100% { opacity: 0; }
+        25% { opacity: 1; background: #fff; }
+        50% { opacity: 1; background: #ffe000; }
+        75% { opacity: 1; background: #fff; }
+    }
+    @keyframes tetris-shake {
+        0%, 100% { transform: translateY(0); }
+        25% { transform: translateY(2px); }
+        50% { transform: translateY(-1px); }
+        75% { transform: translateY(1px); }
+    }
+    @keyframes tetris-score-pop {
+        0% { transform: scale(1); }
+        40% { transform: scale(1.35); }
+        100% { transform: scale(1); }
+    }
+    @keyframes tetris-blink {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0; }
+    }
+    @keyframes tetris-fade-in {
+        0% { opacity: 0; }
+        100% { opacity: 1; }
+    }
 }

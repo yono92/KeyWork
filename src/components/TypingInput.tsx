@@ -5,6 +5,7 @@ import { calculateHangulAccuracy, countKeystrokes } from "../utils/hangulUtils";
 import Keyboard from "./Keyboard";
 import ProgressBar from "./ProgressBar";
 import FallbackNotice from "./game/FallbackNotice";
+import { useScreenSize } from "../hooks/useScreenSize";
 
 type AudioContextClass = typeof AudioContext;
 
@@ -105,9 +106,7 @@ const TypingInput: React.FC = () => {
     const [averageAccuracy, setAverageAccuracy] = useState<number>(0);
     const inputRef = useRef<HTMLInputElement>(null);
     const [pressedKeys, setPressedKeys] = useState<string[]>([]);
-    const [isMobile, setIsMobile] = useState<boolean>(false);
-    const [isShortScreen, setIsShortScreen] = useState<boolean>(false);
-    const [isLargeScreen, setIsLargeScreen] = useState<boolean>(false);
+    const { isMobile, isShortScreen, isLargeScreen } = useScreenSize();
     const [platform, setPlatform] = useState<"mac" | "windows">("windows");
     const [textSource, setTextSource] = useState<"wikipedia" | "proverb-fallback">("proverb-fallback");
     const [fallbackMessage, setFallbackMessage] = useState<string | null>(null);
@@ -312,22 +311,6 @@ const TypingInput: React.FC = () => {
             setAccuracy(0);
         }
     }, [input, text, startTime, setProgress, language]);
-
-    useEffect(() => {
-        const checkScreen = () => {
-            setIsMobile(
-                window.innerWidth <= 768 ||
-                /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
-            );
-            setIsShortScreen(window.innerHeight <= 900);
-            setIsLargeScreen(window.innerWidth >= 1440 && window.innerHeight >= 900);
-        };
-
-        checkScreen();
-        window.addEventListener("resize", checkScreen);
-
-        return () => window.removeEventListener("resize", checkScreen);
-    }, []);
 
     useEffect(() => {
         const uaDataPlatform = (navigator as Navigator & {

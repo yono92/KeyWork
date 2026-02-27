@@ -136,33 +136,6 @@ const getLineScore = (removed: number, level: number): number => {
     return 800 * level;
 };
 
-const TETRIS_STYLES = `
-@keyframes tetris-flash {
-    0%, 100% { opacity: 0; }
-    25% { opacity: 1; background: #fff; }
-    50% { opacity: 1; background: #ffe000; }
-    75% { opacity: 1; background: #fff; }
-}
-@keyframes tetris-shake {
-    0%, 100% { transform: translateY(0); }
-    25% { transform: translateY(2px); }
-    50% { transform: translateY(-1px); }
-    75% { transform: translateY(1px); }
-}
-@keyframes tetris-score-pop {
-    0% { transform: scale(1); }
-    40% { transform: scale(1.35); }
-    100% { transform: scale(1); }
-}
-@keyframes tetris-blink {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0; }
-}
-@keyframes tetris-fade-in {
-    0% { opacity: 0; }
-    100% { opacity: 1; }
-}
-`;
 
 export default function TetrisGame() {
     const sectionRef = useRef<HTMLElement>(null);
@@ -190,15 +163,6 @@ export default function TetrisGame() {
     const dropIntervalMs = isMobile
         ? Math.max(100, 460 - (level - 1) * 50)
         : Math.max(140, 620 - (level - 1) * 45);
-
-    useEffect(() => {
-        const id = "tetris-keyframes";
-        if (document.getElementById(id)) return;
-        const style = document.createElement("style");
-        style.id = id;
-        style.textContent = TETRIS_STYLES;
-        document.head.appendChild(style);
-    }, []);
 
     useEffect(() => {
         const update = () => {

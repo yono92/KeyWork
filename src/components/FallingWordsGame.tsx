@@ -304,23 +304,30 @@ const FallingWordsGame: React.FC = () => {
         }
     };
 
-    // 단어 낙하 루프
+    // 단어 낙하 루프 (requestAnimationFrame)
+    const lastFrameRef = useRef(0);
     useEffect(() => {
         if (!gameStarted || gameOver || isPaused) return;
 
-        const moveWords = setInterval(() => {
+        let rafId: number;
+        const tick = (timestamp: number) => {
+            if (!lastFrameRef.current) lastFrameRef.current = timestamp;
+            const delta = timestamp - lastFrameRef.current;
+            lastFrameRef.current = timestamp;
+
+            // delta를 16ms 기준으로 정규화 (60fps 기준 1.0)
+            const factor = Math.min(delta / 16, 3);
+
             setWords((currentWords) => {
                 const gameAreaHeight = gameAreaRef.current?.offsetHeight ?? 600;
                 const bottomThreshold = gameAreaHeight - 80;
-                // 게임 영역 높이 기반 속도: 어떤 화면이든 동일한 시간에 바닥 도달
                 const speed = gameAreaHeight / (fallSeconds * 60);
 
                 const updatedWords = currentWords.map((word) => {
                     if (word.status !== "falling") return word;
-                    return { ...word, top: word.top + speed };
+                    return { ...word, top: word.top + speed * factor };
                 });
 
-                // 바닥에 닿은 falling 상태의 일반 단어 확인
                 const normalBottomWords = updatedWords.filter(
                     (word) => word.top > bottomThreshold && word.type === "normal" && word.status === "falling"
                 );
@@ -341,20 +348,22 @@ const FallingWordsGame: React.FC = () => {
                     setCombo(0);
                 }
 
-                // 바닥에 닿은 falling 단어 → missed 애니메이션 전환
-                const result = updatedWords.map((word) => {
+                return updatedWords.map((word) => {
                     if (word.status === "falling" && word.top > bottomThreshold) {
                         return { ...word, status: "missed" as const };
                     }
                     return word;
                 });
-
-                // matched/missed 애니메이션 끝난 단어 제거 (top이 매우 아래이거나 오래된 것)
-                return result;
             });
-        }, 16);
 
-        return () => clearInterval(moveWords);
+            rafId = requestAnimationFrame(tick);
+        };
+
+        rafId = requestAnimationFrame(tick);
+        return () => {
+            cancelAnimationFrame(rafId);
+            lastFrameRef.current = 0;
+        };
     }, [fallSeconds, gameStarted, gameOver, isPaused, shield, playSound]);
 
     // matched/missed 단어 일정 시간 후 제거
