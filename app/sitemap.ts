@@ -7,6 +7,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
         "/practice",
         "/falling-words",
         "/word-chain",
+        "/tetris",
         "/typing-race",
         "/typing-defense",
         "/dictation",

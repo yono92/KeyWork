@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Keyboard, Link2 } from "lucide-react";
+import { Gamepad2, Keyboard, Link2 } from "lucide-react";
 import AppFrame from "../src/components/AppFrame";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 const MODES = [
     { href: "/practice", label: "문장연습", icon: Keyboard, desc: "정확도와 속도를 같이 올리는 기본 모드" },
     { href: "/word-chain", label: "끝말잇기", icon: Link2, desc: "AI와 번갈아 단어를 이어가는 어휘 모드" },
+    { href: "/tetris", label: "테트리스", icon: Gamepad2, desc: "모바일 조작도 가능한 가벼운 블록 퍼즐 모드" },
 ] as const;
 
 export default function HomePage() {

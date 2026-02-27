@@ -9,6 +9,7 @@ import TypingRaceGame from "./TypingRaceGame";
 import DictationGame from "./DictationGame";
 import WordChainGame from "./WordChainGame";
 import TypingRunnerGame from "./TypingRunnerGame";
+import TetrisGame from "./TetrisGame";
 import useTypingStore from "../store/store";
 import { Card } from "@/components/ui/card";
 import type { GameMode } from "@/features/game-shell/config";
@@ -29,6 +30,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ gameMode }) => {
         "typing-runner": <TypingRunnerGame />,
         dictation: <DictationGame />,
         "word-chain": <WordChainGame />,
+        tetris: <TetrisGame />,
     };
 
     // URL에서 받은 gameMode를 스토어에 동기화

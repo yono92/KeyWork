@@ -15,7 +15,7 @@ import {
     Link2,
 } from "lucide-react";
 
-const VISIBLE_MENU_ITEMS: readonly GameMode[] = ["practice", "word-chain"];
+const VISIBLE_MENU_ITEMS: readonly GameMode[] = ["practice", "word-chain", "tetris"];
 
 interface NavMenuProps {
     language: AppLanguage;
