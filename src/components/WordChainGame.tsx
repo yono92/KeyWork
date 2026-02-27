@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import useTypingStore from "../store/store";
 import { useGameAudio } from "../hooks/useGameAudio";
 import { usePauseHandler } from "../hooks/usePauseHandler";
@@ -8,6 +8,8 @@ import GameOverModal from "./game/GameOverModal";
 import GameInput from "./game/GameInput";
 import { KOREAN_START_POOL, HANGUL_WORD_REGEX } from "../utils/koreanConstants";
 import { Button } from "@/components/ui/button";
+import wordChainDict from "../data/wordchain-dict.json";
+import FallbackNotice from "./game/FallbackNotice";
 
 interface ChatMessage {
     id: number;
@@ -20,6 +22,7 @@ interface ChatMessage {
 interface KrdictValidationResult {
     exists: boolean;
     definition: string | null;
+    source?: string;
 }
 
 interface KrdictCandidatesResult {
@@ -57,6 +60,8 @@ const WordChainGame: React.FC = () => {
     const [isAiTurn, setIsAiTurn] = useState(false);
     const [playerWon, setPlayerWon] = useState(false);
     const [isValidatingWord, setIsValidatingWord] = useState(false);
+    const [dictionarySource, setDictionarySource] = useState<"krdict" | "local">("krdict");
+    const [fallbackMessage, setFallbackMessage] = useState<string | null>(null);
 
     const inputRef = useRef<HTMLInputElement>(null);
     const chatContainerRef = useRef<HTMLDivElement>(null);
@@ -71,6 +76,8 @@ const WordChainGame: React.FC = () => {
     const submitLockRef = useRef(false);
     const currentCharRef = useRef("");
     const doAiTurnRef = useRef<(startChar: string) => void>(() => {});
+    const localKoreanDict = useMemo(() => wordChainDict.korean ?? [], []);
+    const localDictSetRef = useRef<Set<string>>(new Set(localKoreanDict.map((w) => w.toLowerCase())));
 
     usePauseHandler(gameStarted, gameOver, setIsPaused);
 
@@ -157,7 +164,12 @@ const WordChainGame: React.FC = () => {
     const validateWordWithKrdict = useCallback(async (word: string): Promise<KrdictValidationResult | null> => {
         try {
             const response = await fetch(`/api/krdict/validate?word=${encodeURIComponent(word)}`);
-            if (!response.ok) return null;
+            if (!response.ok) {
+                const localExists = localDictSetRef.current.has(word.toLowerCase());
+                setDictionarySource("local");
+                setFallbackMessage("사전 연결이 불안정해 로컬 사전으로 검증합니다.");
+                return { exists: localExists, definition: null, source: "local" };
+            }
 
             const data: unknown = await response.json();
             if (
@@ -174,11 +186,15 @@ const WordChainGame: React.FC = () => {
                         typeof parsed.definition === "string" && parsed.definition.trim()
                             ? parsed.definition.trim()
                             : null,
+                    source: "krdict",
                 };
             }
             return null;
         } catch {
-            return null;
+            const localExists = localDictSetRef.current.has(word.toLowerCase());
+            setDictionarySource("local");
+            setFallbackMessage("사전 연결 실패로 로컬 사전으로 검증합니다.");
+            return { exists: localExists, definition: null, source: "local" };
         }
     }, []);
 
@@ -188,22 +204,29 @@ const WordChainGame: React.FC = () => {
             const query = encodeURIComponent(starts.join(","));
             const response = await fetch(`/api/krdict/candidates?starts=${query}`);
             if (!response.ok) {
-                console.error("[끝말잇기] candidates API 실패:", response.status, response.statusText);
-                return [];
+                setDictionarySource("local");
+                setFallbackMessage("사전 연결이 불안정해 로컬 단어 후보로 진행합니다.");
+                return localKoreanDict.filter((w) => starts.includes(getFirstChar(w)));
             }
 
             const data: unknown = await response.json();
             if (typeof data === "object" && data !== null && "words" in data) {
                 const words = (data as KrdictCandidatesResult).words ?? [];
+                setDictionarySource("krdict");
+                setFallbackMessage(null);
                 return Array.isArray(words) ? words : [];
             }
             console.error("[끝말잇기] candidates API 응답 형식 오류:", data);
-            return [];
+            setDictionarySource("local");
+            setFallbackMessage("사전 응답 오류로 로컬 단어 후보로 진행합니다.");
+            return localKoreanDict.filter((w) => starts.includes(getFirstChar(w)));
         } catch (err) {
             console.error("[끝말잇기] candidates API 예외:", err);
-            return [];
+            setDictionarySource("local");
+            setFallbackMessage("사전 연결 실패로 로컬 단어 후보로 진행합니다.");
+            return localKoreanDict.filter((w) => starts.includes(getFirstChar(w)));
         }
-    }, []);
+    }, [localKoreanDict]);
 
     const findAiWord = useCallback(async (startChar: string): Promise<string | null> => {
         const validStarts = getStartChars(startChar);
@@ -570,6 +593,19 @@ const WordChainGame: React.FC = () => {
                                 return `"${currentChar}"로 시작하는 단어`;
                             })()}
                         </span>
+                    </div>
+                )}
+                {fallbackMessage && (
+                    <div className="px-3 sm:px-4 pb-2">
+                        <FallbackNotice
+                            darkMode={darkMode}
+                            message={fallbackMessage}
+                            sourceLabel={dictionarySource === "krdict" ? "krdict" : "local wordchain-dict"}
+                            onRetry={() => {
+                                setFallbackMessage(null);
+                                void fetchKrdictCandidates(currentChar ? getStartChars(currentChar) : ["가"]);
+                            }}
+                        />
                     </div>
                 )}
 

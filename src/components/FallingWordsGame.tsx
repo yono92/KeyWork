@@ -9,6 +9,7 @@ import PauseOverlay from "./game/PauseOverlay";
 import GameOverModal from "./game/GameOverModal";
 import GameInput from "./game/GameInput";
 import { Button } from "@/components/ui/button";
+import FallbackNotice from "./game/FallbackNotice";
 
 
 interface Word {
@@ -71,6 +72,8 @@ const FallingWordsGame: React.FC = () => {
     const [gameStarted, setGameStarted] = useState<boolean>(false);
     const [countdown, setCountdown] = useState<number | null>(null);
     const [koreanWords, setKoreanWords] = useState<string[]>([]);
+    const [wordSource, setWordSource] = useState<"krdict" | "local">("local");
+    const [fallbackMessage, setFallbackMessage] = useState<string | null>(null);
 
     const gameAreaRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
@@ -112,7 +115,11 @@ const FallingWordsGame: React.FC = () => {
         try {
             const starts = encodeURIComponent(pickRandomStarts(15).join(","));
             const response = await fetch(`/api/krdict/candidates?starts=${starts}&num=300`);
-            if (!response.ok) return;
+            if (!response.ok) {
+                setWordSource("local");
+                setFallbackMessage("사전 연결이 불안정해 로컬 단어로 진행 중입니다.");
+                return;
+            }
             const data: unknown = await response.json();
             if (
                 typeof data === "object" &&
@@ -125,10 +132,16 @@ const FallingWordsGame: React.FC = () => {
                     .filter((w) => HANGUL_WORD_REGEX.test(w));
                 if (words.length > 0) {
                     setKoreanWords([...new Set(words)]);
+                    setWordSource("krdict");
+                    setFallbackMessage(null);
+                    return;
                 }
             }
+            setWordSource("local");
+            setFallbackMessage("사전 응답이 비어 로컬 단어로 진행 중입니다.");
         } catch {
-            // ignore
+            setWordSource("local");
+            setFallbackMessage("사전 연결 실패로 로컬 단어로 진행 중입니다.");
         }
     }, [language]);
 
@@ -601,6 +614,17 @@ const FallingWordsGame: React.FC = () => {
                 </div>
 
                 {renderActiveEffects()}
+                {fallbackMessage && language === "korean" && (
+                    <FallbackNotice
+                        className="absolute top-[72px] left-2 right-2 sm:left-4 sm:right-4 z-20"
+                        darkMode={darkMode}
+                        message={fallbackMessage}
+                        sourceLabel={wordSource === "krdict" ? "krdict" : "local word.json"}
+                        onRetry={() => {
+                            void fetchKoreanWords();
+                        }}
+                    />
+                )}
 
                 {/* 콤보 표시 */}
                 {combo >= 3 && (

@@ -1,7 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
+import {
+    ApiRequestError,
+    fetchWithTimeoutRetry,
+    jsonError,
+    pruneCache,
+} from "@/lib/apiReliability";
 
 const KRDICT_SEARCH_URL = "https://krdict.korean.go.kr/api/search";
 const CACHE_TTL_MS = 60 * 60 * 1000;
+const FETCH_TIMEOUT_MS = 2500;
+const FETCH_RETRIES = 1;
+const MAX_CACHE_ENTRIES = 400;
 
 type CacheEntry = {
     exists: boolean;
@@ -70,7 +79,7 @@ export async function GET(request: NextRequest) {
     const inputWord = request.nextUrl.searchParams.get("word") ?? "";
     const word = normalizeWord(inputWord);
     if (!word) {
-        return NextResponse.json({ error: "word query is required" }, { status: 400 });
+        return jsonError("word query is required", "BAD_REQUEST", 400, "krdict");
     }
 
     const cached = validationCache.get(word);
@@ -84,9 +93,11 @@ export async function GET(request: NextRequest) {
 
     const apiKey = process.env.KRDICT_API_KEY;
     if (!apiKey) {
-        return NextResponse.json(
-            { error: "KRDICT_API_KEY is not configured" },
-            { status: 503 }
+        return jsonError(
+            "KRDICT_API_KEY is not configured",
+            "CONFIG_MISSING",
+            503,
+            "krdict"
         );
     }
 
@@ -102,21 +113,17 @@ export async function GET(request: NextRequest) {
     });
 
     try {
-        const response = await fetch(`${KRDICT_SEARCH_URL}?${searchParams.toString()}`, {
-            cache: "no-store",
-        });
-
-        if (!response.ok) {
-            return NextResponse.json(
-                { error: "failed to query krdict" },
-                { status: 502 }
-            );
-        }
+        const response = await fetchWithTimeoutRetry(
+            `${KRDICT_SEARCH_URL}?${searchParams.toString()}`,
+            { cache: "no-store" },
+            { timeoutMs: FETCH_TIMEOUT_MS, retries: FETCH_RETRIES }
+        );
 
         const xml = await response.text();
         const exists = hasExactHeadword(xml, word);
         const definition = exists ? extractFirstDefinition(xml, word) : null;
 
+        pruneCache(validationCache, MAX_CACHE_ENTRIES);
         validationCache.set(word, {
             exists,
             definition,
@@ -124,7 +131,10 @@ export async function GET(request: NextRequest) {
         });
 
         return NextResponse.json({ exists, definition, source: "krdict" });
-    } catch {
-        return NextResponse.json({ error: "krdict request failed" }, { status: 502 });
+    } catch (error) {
+        if (error instanceof ApiRequestError) {
+            return jsonError(error.message, error.code, error.status, "krdict");
+        }
+        return jsonError("krdict request failed", "NETWORK", 502, "krdict");
     }
 }

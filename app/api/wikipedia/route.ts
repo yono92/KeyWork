@@ -1,8 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
+import {
+    ApiRequestError,
+    fetchWithTimeoutRetry,
+    jsonError,
+} from "@/lib/apiReliability";
 
 const MAX_RETRIES = 3;
 const MIN_LENGTH = 50;
 const MAX_LENGTH = 500;
+const FETCH_TIMEOUT_MS = 2500;
+const FETCH_RETRIES = 1;
 
 type WikiPage = {
     pageid: number;
@@ -29,12 +36,14 @@ async function fetchRandomArticle(lang: string): Promise<{ title: string; text: 
         format: "json",
     });
 
-    const res = await fetch(`https://${host}/w/api.php?${params.toString()}`, {
-        headers: { "User-Agent": "KeyWork/1.0 (typing practice app)" },
-        cache: "no-store",
-    });
-
-    if (!res.ok) return null;
+    const res = await fetchWithTimeoutRetry(
+        `https://${host}/w/api.php?${params.toString()}`,
+        {
+            headers: { "User-Agent": "KeyWork/1.0 (typing practice app)" },
+            cache: "no-store",
+        },
+        { timeoutMs: FETCH_TIMEOUT_MS, retries: FETCH_RETRIES }
+    );
 
     const data: WikiResponse = await res.json();
     const pages = data.query?.pages;
@@ -90,15 +99,19 @@ export async function GET(request: NextRequest) {
         try {
             const result = await fetchRandomArticle(lang);
             if (result) {
-                return NextResponse.json(result);
+                return NextResponse.json({ ...result, source: "wikipedia" });
             }
-        } catch {
-            // 재시도
+        } catch (error) {
+            if (i === MAX_RETRIES - 1 && error instanceof ApiRequestError) {
+                return jsonError(error.message, error.code, error.status, "wikipedia");
+            }
         }
     }
 
-    return NextResponse.json(
-        { error: "위키백과에서 적절한 문서를 찾지 못했습니다" },
-        { status: 502 }
+    return jsonError(
+        "위키백과에서 적절한 문서를 찾지 못했습니다",
+        "INVALID_RESPONSE",
+        502,
+        "wikipedia"
     );
 }

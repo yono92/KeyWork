@@ -4,6 +4,7 @@ import proverbsData from "../data/proverbs.json";
 import { calculateHangulAccuracy, countKeystrokes } from "../utils/hangulUtils";
 import Keyboard from "./Keyboard";
 import ProgressBar from "./ProgressBar";
+import FallbackNotice from "./game/FallbackNotice";
 
 type AudioContextClass = typeof AudioContext;
 
@@ -108,6 +109,8 @@ const TypingInput: React.FC = () => {
     const [isShortScreen, setIsShortScreen] = useState<boolean>(false);
     const [isLargeScreen, setIsLargeScreen] = useState<boolean>(false);
     const [platform, setPlatform] = useState<"mac" | "windows">("windows");
+    const [textSource, setTextSource] = useState<"wikipedia" | "proverb-fallback">("proverb-fallback");
+    const [fallbackMessage, setFallbackMessage] = useState<string | null>(null);
     const audioContextRef = useRef<AudioContext | null>(null);
     const initializedRef = useRef(false);
     const isMuted = useTypingStore((state) => state.isMuted);
@@ -156,7 +159,6 @@ const TypingInput: React.FC = () => {
         const arr = proverbsData[nextLanguage];
         return arr[Math.floor(Math.random() * arr.length)];
     }, []);
-    const proverbSet = useMemo(() => new Set(proverbsData[language]), [language]);
 
     const beep = useCallback(
         (frequency = 800, duration = 30, volume = 0.2) => {
@@ -187,10 +189,44 @@ const TypingInput: React.FC = () => {
         []
     );
 
+    const fetchPracticeText = useCallback(async () => {
+        const nextLanguageCode = language === "korean" ? "ko" : "en";
+        try {
+            const response = await fetch(`/api/wikipedia?lang=${nextLanguageCode}`);
+            if (!response.ok) {
+                setText(getRandomProverb(language));
+                setTextSource("proverb-fallback");
+                setFallbackMessage("위키 문서 연결이 불안정해 속담으로 연습 중입니다.");
+                return;
+            }
+
+            const data: unknown = await response.json();
+            if (
+                typeof data === "object" &&
+                data !== null &&
+                "text" in data &&
+                typeof (data as { text: unknown }).text === "string" &&
+                (data as { text: string }).text.trim().length > 0
+            ) {
+                setText((data as { text: string }).text.trim());
+                setTextSource("wikipedia");
+                setFallbackMessage(null);
+                return;
+            }
+
+            setText(getRandomProverb(language));
+            setTextSource("proverb-fallback");
+            setFallbackMessage("위키 문서를 가져오지 못해 속담으로 연습 중입니다.");
+        } catch {
+            setText(getRandomProverb(language));
+            setTextSource("proverb-fallback");
+            setFallbackMessage("네트워크 오류로 속담 연습 모드로 전환되었습니다.");
+        }
+    }, [language, setText, getRandomProverb]);
+
     // 텍스트 초기화 (마운트 시, 언어 변경 시)
     useEffect(() => {
-        const newText = getRandomProverb(language);
-        setText(newText);
+        void fetchPracticeText();
         setInput("");
         setStartTime(null);
         setTypingSpeed(0);
@@ -201,14 +237,15 @@ const TypingInput: React.FC = () => {
             initializedRef.current = true;
             if (inputRef.current) inputRef.current.focus();
         }
-    }, [language, setProgress, setText, getRandomProverb]);
+    }, [language, setProgress, fetchPracticeText]);
 
-    // 안전장치: 속담 외 텍스트(기본 문구/장문 잔존 등)가 들어오면 즉시 속담으로 교정
+    // 안전장치: 비어있는 텍스트는 즉시 속담으로 교정
     useEffect(() => {
-        if (!text || !proverbSet.has(text)) {
+        if (!text || !text.trim()) {
             setText(getRandomProverb(language));
+            setTextSource("proverb-fallback");
         }
-    }, [text, proverbSet, language, setText, getRandomProverb]);
+    }, [text, language, setText, getRandomProverb]);
 
     // AudioContext 초기화 (사용자 상호작용 시)
     useEffect(() => {
@@ -411,7 +448,7 @@ const TypingInput: React.FC = () => {
             setStartTime(null);
             setTypingSpeed(0);
             setAccuracy(0);
-            setText(getRandomProverb(language));
+            void fetchPracticeText();
         }
     };
 
@@ -460,6 +497,19 @@ const TypingInput: React.FC = () => {
                 <div className={`text-center ${lg ? "text-4xl leading-relaxed mb-8" : "text-2xl md:text-3xl leading-loose mb-6"} font-semibold tracking-wide`}>
                     {renderedText}
                 </div>
+                {fallbackMessage && (
+                    <FallbackNotice
+                        className="mb-4"
+                        darkMode={darkMode}
+                        message={fallbackMessage}
+                        sourceLabel={
+                            textSource === "wikipedia" ? "wikipedia" : "local proverbs.json"
+                        }
+                        onRetry={() => {
+                            void fetchPracticeText();
+                        }}
+                    />
+                )}
                 <ProgressBar trackWidth={progressBarWidth} className={lg ? "mb-7" : "mb-5"} />
                 <input
                     ref={inputRef}

@@ -1,10 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
+import {
+    ApiRequestError,
+    fetchWithTimeoutRetry,
+    jsonError,
+    pruneCache,
+} from "@/lib/apiReliability";
 
 const KRDICT_SEARCH_URL = "https://krdict.korean.go.kr/api/search";
 const CACHE_TTL_MS = 10 * 60 * 1000;
 const DEFAULT_RETURN = 30;
 const MAX_RETURN = 300;
 const MAX_FETCH_PER_START = 1;
+const FETCH_TIMEOUT_MS = 2500;
+const FETCH_RETRIES = 1;
+const MAX_CACHE_ENTRIES = 200;
 
 type CacheEntry = {
     words: string[];
@@ -54,10 +63,11 @@ const fetchCandidatesByStart = async (apiKey: string, start: string): Promise<st
             pos: "1",
         });
 
-        const response = await fetch(`${KRDICT_SEARCH_URL}?${searchParams.toString()}`, {
-            cache: "no-store",
-        });
-        if (!response.ok) break;
+        const response = await fetchWithTimeoutRetry(
+            `${KRDICT_SEARCH_URL}?${searchParams.toString()}`,
+            { cache: "no-store" },
+            { timeoutMs: FETCH_TIMEOUT_MS, retries: FETCH_RETRIES }
+        );
 
         const xml = await response.text();
         const words = extractWordsFromXml(xml).filter((w) => w.startsWith(start));
@@ -78,7 +88,7 @@ export async function GET(request: NextRequest) {
         .filter((s) => isHangulChar(s));
 
     if (starts.length === 0) {
-        return NextResponse.json({ error: "starts query is required" }, { status: 400 });
+        return jsonError("starts query is required", "BAD_REQUEST", 400, "krdict");
     }
 
     const numRaw = request.nextUrl.searchParams.get("num");
@@ -90,9 +100,11 @@ export async function GET(request: NextRequest) {
 
     const apiKey = process.env.KRDICT_API_KEY;
     if (!apiKey) {
-        return NextResponse.json(
-            { error: "KRDICT_API_KEY is not configured" },
-            { status: 503 }
+        return jsonError(
+            "KRDICT_API_KEY is not configured",
+            "CONFIG_MISSING",
+            503,
+            "krdict"
         );
     }
 
@@ -105,18 +117,26 @@ export async function GET(request: NextRequest) {
     try {
         const allWords: string[] = [];
         for (const start of starts) {
-            const words = await fetchCandidatesByStart(apiKey, start);
-            allWords.push(...words);
+            try {
+                const words = await fetchCandidatesByStart(apiKey, start);
+                allWords.push(...words);
+            } catch {
+                // 부분 실패는 무시하고 나머지 시작 글자 결과를 사용
+            }
         }
 
         const deduped = [...new Set(allWords)].slice(0, limit);
+        pruneCache(candidatesCache, MAX_CACHE_ENTRIES);
         candidatesCache.set(cacheKey, {
             words: deduped,
             expiresAt: Date.now() + CACHE_TTL_MS,
         });
 
         return NextResponse.json({ words: deduped, source: "krdict" });
-    } catch {
-        return NextResponse.json({ error: "krdict request failed" }, { status: 502 });
+    } catch (error) {
+        if (error instanceof ApiRequestError) {
+            return jsonError(error.message, error.code, error.status, "krdict");
+        }
+        return jsonError("krdict request failed", "NETWORK", 502, "krdict");
     }
 }
