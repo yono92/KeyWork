@@ -7,7 +7,8 @@ export type GameMode =
     | "typing-race"
     | "typing-runner"
     | "dictation"
-    | "word-chain";
+    | "word-chain"
+    | "tetris";
 
 export interface NavItem {
     id: GameMode;
@@ -58,6 +59,12 @@ export const NAV_ITEMS: readonly NavItem[] = [
         icon: "chain",
         label: { korean: "끝말잇기", english: "Word Chain" },
         shortLabel: { korean: "끝말잇기", english: "Chain" },
+    },
+    {
+        id: "tetris",
+        icon: "keyboard",
+        label: { korean: "테트리스", english: "Tetris" },
+        shortLabel: { korean: "테트리스", english: "Tetris" },
     },
 ];
 
