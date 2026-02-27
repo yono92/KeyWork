@@ -2,7 +2,7 @@
 
 import React from "react";
 import { usePathname } from "next/navigation";
-import { Menu, Keyboard, CloudRain, Shield, GaugeCircle, Rabbit, NotebookPen, Link2 } from "lucide-react";
+import { Menu, Keyboard, CloudRain, Rabbit, Link2 } from "lucide-react";
 import useTypingStore from "../store/store";
 import { Button } from "@/components/ui/button";
 import { getPageTitle, getModeByPathname } from "@/features/game-shell/config";
@@ -17,10 +17,7 @@ export default function Header() {
     const Icon = {
         keyboard: Keyboard,
         rain: CloudRain,
-        shield: Shield,
-        race: GaugeCircle,
         runner: Rabbit,
-        dictation: NotebookPen,
         chain: Link2,
     }[mode.icon];
 

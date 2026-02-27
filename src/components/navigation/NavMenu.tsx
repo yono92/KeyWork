@@ -8,14 +8,11 @@ import { NAV_ITEMS } from "@/features/game-shell/config";
 import {
     Keyboard,
     CloudRain,
-    Shield,
-    GaugeCircle,
     Rabbit,
-    NotebookPen,
     Link2,
 } from "lucide-react";
 
-const VISIBLE_MENU_ITEMS: readonly GameMode[] = ["practice", "word-chain", "tetris"];
+const VISIBLE_MENU_ITEMS: readonly GameMode[] = ["practice", "falling-words", "word-chain", "typing-runner", "tetris"];
 
 interface NavMenuProps {
     language: AppLanguage;
@@ -27,10 +24,7 @@ interface NavMenuProps {
 const iconByType: Record<NavItem["icon"], React.ComponentType<{ className?: string }>> = {
     keyboard: Keyboard,
     rain: CloudRain,
-    shield: Shield,
-    race: GaugeCircle,
     runner: Rabbit,
-    dictation: NotebookPen,
     chain: Link2,
 };
 

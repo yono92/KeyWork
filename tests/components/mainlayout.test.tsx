@@ -9,17 +9,11 @@ vi.mock("../../src/components/TypingInput", () => ({
 vi.mock("../../src/components/FallingWordsGame", () => ({
     default: () => <div data-testid="falling-words" />,
 }));
-vi.mock("../../src/components/TypingDefenseGame", () => ({
-    default: () => <div data-testid="typing-defense" />,
-}));
-vi.mock("../../src/components/TypingRaceGame", () => ({
-    default: () => <div data-testid="typing-race" />,
-}));
-vi.mock("../../src/components/DictationGame", () => ({
-    default: () => <div data-testid="dictation" />,
-}));
 vi.mock("../../src/components/WordChainGame", () => ({
     default: () => <div data-testid="word-chain" />,
+}));
+vi.mock("../../src/components/TypingRunnerGame", () => ({
+    default: () => <div data-testid="typing-runner" />,
 }));
 vi.mock("../../src/components/TetrisGame", () => ({
     default: () => <div data-testid="tetris" />,

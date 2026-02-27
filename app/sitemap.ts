@@ -7,10 +7,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
         "/practice",
         "/falling-words",
         "/word-chain",
+        "/typing-runner",
         "/tetris",
-        "/typing-race",
-        "/typing-defense",
-        "/dictation",
     ];
 
     return routes.map((route) => ({

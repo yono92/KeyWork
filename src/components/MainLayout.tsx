@@ -4,9 +4,6 @@ import React, { useEffect } from "react";
 import Header from "./Header";
 import TypingInput from "./TypingInput";
 import FallingWordsGame from "./FallingWordsGame";
-import TypingDefenseGame from "./TypingDefenseGame";
-import TypingRaceGame from "./TypingRaceGame";
-import DictationGame from "./DictationGame";
 import WordChainGame from "./WordChainGame";
 import TypingRunnerGame from "./TypingRunnerGame";
 import TetrisGame from "./TetrisGame";
@@ -25,10 +22,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ gameMode }) => {
     const modeViewMap: Record<GameMode, React.ReactNode> = {
         practice: <TypingInput />,
         "falling-words": <FallingWordsGame />,
-        "typing-defense": <TypingDefenseGame />,
-        "typing-race": <TypingRaceGame />,
         "typing-runner": <TypingRunnerGame />,
-        dictation: <DictationGame />,
         "word-chain": <WordChainGame />,
         tetris: <TetrisGame />,
     };
