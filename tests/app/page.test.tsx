@@ -3,9 +3,10 @@ import { render, screen } from "@testing-library/react";
 import HomePage from "../../app/page";
 
 describe("app/page", () => {
-    it("renders quick start link to /practice", () => {
+    it("renders mode selection landing page", () => {
         render(<HomePage />);
-        const startLink = screen.getByRole("link", { name: "바로 시작" });
-        expect(startLink).toHaveAttribute("href", "/practice");
+        expect(screen.getByText("타이핑 게임 모드 선택")).toBeInTheDocument();
+        expect(screen.getByRole("link", { name: "바로 시작" })).toHaveAttribute("href", "/practice");
+        expect(screen.getByRole("link", { name: /테트리스/ })).toHaveAttribute("href", "/tetris");
     });
 });

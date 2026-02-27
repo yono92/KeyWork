@@ -21,6 +21,9 @@ vi.mock("../../src/components/DictationGame", () => ({
 vi.mock("../../src/components/WordChainGame", () => ({
     default: () => <div data-testid="word-chain" />,
 }));
+vi.mock("../../src/components/TetrisGame", () => ({
+    default: () => <div data-testid="tetris" />,
+}));
 
 describe("MainLayout", () => {
     beforeEach(() => {
@@ -46,5 +49,10 @@ describe("MainLayout", () => {
     it("renders falling words view", () => {
         render(<MainLayout gameMode="falling-words" />);
         expect(screen.getByTestId("falling-words")).toBeInTheDocument();
+    });
+
+    it("renders tetris view", () => {
+        render(<MainLayout gameMode="tetris" />);
+        expect(screen.getByTestId("tetris")).toBeInTheDocument();
     });
 });

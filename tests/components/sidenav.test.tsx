@@ -29,11 +29,19 @@ describe("SideNav", () => {
         expect(screen.getAllByText("Word Chain").length).toBeGreaterThan(0);
     });
 
-    it("calls router push when menu is clicked", () => {
+    it("calls router push when visible menu is clicked", () => {
         render(<SideNav />);
         const target = screen.getAllByRole("button", { name: "Word Chain" })[0];
         fireEvent.click(target);
         const mockPush = (nav as unknown as { __mockPush: ReturnType<typeof vi.fn> }).__mockPush;
         expect(mockPush).toHaveBeenCalledWith("/word-chain");
+    });
+
+    it("can navigate to tetris mode", () => {
+        render(<SideNav />);
+        const target = screen.getAllByRole("button", { name: "Tetris" })[0];
+        fireEvent.click(target);
+        const mockPush = (nav as unknown as { __mockPush: ReturnType<typeof vi.fn> }).__mockPush;
+        expect(mockPush).toHaveBeenCalledWith("/tetris");
     });
 });

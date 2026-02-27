@@ -27,7 +27,7 @@ KeyWork 저장소에서 작업하는 코딩 에이전트 공통 실행 지침이
 ## 핵심 구조
 
 - 엔트리: `app/layout.tsx`
-- 루트 리다이렉트: `app/page.tsx` -> `/practice`
+- 루트 랜딩: `app/page.tsx` (모드 선택 페이지)
 - 라우트 그룹 레이아웃: `app/(game)/layout.tsx`
 - 게임 라우트:
 - `app/(game)/practice/page.tsx`
@@ -67,6 +67,22 @@ KeyWork 저장소에서 작업하는 코딩 에이전트 공통 실행 지침이
 2. 구현은 요청 범위 내에서 최소 단위로 진행한다.
 3. 변경 후 검증 명령을 실행한다.
 4. 요약 보고 시 리스크/후속 작업이 있으면 함께 제시한다.
+
+## SDD 워크플로우 (필수)
+
+1. 기능 작업은 반드시 `specs/[feature-name]/`에서 시작한다.
+2. 문서 작성 순서는 `README.md -> spec.md -> plan.md`를 고정한다.
+3. 구현 작업 단위는 `tasks.md`에만 정의한다.
+4. `progress.md`는 `tasks.md` 상태를 그대로 미러링한다.
+5. 기술 이슈/의사결정/학습 내용은 `findings.md`에 날짜와 함께 누적 기록한다.
+6. 상태 값은 `대기`, `진행중`, `완료`, `차단`만 사용하고, `진행중` 작업은 동시에 1개만 둔다.
+
+### SDD Definition of Done
+
+1. 해당 task가 `tasks.md`에서 완료 처리됨
+2. `progress.md`가 동일 상태로 동기화됨
+3. `findings.md`에 근거(결정/리스크/테스트 결과)가 기록됨
+4. `npm run lint`, `npm run test:run`, `npm run build` 통과
 
 ## 검증 명령
 

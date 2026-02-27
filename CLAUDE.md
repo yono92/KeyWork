@@ -15,7 +15,7 @@ KeyWork는 한국어/영어 타이핑 연습 웹앱으로, 6가지 게임 모드
 - `npm run preview` — 프로덕션 빌드 미리보기 (`next start`)
 - `npm run reset:cache` — `.next` 캐시 삭제
 
-테스트 프레임워크는 설정되어 있지 않음 (vitest 설치되어 있으나 테스트 없음).
+테스트는 Vitest 기반으로 구성되어 있으며 `tests/`에 단위/스모크 테스트가 존재합니다.
 
 ## 기술 스택
 
@@ -78,3 +78,32 @@ Zustand 단일 스토어 (`useTypingStore`)로 전역 상태 관리. **`darkMode
 - 오디오는 브라우저 정책상 사용자 상호작용(클릭/키입력) 후에야 AudioContext 생성 가능
 - TypingInput은 입력 중 잘못된 키보드 배열 감지 시 언어 전환 확인
 - 끝말잇기 타이머는 API 검증 중(`isValidatingWord`)과 AI 차례(`isAiTurn`) 동안 일시정지 (Vercel API 지연 대응)
+
+## SDD (Spec-Driven Development) 규칙
+
+기능 개발은 아래 순서를 반드시 따릅니다.
+
+1. `specs/[feature-name]/README.md` 작성
+- 기능 배경, 목적, 범위/제외 범위 요약
+
+2. `specs/[feature-name]/spec.md` 작성 (Outside-in)
+- 사용자 스토리
+- 기능/비기능 요구사항
+- Acceptance Criteria
+
+3. `specs/[feature-name]/plan.md` 작성
+- 기술 설계, 영향 파일, 리스크, 테스트 전략
+
+4. `specs/[feature-name]/tasks.md` 작성
+- 구현 가능한 작업 단위로 분해
+- 완료 조건 명시
+
+5. 구현 추적
+- `progress.md`는 `tasks.md`를 미러링
+- 구현 중 발견사항은 `findings.md`에 누적
+
+### 상태/완료 규칙
+
+- 상태 값: `대기`, `진행중`, `완료`, `차단`
+- 한 시점에 `진행중` task는 1개만 유지
+- 완료 시 `lint`, `test:run`, `build`를 모두 통과해야 함

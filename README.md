@@ -3,8 +3,8 @@
 KeyWork는 한국어/영어 타이핑 연습 웹앱으로, 7가지 게임 모드를 제공합니다.
 Next.js App Router 기반으로 동작하며, Vercel에 배포되어 있습니다.
 
-- 배포 주소: https://keywork-app.vercel.app
-- 기본 진입 경로: `/practice`
+- 배포 주소: https://key-work-rho.vercel.app
+- 기본 진입 경로: `/` (모드 선택 랜딩), 빠른 시작: `/practice`
 
 ## 기술 스택
 
