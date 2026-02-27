@@ -13,7 +13,6 @@ describe("SideNav", () => {
             darkMode: false,
             progress: 0,
             text: "Start typing practice.",
-            input: "",
             gameMode: "practice",
             language: "english",
             isMuted: false,

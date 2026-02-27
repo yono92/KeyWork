@@ -145,31 +145,25 @@ const FallingWordsGame: React.FC = () => {
         }
     }, [language]);
 
+    // 한국어 단어 풀 초기 로딩 + 부족 시 보충
     useEffect(() => {
-        if (language === "korean") {
+        if (language === "korean" && koreanWords.length < 50) {
             void fetchKoreanWords();
         }
-    }, [language, fetchKoreanWords]);
+    }, [language, koreanWords.length, fetchKoreanWords]);
 
     const getRandomWord = useCallback((): string => {
         if (language === "korean") {
-            // API 단어가 아직 없으면 로컬 word.json 폴백 사용
             const pool = koreanWords.length > 0 ? koreanWords : wordsData.korean;
-            if (koreanWords.length === 0) {
-                void fetchKoreanWords();
-            } else if (koreanWords.length < 50) {
-                void fetchKoreanWords();
-            }
             return pool[Math.floor(Math.random() * pool.length)];
         }
 
         const wordsList = wordsData[language];
         if (!Array.isArray(wordsList) || wordsList.length === 0) {
-            console.error("Invalid words data structure");
             return "";
         }
         return wordsList[Math.floor(Math.random() * wordsList.length)];
-    }, [language, koreanWords, fetchKoreanWords]);
+    }, [language, koreanWords]);
 
     const updateActiveEffects = (effect: string, duration: number) => {
         if (activeTimersRef.current[effect]) {

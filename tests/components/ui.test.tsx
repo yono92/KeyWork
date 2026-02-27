@@ -18,7 +18,6 @@ describe("UI components", () => {
             darkMode: false,
             progress: 25,
             text: "Start typing practice.",
-            input: "",
             gameMode: "practice",
             language: "english",
             isMuted: false,

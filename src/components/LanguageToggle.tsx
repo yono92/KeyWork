@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { BsGlobe } from "react-icons/bs";
+import { Globe } from "lucide-react";
 import { usePathname } from "next/navigation";
 import useTypingStore from "../store/store";
 import { Button } from "@/components/ui/button";
@@ -35,7 +35,7 @@ const LanguageToggle: React.FC<LanguageToggleProps> = ({ className = "" }) => {
                     : "Switch to Korean"
             }
         >
-            <BsGlobe size={16} />
+            <Globe size={16} />
         </Button>
     );
 };

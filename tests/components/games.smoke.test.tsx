@@ -14,7 +14,6 @@ describe("game components smoke", () => {
             darkMode: false,
             progress: 0,
             text: "Start typing practice.",
-            input: "",
             gameMode: "practice",
             language: "korean",
             isMuted: true,

@@ -1,5 +1,5 @@
 import React from "react";
-import { BsVolumeMuteFill, BsVolumeUpFill } from "react-icons/bs";
+import { VolumeX, Volume2 } from "lucide-react";
 import useTypingStore from "../store/store";
 import { Button } from "@/components/ui/button";
 
@@ -20,9 +20,9 @@ const MuteToggle: React.FC<MuteToggleProps> = ({ className = "" }) => {
             aria-label={isMuted ? "음소거 해제" : "음소거"}
         >
             {isMuted ? (
-                <BsVolumeMuteFill size={16} />
+                <VolumeX size={16} />
             ) : (
-                <BsVolumeUpFill size={16} />
+                <Volume2 size={16} />
             )}
         </Button>
     );

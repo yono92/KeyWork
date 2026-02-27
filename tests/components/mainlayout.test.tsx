@@ -3,6 +3,14 @@ import { render, screen } from "@testing-library/react";
 import MainLayout from "../../src/components/MainLayout";
 import useTypingStore from "../../src/store/store";
 
+vi.mock("next/dynamic", () => ({
+    default: (loader: () => Promise<{ default: React.ComponentType }>) => {
+        let Comp: React.ComponentType | null = null;
+        loader().then((m) => { Comp = m.default; });
+        return (props: Record<string, unknown>) => Comp ? <Comp {...props} /> : null;
+    },
+}));
+
 vi.mock("../../src/components/TypingInput", () => ({
     default: () => <div data-testid="typing-input" />,
 }));
@@ -25,7 +33,6 @@ describe("MainLayout", () => {
             darkMode: false,
             progress: 0,
             text: "Start typing practice.",
-            input: "",
             gameMode: "practice",
             language: "korean",
             isMuted: false,

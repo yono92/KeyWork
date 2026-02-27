@@ -38,7 +38,6 @@ interface TypingState {
     darkMode: boolean;
     progress: number;
     text: string;
-    input: string;
     gameMode: GameMode;
     language: "korean" | "english";
     isMuted: boolean;
@@ -50,7 +49,6 @@ interface TypingState {
     toggleDarkMode: () => void;
     setProgress: (progress: number) => void;
     setText: (text: string) => void;
-    setInput: (input: string) => void;
     setGameMode: (mode: GameMode) => void;
     toggleLanguage: () => void;
     setLanguage: (language: "korean" | "english") => void;
@@ -68,7 +66,6 @@ const useTypingStore = create<TypingState>((set) => ({
     darkMode: false,
     progress: 0,
     text: "Start typing practice.",
-    input: "",
     gameMode: "practice",
     language: "korean",
     isMuted: false,
@@ -98,7 +95,6 @@ const useTypingStore = create<TypingState>((set) => ({
         }),
     setProgress: (progress: number) => set({ progress }),
     setText: (text: string) => set({ text }),
-    setInput: (input: string) => set({ input }),
     setGameMode: (gameMode: GameMode) => set({ gameMode }),
     toggleLanguage: () =>
         set((state) => {

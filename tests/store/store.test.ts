@@ -7,7 +7,6 @@ describe("useTypingStore", () => {
             darkMode: false,
             progress: 0,
             text: "Start typing practice.",
-            input: "",
             gameMode: "practice",
             language: "korean",
             isMuted: false,
@@ -27,12 +26,10 @@ describe("useTypingStore", () => {
         expect(useTypingStore.getState().language).toBe("english");
     });
 
-    it("sets progress/text/input", () => {
+    it("sets progress/text", () => {
         useTypingStore.getState().setProgress(55);
         useTypingStore.getState().setText("abc");
-        useTypingStore.getState().setInput("a");
         expect(useTypingStore.getState().progress).toBe(55);
         expect(useTypingStore.getState().text).toBe("abc");
-        expect(useTypingStore.getState().input).toBe("a");
     });
 });
