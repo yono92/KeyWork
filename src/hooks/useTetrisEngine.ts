@@ -133,6 +133,9 @@ const getLineScore = (removed: number, level: number): number => {
     return 800 * level;
 };
 
+/** 라인 클리어 애니메이션 지속 시간 (ms) — flash 후 보드 갱신 */
+const LINE_CLEAR_DELAY = 500;
+
 export interface TetrisCallbacks {
     onLinesCleared: (rows: number[], removed: number, totalGain: number, combo: number) => void;
     onHardDrop: (distance: number, landingRow: number) => void;
@@ -154,9 +157,11 @@ export function useTetrisEngine(callbacks: TetrisCallbacks, isMobile: boolean) {
     const [paused, setPaused] = useState(false);
     const [gameOver, setGameOver] = useState(false);
     const [combo, setCombo] = useState(0);
+    const [clearing, setClearing] = useState(false);
 
     const callbacksRef = useRef(callbacks);
     callbacksRef.current = callbacks;
+    const clearTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const level = Math.min(10, Math.floor(lines / 10) + 1);
     const dropIntervalMs = isMobile
@@ -164,6 +169,7 @@ export function useTetrisEngine(callbacks: TetrisCallbacks, isMobile: boolean) {
         : Math.max(140, 620 - (level - 1) * 45);
 
     const resetGame = useCallback(() => {
+        if (clearTimerRef.current) clearTimeout(clearTimerRef.current);
         const firstType = randomPieceType();
         setBoard(makeEmptyBoard());
         setActivePiece(createActivePiece(firstType));
@@ -176,6 +182,7 @@ export function useTetrisEngine(callbacks: TetrisCallbacks, isMobile: boolean) {
         setPaused(false);
         setRunning(true);
         setCombo(0);
+        setClearing(false);
     }, []);
 
     const spawnFromQueue = useCallback(
@@ -208,26 +215,38 @@ export function useTetrisEngine(callbacks: TetrisCallbacks, isMobile: boolean) {
             const totalGain = lineScore + comboBonus;
             setLines((prev) => prev + removed);
             setScore((prev) => prev + totalGain);
+
+            // Phase 1: 머지된 보드(꽉 찬 행 포함)를 보여주면서 플래시
+            setBoard(merged);
+            setClearing(true);
+            // 활성 피스를 화면 밖으로 (렌더 오버레이 방지)
+            setActivePiece((prev) => ({ ...prev, y: -10 }));
             callbacksRef.current.onLinesCleared(clearedRows, removed, totalGain, newCombo);
+
+            // Phase 2: 애니메이션 후 실제 행 제거 + 다음 피스
+            clearTimerRef.current = setTimeout(() => {
+                setBoard(nextBoard);
+                setClearing(false);
+                spawnFromQueue(nextBoard);
+            }, LINE_CLEAR_DELAY);
         } else {
             setCombo(0);
+            setBoard(merged);
+            spawnFromQueue(merged);
         }
-
-        setBoard(nextBoard);
-        spawnFromQueue(nextBoard);
     }, [activePiece, board, combo, level, spawnFromQueue]);
 
     const moveHorizontal = useCallback(
         (deltaX: number) => {
-            if (!running || paused || gameOver) return;
+            if (!running || paused || gameOver || clearing) return;
             if (!canPlace(board, activePiece, deltaX, 0)) return;
             setActivePiece((prev) => ({ ...prev, x: prev.x + deltaX }));
         },
-        [activePiece, board, gameOver, paused, running],
+        [activePiece, board, clearing, gameOver, paused, running],
     );
 
     const rotatePiece = useCallback(() => {
-        if (!running || paused || gameOver) return;
+        if (!running || paused || gameOver || clearing) return;
         const nextRotation = (activePiece.rotation + 1) % PIECES[activePiece.type].length;
         const kicks = [0, -1, 1, -2, 2];
         const kickX = kicks.find((offset) => canPlace(board, activePiece, offset, 0, nextRotation));
@@ -238,19 +257,19 @@ export function useTetrisEngine(callbacks: TetrisCallbacks, isMobile: boolean) {
             x: prev.x + kickX,
             rotation: nextRotation,
         }));
-    }, [activePiece, board, gameOver, paused, running]);
+    }, [activePiece, board, clearing, gameOver, paused, running]);
 
     const softDrop = useCallback(() => {
-        if (!running || paused || gameOver) return;
+        if (!running || paused || gameOver || clearing) return;
         if (canPlace(board, activePiece, 0, 1)) {
             setActivePiece((prev) => ({ ...prev, y: prev.y + 1 }));
             return;
         }
         lockPiece();
-    }, [activePiece, board, gameOver, lockPiece, paused, running]);
+    }, [activePiece, board, clearing, gameOver, lockPiece, paused, running]);
 
     const hardDrop = useCallback(() => {
-        if (!running || paused || gameOver) return;
+        if (!running || paused || gameOver || clearing) return;
         let distance = 0;
         while (canPlace(board, activePiece, 0, distance + 1)) {
             distance += 1;
@@ -273,17 +292,28 @@ export function useTetrisEngine(callbacks: TetrisCallbacks, isMobile: boolean) {
             const totalGain = lineScore + comboBonus;
             setLines((prev) => prev + removed);
             setScore((prev) => prev + totalGain);
+
+            // Phase 1: 머지된 보드(꽉 찬 행)를 보여주면서 플래시
+            setBoard(merged);
+            setClearing(true);
+            setActivePiece((prev) => ({ ...prev, y: -10 }));
             callbacksRef.current.onLinesCleared(clearedRows, removed, totalGain, newCombo);
+
+            // Phase 2: 애니메이션 후 행 제거 + 스폰
+            clearTimerRef.current = setTimeout(() => {
+                setBoard(nextBoard);
+                setClearing(false);
+                spawnFromQueue(nextBoard);
+            }, LINE_CLEAR_DELAY);
         } else {
             setCombo(0);
+            setBoard(merged);
+            spawnFromQueue(merged);
         }
-
-        setBoard(nextBoard);
-        spawnFromQueue(nextBoard);
-    }, [activePiece, board, combo, gameOver, level, paused, running, spawnFromQueue]);
+    }, [activePiece, board, clearing, combo, gameOver, level, paused, running, spawnFromQueue]);
 
     const holdPiece = useCallback(() => {
-        if (!running || paused || gameOver || holdUsedThisTurn) return;
+        if (!running || paused || gameOver || clearing || holdUsedThisTurn) return;
 
         if (heldPieceType === null) {
             setHeldPieceType(activePiece.type);
@@ -298,16 +328,16 @@ export function useTetrisEngine(callbacks: TetrisCallbacks, isMobile: boolean) {
         setHeldPieceType(activePiece.type);
         setActivePiece(swappedPiece);
         setHoldUsedThisTurn(true);
-    }, [activePiece, board, gameOver, heldPieceType, holdUsedThisTurn, paused, running, spawnFromQueue]);
+    }, [activePiece, board, clearing, gameOver, heldPieceType, holdUsedThisTurn, paused, running, spawnFromQueue]);
 
-    // Gravity timer
+    // Gravity timer — clearing 중엔 일시정지
     useEffect(() => {
-        if (!running || paused || gameOver) return;
+        if (!running || paused || gameOver || clearing) return;
         const id = window.setInterval(() => {
             softDrop();
         }, dropIntervalMs);
         return () => window.clearInterval(id);
-    }, [dropIntervalMs, gameOver, paused, running, softDrop]);
+    }, [clearing, dropIntervalMs, gameOver, paused, running, softDrop]);
 
     // Keyboard input
     useEffect(() => {
@@ -357,7 +387,7 @@ export function useTetrisEngine(callbacks: TetrisCallbacks, isMobile: boolean) {
     }, [activePiece, board]);
 
     const ghostCells = useMemo(() => {
-        if (!running || gameOver) return new Set<string>();
+        if (!running || gameOver || clearing) return new Set<string>();
         let distance = 0;
         while (canPlace(board, activePiece, 0, distance + 1)) {
             distance += 1;
@@ -372,7 +402,7 @@ export function useTetrisEngine(callbacks: TetrisCallbacks, isMobile: boolean) {
             }
         }
         return cells;
-    }, [activePiece, board, gameOver, running]);
+    }, [activePiece, board, clearing, gameOver, running]);
 
     return {
         board,
@@ -387,6 +417,7 @@ export function useTetrisEngine(callbacks: TetrisCallbacks, isMobile: boolean) {
         running,
         paused,
         gameOver,
+        clearing,
         dropIntervalMs,
         renderedBoard,
         ghostCells,

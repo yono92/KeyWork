@@ -45,7 +45,7 @@ export default function TetrisGame() {
         prevLevelRef.current = engine.level;
     }, [engine.level, engine.running, anim]);
 
-    const controlsDisabled = !engine.running || engine.paused || engine.gameOver;
+    const controlsDisabled = !engine.running || engine.paused || engine.gameOver || engine.clearing;
     const boardPx = cellSize * BOARD_WIDTH;
 
     const bevel = (inset = false) => ({
