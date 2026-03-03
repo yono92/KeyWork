@@ -1,56 +1,12 @@
-import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import React, { useCallback, useMemo } from "react";
 import useTypingStore from "../store/store";
-import wordsData from "../data/word.json";
 import { formatPlayTime } from "../utils/formatting";
-import { useGameAudio } from "../hooks/useGameAudio";
-import { usePauseHandler } from "../hooks/usePauseHandler";
 import PauseOverlay from "./game/PauseOverlay";
 import GameOverModal from "./game/GameOverModal";
 import GameInput from "./game/GameInput";
 import { Button } from "@/components/ui/button";
-
-// --- 게임 상수 ---
-const CHAR_X_PERCENT = 15;
-const GROUND_BOTTOM = 22;
-const INITIAL_SPEED = 2;
-const SPEED_INCREMENT = 0.1;
-const INITIAL_LIVES = 3;
-const JUMP_DURATION = 650;
-const HIT_DURATION = 500;
-const HIT_INVINCIBILITY = 1200;
-
-import { pickRandomStarts, HANGUL_WORD_REGEX } from "../utils/koreanConstants";
-
-const OBSTACLE_TYPES: Array<"cactus" | "rock" | "crate" | "fire"> = ["cactus", "rock", "crate", "fire"];
-
-interface Obstacle {
-    id: number;
-    x: number;
-    word: string;
-    cleared: boolean;
-    clearedAt?: number;
-    type: "cactus" | "rock" | "crate" | "fire";
-}
-
-interface ScorePopup {
-    id: number;
-    text: string;
-    x: number;
-    bottom: number;
-}
-
-interface DustParticle {
-    id: number;
-    dx: number;
-}
-
-interface ClearParticle {
-    id: number;
-    x: number;
-    bottom: number;
-    color: string;
-    angle: number;
-}
+import { useRunnerEngine, CHAR_X_PERCENT, INITIAL_LIVES, OBSTACLE_CLEAR_COLORS } from "../hooks/useRunnerEngine";
+import { useParticleSystem } from "../hooks/useParticleSystem";
 
 // --- 하늘 색상 보간 ---
 function lerpColor(a: [number, number, number], b: [number, number, number], t: number): string {
@@ -95,48 +51,30 @@ function getSkyGradient(dist: number, dark: boolean): string {
     return `linear-gradient(to bottom, ${top}, ${bot})`;
 }
 
-// --- 장애물 색상 맵 ---
-const OBSTACLE_CLEAR_COLORS: Record<string, string> = {
-    cactus: "#34d399",
-    rock: "#94a3b8",
-    crate: "#fbbf24",
-    fire: "#fb923c",
-};
-
 // --- SVG 픽셀아트 캐릭터 ---
 const PixelCharacter: React.FC<{ state: "running" | "jumping" | "hit"; frame: 0 | 1 }> = ({ state, frame }) => {
-    // 12x16 grid, each cell = 1 unit
     const skin = "#f5c6a0";
     const hair = "#4a3728";
     const eye = "#1a1a2e";
     const shirt = "#38bdf8";
     const pants = "#475569";
     const shoe = "#ef4444";
-
     const hitEye = state === "hit";
-
-    // Leg positions for running animation
     const leftLegX = frame === 0 ? 3 : 5;
     const rightLegX = frame === 0 ? 7 : 5;
     const leftFootX = frame === 0 ? 2 : 5;
     const rightFootX = frame === 0 ? 8 : 6;
-
-    // Arm position for jump
     const armRaised = state === "jumping";
 
     return (
         <svg viewBox="0 0 12 16" className="w-12 h-16 sm:w-16 sm:h-[85px]" style={{ imageRendering: "pixelated" }}>
-            {/* Hair */}
             <rect x="3" y="0" width="6" height="1" fill={hair} />
             <rect x="2" y="1" width="7" height="1" fill={hair} />
-            {/* Head */}
             <rect x="3" y="2" width="6" height="4" fill={skin} />
             <rect x="2" y="3" width="1" height="2" fill={skin} />
             <rect x="9" y="3" width="1" height="2" fill={skin} />
-            {/* Eyes */}
             {hitEye ? (
                 <>
-                    {/* X eyes */}
                     <rect x="4" y="3" width="1" height="1" fill={eye} />
                     <rect x="5" y="4" width="1" height="1" fill={eye} opacity="0.5" />
                     <rect x="7" y="3" width="1" height="1" fill={eye} />
@@ -148,10 +86,8 @@ const PixelCharacter: React.FC<{ state: "running" | "jumping" | "hit"; frame: 0 
                     <rect x="7" y="4" width="1" height="1" fill={eye} />
                 </>
             )}
-            {/* Body / Shirt */}
             <rect x="3" y="6" width="6" height="4" fill={shirt} />
-            <rect x="4" y="6" width="4" height="1" fill="#7dd3fc" /> {/* collar highlight */}
-            {/* Arms */}
+            <rect x="4" y="6" width="4" height="1" fill="#7dd3fc" />
             {armRaised ? (
                 <>
                     <rect x="1" y="4" width="2" height="1" fill={shirt} />
@@ -167,13 +103,10 @@ const PixelCharacter: React.FC<{ state: "running" | "jumping" | "hit"; frame: 0 
                     <rect x="9" y="9" width="2" height="1" fill={skin} />
                 </>
             )}
-            {/* Legs */}
             <rect x={leftLegX} y="10" width="2" height="3" fill={pants} />
             <rect x={rightLegX} y="10" width="2" height="3" fill={pants} />
-            {/* Shoes */}
             <rect x={leftFootX} y="13" width="3" height="1" fill={shoe} />
             <rect x={rightFootX} y="13" width="3" height="1" fill={shoe} />
-            {/* Belt */}
             <rect x="3" y="10" width="6" height="1" fill="#334155" />
         </svg>
     );
@@ -185,23 +118,18 @@ const ObstacleSVG: React.FC<{ type: "cactus" | "rock" | "crate" | "fire" }> = ({
         case "cactus":
             return (
                 <svg viewBox="0 0 20 28" className="w-8 h-11 sm:w-10 sm:h-14">
-                    {/* Main stem */}
                     <rect x="8" y="4" width="4" height="20" rx="1" fill="#059669" />
                     <rect x="9" y="4" width="2" height="20" fill="#10b981" />
-                    {/* Left branch */}
                     <rect x="3" y="10" width="5" height="3" rx="1" fill="#059669" />
                     <rect x="3" y="7" width="3" height="6" rx="1" fill="#059669" />
                     <rect x="4" y="8" width="1" height="4" fill="#10b981" />
-                    {/* Right branch */}
                     <rect x="12" y="14" width="5" height="3" rx="1" fill="#059669" />
                     <rect x="14" y="11" width="3" height="6" rx="1" fill="#059669" />
                     <rect x="15" y="12" width="1" height="4" fill="#10b981" />
-                    {/* Spines */}
                     <rect x="7" y="6" width="1" height="1" fill="#a7f3d0" />
                     <rect x="12" y="8" width="1" height="1" fill="#a7f3d0" />
                     <rect x="7" y="14" width="1" height="1" fill="#a7f3d0" />
                     <rect x="12" y="18" width="1" height="1" fill="#a7f3d0" />
-                    {/* Pot base */}
                     <rect x="6" y="24" width="8" height="4" rx="1" fill="#92400e" />
                     <rect x="7" y="24" width="6" height="1" fill="#b45309" />
                 </svg>
@@ -211,9 +139,7 @@ const ObstacleSVG: React.FC<{ type: "cactus" | "rock" | "crate" | "fire" }> = ({
                 <svg viewBox="0 0 24 20" className="w-9 h-7 sm:w-12 sm:h-9">
                     <polygon points="4,18 1,12 3,6 8,2 16,2 21,6 23,12 20,18" fill="#64748b" />
                     <polygon points="5,17 3,12 5,7 9,4 15,4 19,7 21,12 18,17" fill="#94a3b8" />
-                    {/* Highlight */}
                     <polygon points="7,8 10,5 14,5 16,8 12,10" fill="#cbd5e1" opacity="0.5" />
-                    {/* Crack */}
                     <line x1="10" y1="8" x2="12" y2="14" stroke="#475569" strokeWidth="0.5" />
                     <line x1="12" y1="14" x2="14" y2="12" stroke="#475569" strokeWidth="0.5" />
                 </svg>
@@ -221,16 +147,12 @@ const ObstacleSVG: React.FC<{ type: "cactus" | "rock" | "crate" | "fire" }> = ({
         case "crate":
             return (
                 <svg viewBox="0 0 20 20" className="w-8 h-8 sm:w-10 sm:h-10">
-                    {/* Box body */}
                     <rect x="1" y="1" width="18" height="18" rx="1" fill="#d97706" />
                     <rect x="2" y="2" width="16" height="16" fill="#f59e0b" />
-                    {/* Cross pattern */}
                     <rect x="9" y="2" width="2" height="16" fill="#b45309" />
                     <rect x="2" y="9" width="16" height="2" fill="#b45309" />
-                    {/* Edges */}
                     <rect x="2" y="2" width="16" height="1" fill="#fbbf24" />
                     <rect x="2" y="2" width="1" height="16" fill="#fbbf24" />
-                    {/* Corner nails */}
                     <rect x="3" y="3" width="2" height="2" rx="1" fill="#78350f" />
                     <rect x="15" y="3" width="2" height="2" rx="1" fill="#78350f" />
                     <rect x="3" y="15" width="2" height="2" rx="1" fill="#78350f" />
@@ -240,13 +162,9 @@ const ObstacleSVG: React.FC<{ type: "cactus" | "rock" | "crate" | "fire" }> = ({
         case "fire":
             return (
                 <svg viewBox="0 0 20 26" className="w-8 h-10 sm:w-10 sm:h-13 animate-runner-flame">
-                    {/* Outer flame */}
                     <path d="M10,1 C10,1 3,10 3,17 C3,22 6,25 10,25 C14,25 17,22 17,17 C17,10 10,1 10,1Z" fill="#f43f5e" />
-                    {/* Middle flame */}
                     <path d="M10,6 C10,6 5,13 5,18 C5,21 7,23 10,23 C13,23 15,21 15,18 C15,13 10,6 10,6Z" fill="#fb923c" />
-                    {/* Inner flame */}
                     <path d="M10,11 C10,11 7,15 7,18 C7,20 8,22 10,22 C12,22 13,20 13,18 C13,15 10,11 10,11Z" fill="#fbbf24" />
-                    {/* Core */}
                     <ellipse cx="10" cy="20" rx="2" ry="2.5" fill="#fef3c7" />
                 </svg>
             );
@@ -283,413 +201,51 @@ const Stars: React.FC = () => {
     );
 };
 
+const GROUND_BOTTOM = 22;
+
 const TypingRunnerGame: React.FC = () => {
     const darkMode = useTypingStore((s) => s.darkMode);
     const retroTheme = useTypingStore((s) => s.retroTheme);
     const language = useTypingStore((s) => s.language);
 
-    const [gameStarted, setGameStarted] = useState(false);
-    const [gameOver, setGameOver] = useState(false);
-    const [isPaused, setIsPaused] = useState(false);
-    const [countdown, setCountdown] = useState<number | null>(null);
-    const [score, setScore] = useState(0);
-    const [lives, setLives] = useState(INITIAL_LIVES);
-    const [obstacles, setObstacles] = useState<Obstacle[]>([]);
-    const [charState, setCharState] = useState<"running" | "jumping" | "hit">("running");
-    const [input, setInput] = useState("");
-    const [inputKey, setInputKey] = useState(0);
-    const [distance, setDistance] = useState(0);
-    const [isInvincible, setIsInvincible] = useState(false);
-    const [scorePopups, setScorePopups] = useState<ScorePopup[]>([]);
-    const [koreanWords, setKoreanWords] = useState<string[]>([]);
+    const particles = useParticleSystem();
 
-    // 새 비주얼 State
-    const [runFrame, setRunFrame] = useState<0 | 1>(0);
-    const [dustParticles, setDustParticles] = useState<DustParticle[]>([]);
-    const [clearParticles, setClearParticles] = useState<ClearParticle[]>([]);
-    const [isShaking, setIsShaking] = useState(false);
-    const [hitFlash, setHitFlash] = useState(false);
-    const [milestone, setMilestone] = useState<number | null>(null);
+    const onHit = useCallback(() => {
+        particles.triggerShake();
+    }, [particles]);
 
-    const gameAreaRef = useRef<HTMLDivElement>(null);
-    const inputRef = useRef<HTMLInputElement>(null);
-    const speedRef = useRef(INITIAL_SPEED);
-    const obstacleIdRef = useRef(0);
-    const clearedCountRef = useRef(0);
-    const lastSpawnTimeRef = useRef(0);
-    const invincibleRef = useRef(false);
-    const gameStartTimeRef = useRef(Date.now());
-    const maxSpeedRef = useRef(INITIAL_SPEED);
-    const lastMilestoneRef = useRef(0);
-    const clearTimeRef = useRef(0);
-    const recentWordsRef = useRef<string[]>([]);
-
-    const { playSound } = useGameAudio();
-    usePauseHandler(gameStarted, gameOver, setIsPaused);
-
-    // --- 달리기 프레임 토글 ---
-    useEffect(() => {
-        if (!gameStarted || gameOver || isPaused || charState !== "running") return;
-        const interval = setInterval(() => setRunFrame((f) => (f === 0 ? 1 : 0)), 200);
-        return () => clearInterval(interval);
-    }, [gameStarted, gameOver, isPaused, charState]);
-
-    // --- 점수 팝업 ---
-    const showScorePopup = (text: string, x: number) => {
-        const id = Date.now() + Math.random();
-        setScorePopups((prev) => [...prev, { id, text, x, bottom: GROUND_BOTTOM + 8 }]);
-        setTimeout(() => {
-            setScorePopups((prev) => prev.filter((p) => p.id !== id));
-        }, 800);
-    };
-
-    // --- 먼지 파티클 ---
-    const spawnDust = () => {
-        const particles: DustParticle[] = Array.from({ length: 4 }, (_, i) => ({
-            id: Date.now() + i,
-            dx: (Math.random() - 0.5) * 30,
-        }));
-        setDustParticles(particles);
-        setTimeout(() => setDustParticles([]), 400);
-    };
-
-    // --- 클리어 파티클 ---
-    const spawnClearParticles = (x: number, type: string) => {
+    const onClear = useCallback((x: number, type: string, wordScore: number) => {
         const color = OBSTACLE_CLEAR_COLORS[type] ?? "#38bdf8";
-        const newParticles: ClearParticle[] = Array.from({ length: 6 }, (_, i) => ({
-            id: Date.now() + i + Math.random(),
-            x,
-            bottom: GROUND_BOTTOM + 4,
-            color,
-            angle: (360 / 6) * i + (Math.random() * 30 - 15),
-        }));
-        setClearParticles((prev) => [...prev, ...newParticles]);
-        setTimeout(() => {
-            setClearParticles((prev) => prev.filter((p) => !newParticles.includes(p)));
-        }, 500);
-    };
+        particles.showScorePopup(`+${wordScore}`, x);
+        particles.spawnClearParticles(x, color);
+        particles.spawnDust();
+    }, [particles]);
 
-    // --- 화면 흔들림 ---
-    const triggerShake = () => {
-        setIsShaking(true);
-        setHitFlash(true);
-        setTimeout(() => setIsShaking(false), 400);
-        setTimeout(() => setHitFlash(false), 300);
-    };
-
-    // --- 한국어 단어 API 로딩 ---
-    const fetchKoreanWords = useCallback(async () => {
-        if (language !== "korean") return;
-        try {
-            const starts = encodeURIComponent(pickRandomStarts(15).join(","));
-            const response = await fetch(`/api/krdict/candidates?starts=${starts}&num=300`);
-            if (!response.ok) return;
-            const data: unknown = await response.json();
-            if (
-                typeof data === "object" &&
-                data !== null &&
-                "words" in data &&
-                Array.isArray((data as { words: unknown }).words)
-            ) {
-                const words = ((data as { words: string[] }).words ?? [])
-                    .map((w) => w.trim())
-                    .filter((w) => HANGUL_WORD_REGEX.test(w));
-                if (words.length > 0) {
-                    setKoreanWords([...new Set(words)]);
-                }
-            }
-        } catch {
-            // ignore
-        }
-    }, [language]);
-
-    useEffect(() => {
-        if (language === "korean") {
-            void fetchKoreanWords();
-        }
-    }, [language, fetchKoreanWords]);
-
-    const getSharedPrefixLength = useCallback((a: string, b: string): number => {
-        const max = Math.min(a.length, b.length);
-        let i = 0;
-        while (i < max && a[i] === b[i]) i += 1;
-        return i;
+    const onMilestone = useCallback(() => {
+        // Visual handled by engine milestone state
     }, []);
 
-    const isTooSimilarWord = useCallback(
-        (candidate: string, languageKey: "korean" | "english"): boolean => {
-            const recent = recentWordsRef.current;
-            for (let i = recent.length - 1; i >= 0; i -= 1) {
-                const prev = recent[i];
-                if (candidate === prev) return true;
-                const sharedPrefix = getSharedPrefixLength(candidate, prev);
-                const isImmediatePrevious = i === recent.length - 1;
+    const onGameOver = useCallback(() => {
+        // Visual handled by render
+    }, []);
 
-                if (languageKey === "korean") {
-                    if (sharedPrefix >= 2) return true;
-                    if (isImmediatePrevious && sharedPrefix >= 1) return true;
-                    continue;
-                }
+    const engine = useRunnerEngine({ onHit, onClear, onMilestone, onGameOver });
 
-                if (sharedPrefix >= 3) return true;
-            }
-            return false;
-        },
-        [getSharedPrefixLength]
-    );
-
-    // --- 단어 선택 (API 단어 우선, 로컬 폴백) ---
-    const getRandomWord = useCallback((): string => {
-        const cleared = clearedCountRef.current;
-        const maxLen = cleared < 5 ? 3 : cleared < 15 ? 4 : cleared < 30 ? 5 : 6;
-        const minLen = cleared < 15 ? 2 : 3;
-
-        if (language === "korean") {
-            const pool = koreanWords.length > 0 ? koreanWords : wordsData.korean;
-            if (koreanWords.length === 0) void fetchKoreanWords();
-            // 순수 한글만, 길이 범위 내
-            const filtered = pool.filter(
-                (w) => w.length >= minLen && w.length <= maxLen && /^[\uAC00-\uD7A3]+$/.test(w)
-            );
-            const source = filtered.length > 0 ? filtered : pool.filter((w) => /^[\uAC00-\uD7A3]{2,}$/.test(w));
-            const diversePool = source.filter((w) => !isTooSimilarWord(w, "korean"));
-            const finalPool = diversePool.length > 0 ? diversePool : source;
-            const picked = finalPool.length > 0
-                ? finalPool[Math.floor(Math.random() * finalPool.length)]
-                : "타이핑";
-            recentWordsRef.current = [...recentWordsRef.current.slice(-3), picked];
-            return picked;
-        }
-
-        const pool = wordsData[language];
-        // 순수 영문 알파벳만
-        const filtered = pool.filter(
-            (w) => w.length >= minLen && w.length <= maxLen && /^[a-zA-Z]+$/.test(w)
-        );
-        const source = filtered.length > 0 ? filtered : pool.filter((w) => /^[a-zA-Z]+$/.test(w));
-        const diversePool = source.filter((w) => !isTooSimilarWord(w, "english"));
-        const finalPool = diversePool.length > 0 ? diversePool : source;
-        const picked = finalPool.length > 0
-            ? finalPool[Math.floor(Math.random() * finalPool.length)]
-            : "typing";
-        recentWordsRef.current = [...recentWordsRef.current.slice(-3), picked];
-        return picked;
-    }, [language, koreanWords, fetchKoreanWords, isTooSimilarWord]);
-
-    // --- 타겟 장애물 ---
-    const targetObstacle = useMemo(() => {
-        return obstacles
-            .filter((o) => !o.cleared)
-            .sort((a, b) => a.x - b.x)[0] ?? null;
-    }, [obstacles]);
-
-    // --- 카운트다운 ---
-    useEffect(() => {
-        if (countdown === null) return;
-        if (countdown <= 0) {
-            setCountdown(null);
-            setGameStarted(true);
-            gameStartTimeRef.current = Date.now();
-            if (inputRef.current) inputRef.current.focus();
-            return;
-        }
-        const timer = setTimeout(() => setCountdown((c) => (c ?? 1) - 1), 1000);
-        return () => clearTimeout(timer);
-    }, [countdown]);
-
-    // --- 게임 루프 ---
-    useEffect(() => {
-        if (!gameStarted || gameOver || isPaused) return;
-        const gameArea = gameAreaRef.current;
-        if (!gameArea) return;
-
-        const gameLoop = setInterval(() => {
-            const gameWidth = gameArea.offsetWidth;
-            const charX = (gameWidth * CHAR_X_PERCENT) / 100;
-            const currentSpeed = speedRef.current;
-
-            setObstacles((prev) => {
-                let hitDetected = false;
-                const now = Date.now();
-                const updated = prev.map((o) => {
-                    if (o.cleared) return o;
-                    const newX = o.x - currentSpeed;
-                    if (newX < charX - 30 && !invincibleRef.current) {
-                        hitDetected = true;
-                        return { ...o, x: newX, cleared: true, clearedAt: now };
-                    }
-                    return { ...o, x: newX };
-                });
-
-                if (hitDetected) {
-                    invincibleRef.current = true;
-                    setIsInvincible(true);
-                    triggerShake();
-                    setTimeout(() => {
-                        invincibleRef.current = false;
-                        setIsInvincible(false);
-                    }, HIT_INVINCIBILITY);
-                    playSound("lifeLost");
-                    setCharState("hit");
-                    setTimeout(() => setCharState("running"), HIT_DURATION);
-                    setLives((l) => {
-                        const newL = Math.max(l - 1, 0);
-                        if (newL <= 0) {
-                            setGameOver(true);
-                            playSound("gameOver");
-                        }
-                        return newL;
-                    });
-                }
-
-                // 클리어된 장애물 400ms 후 제거
-                return updated.filter((o) => {
-                    if (o.x < -200) return false;
-                    if (o.cleared && o.clearedAt && now - o.clearedAt > 400) return false;
-                    return true;
-                });
-            });
-
-            setDistance((d) => {
-                const newD = d + currentSpeed * 0.1;
-                // 마일스톤 체크
-                const nextMilestone = Math.floor(newD / 500) * 500;
-                if (nextMilestone > 0 && nextMilestone > lastMilestoneRef.current) {
-                    lastMilestoneRef.current = nextMilestone;
-                    setMilestone(nextMilestone);
-                    playSound("levelUp");
-                    setTimeout(() => setMilestone(null), 2000);
-                }
-                return newD;
-            });
-
-            const now = Date.now();
-            const cleared = clearedCountRef.current;
-            const spawnGap = Math.max(1200, 3000 - cleared * 80);
-
-            if (now - lastSpawnTimeRef.current > spawnGap) {
-                lastSpawnTimeRef.current = now;
-                const word = getRandomWord();
-                const type = OBSTACLE_TYPES[Math.floor(Math.random() * OBSTACLE_TYPES.length)];
-                setObstacles((prev) => [
-                    ...prev,
-                    {
-                        id: obstacleIdRef.current++,
-                        x: gameWidth + 60,
-                        word,
-                        cleared: false,
-                        type,
-                    },
-                ]);
-            }
-        }, 16);
-
-        return () => clearInterval(gameLoop);
-    }, [gameStarted, gameOver, isPaused, playSound, getRandomWord]);
-
-    // --- 단어 매칭 ---
-    const clearTarget = useCallback(() => {
-        if (!targetObstacle) return;
-        const targetId = targetObstacle.id;
-        const targetX = targetObstacle.x;
-        const targetType = targetObstacle.type;
-
-        setObstacles((prev) =>
-            prev.map((o) => (o.id === targetId ? { ...o, cleared: true, clearedAt: Date.now() } : o))
-        );
-        clearTimeRef.current = Date.now();
-        setInput("");
-        setInputKey((k) => k + 1);
-
-        clearedCountRef.current += 1;
-        const wordScore = targetObstacle.word.length * 10 + Math.round(speedRef.current * 5);
-        setScore((s) => s + wordScore);
-        speedRef.current += SPEED_INCREMENT;
-        if (speedRef.current > maxSpeedRef.current) maxSpeedRef.current = speedRef.current;
-
-        showScorePopup(`+${wordScore}`, targetX);
-        spawnClearParticles(targetX, targetType);
-        spawnDust();
-
-        setCharState("jumping");
-        playSound("match");
-        setTimeout(() => setCharState("running"), JUMP_DURATION);
-    }, [targetObstacle, playSound]);
-
-    const handleInput = (val: string) => {
-        // 클리어 직후 150ms 내 IME ghost 이벤트 무시
-        if (Date.now() - clearTimeRef.current < 150) return;
-        setInput(val);
-        if (targetObstacle && val === targetObstacle.word) {
-            clearTarget();
-        }
-    };
-
-    const handleSubmit = () => {
-        if (targetObstacle && input === targetObstacle.word) {
-            clearTarget();
-        } else {
-            clearTimeRef.current = Date.now();
-            setInput("");
-            setInputKey((k) => k + 1);
-        }
-    };
-
-    // --- 게임오버 XP ---
-    // --- 포커스 (inputKey 변경 시 리마운트 후에도 재포커스) ---
-    useEffect(() => {
-        if (!isPaused && !gameOver && gameStarted && inputRef.current) {
-            inputRef.current.focus();
-        }
-    }, [isPaused, gameOver, gameStarted, inputKey]);
-
-    // --- 재시작 ---
-    const restartGame = () => {
-        setScore(0);
-        setLives(INITIAL_LIVES);
-        setObstacles([]);
-        setCharState("running");
-        setInput("");
-        setDistance(0);
-        setGameOver(false);
-        setGameStarted(false);
-        setIsPaused(false);
-        setIsInvincible(false);
-        setScorePopups([]);
-        setDustParticles([]);
-        setClearParticles([]);
-        setIsShaking(false);
-        setHitFlash(false);
-        setMilestone(null);
-        setRunFrame(0);
-        speedRef.current = INITIAL_SPEED;
-        obstacleIdRef.current = 0;
-        clearedCountRef.current = 0;
-        lastSpawnTimeRef.current = 0;
-        invincibleRef.current = false;
-        maxSpeedRef.current = INITIAL_SPEED;
-        lastMilestoneRef.current = 0;
-        recentWordsRef.current = [];
-        setInputKey((k) => k + 1);
-        setCountdown(3);
-    };
-
-    const groundAnimDuration = Math.max(0.4, 2 / (speedRef.current / INITIAL_SPEED));
-    const isRunning = gameStarted && !gameOver && !isPaused;
-
-    // 속도 퍼센트 (프로그레스 바용)
-    const speedPercent = Math.min(100, ((speedRef.current - INITIAL_SPEED) / 6) * 100);
+    const restartGame = useCallback(() => {
+        particles.resetParticles();
+        engine.restartGame();
+    }, [particles, engine]);
 
     return (
         <div
-            ref={gameAreaRef}
+            ref={engine.gameAreaRef}
             className="relative w-full flex-1 min-h-[280px] sm:min-h-[400px] rounded-2xl overflow-hidden border border-sky-200/40 dark:border-sky-500/10"
         >
             <div
                 className="absolute inset-0"
-                style={{ background: getSkyGradient(distance, darkMode) }}
+                style={{ background: getSkyGradient(engine.distance, darkMode) }}
             >
-                {/* ===== 하늘 장식: 해/달 + 별 ===== */}
+                {/* 하늘 장식: 해/달 + 별 */}
                 <div className="absolute pointer-events-none" style={{ right: "12%", top: "8%" }}>
                     {darkMode ? (
                         <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-slate-200 shadow-[0_0_15px_rgba(226,232,240,0.4)]" />
@@ -699,7 +255,7 @@ const TypingRunnerGame: React.FC = () => {
                 </div>
                 {darkMode && <Stars />}
 
-                {/* ===== 상단 스코어바 ===== */}
+                {/* 상단 스코어바 */}
                 <div
                     className={`absolute top-0 left-0 right-0 flex flex-col z-20 ${
                         darkMode ? "bg-white/[0.04] border-b border-white/[0.06]" : "bg-white/70 border-b border-sky-100/50"
@@ -707,56 +263,54 @@ const TypingRunnerGame: React.FC = () => {
                 >
                     <div className="flex justify-between items-center px-2.5 py-2 sm:px-5 sm:py-3">
                         <div className={`text-xs sm:text-lg font-bold ${darkMode ? "text-white" : "text-slate-800"}`}>
-                            <span className="tabular-nums">{score.toLocaleString()}</span>
+                            <span className="tabular-nums">{engine.score.toLocaleString()}</span>
                             <span className={`ml-1.5 text-[10px] sm:text-xs font-medium ${darkMode ? "text-slate-500" : "text-slate-400"}`}>
                                 pts
                             </span>
                         </div>
                         <div className={`flex items-center gap-2 sm:gap-3 text-[10px] sm:text-xs font-medium ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
-                            <span className="tabular-nums">{Math.round(distance)}m</span>
+                            <span className="tabular-nums">{Math.round(engine.distance)}m</span>
                             <span className={`px-1.5 py-0.5 rounded ${darkMode ? "bg-white/5" : "bg-slate-100"}`}>
-                                {speedRef.current.toFixed(1)}x
+                                {engine.speedRef.current.toFixed(1)}x
                             </span>
                         </div>
                         <div className="flex gap-0.5 text-sm sm:text-lg font-bold">
                             {Array.from({ length: INITIAL_LIVES }, (_, i) => (
                                 <span
                                     key={i}
-                                    className={`transition-transform ${i >= lives ? "grayscale opacity-40" : ""} ${
-                                        i === lives - 1 && hitFlash ? "animate-pulse" : ""
+                                    className={`transition-transform ${i >= engine.lives ? "grayscale opacity-40" : ""} ${
+                                        i === engine.lives - 1 && particles.hitFlash ? "animate-pulse" : ""
                                     }`}
                                 >
-                                    {i < lives ? "❤️" : "🖤"}
+                                    {i < engine.lives ? "❤️" : "🖤"}
                                 </span>
                             ))}
                         </div>
                     </div>
-                    {/* 속도 인디케이터 바 */}
                     <div className={`h-0.5 ${darkMode ? "bg-white/5" : "bg-sky-100"}`}>
                         <div
                             className="h-full bg-gradient-to-r from-emerald-400 to-cyan-400 transition-all duration-300"
-                            style={{ width: `${speedPercent}%` }}
+                            style={{ width: `${engine.speedPercent}%` }}
                         />
                     </div>
                 </div>
 
-                {/* ===== 게임 스테이지 ===== */}
-                <div className={`absolute inset-0 top-[52px] sm:top-[62px] bottom-12 sm:bottom-16 overflow-hidden ${isShaking ? "animate-runner-shake" : ""}`}>
+                {/* 게임 스테이지 */}
+                <div className={`absolute inset-0 top-[52px] sm:top-[62px] bottom-12 sm:bottom-16 overflow-hidden ${particles.isShaking ? "animate-runner-shake" : ""}`}>
 
-                    {/* 히트 빨간 플래시 오버레이 */}
-                    {hitFlash && (
+                    {particles.hitFlash && (
                         <div className="absolute inset-0 bg-red-500/20 z-30 pointer-events-none animate-runner-hit-flash" />
                     )}
 
-                    {/* ===== 패럴랙스 레이어 1: 먼 산 ===== */}
+                    {/* 패럴랙스 레이어 1: 먼 산 */}
                     <div className="absolute bottom-[22%] left-0 pointer-events-none" style={{ width: "200%" }}>
                         <svg
                             viewBox="0 0 2400 120"
                             className={`w-full h-12 sm:h-20 ${darkMode ? "fill-slate-800/30" : "fill-emerald-200/25"}`}
                             preserveAspectRatio="none"
                             style={{
-                                animation: isRunning
-                                    ? `runnerParallax ${groundAnimDuration * 5}s linear infinite`
+                                animation: engine.isRunning
+                                    ? `runnerParallax ${engine.groundAnimDuration * 5}s linear infinite`
                                     : "none",
                             }}
                         >
@@ -764,20 +318,19 @@ const TypingRunnerGame: React.FC = () => {
                         </svg>
                     </div>
 
-                    {/* ===== 패럴랙스 레이어 2: 가까운 언덕 + 나무 ===== */}
+                    {/* 패럴랙스 레이어 2: 가까운 언덕 + 나무 */}
                     <div className="absolute bottom-[22%] left-0 pointer-events-none" style={{ width: "200%" }}>
                         <svg
                             viewBox="0 0 2400 90"
                             className={`w-full h-8 sm:h-14 ${darkMode ? "fill-emerald-900/25" : "fill-emerald-300/35"}`}
                             preserveAspectRatio="none"
                             style={{
-                                animation: isRunning
-                                    ? `runnerParallax ${groundAnimDuration * 3}s linear infinite`
+                                animation: engine.isRunning
+                                    ? `runnerParallax ${engine.groundAnimDuration * 3}s linear infinite`
                                     : "none",
                             }}
                         >
                             <path d="M0,90 L0,60 Q80,40 160,55 Q240,30 360,50 Q480,25 600,45 Q720,35 840,50 Q960,20 1080,40 L1200,60 Q1280,40 1360,55 Q1440,30 1560,50 Q1680,25 1800,45 Q1920,35 2040,50 Q2160,20 2280,40 L2400,60 L2400,90 Z" />
-                            {/* 삼각형 나무 실루엣 */}
                             <polygon points="180,55 190,25 200,55" className={darkMode ? "fill-emerald-800/40" : "fill-emerald-400/30"} />
                             <polygon points="500,45 508,18 516,45" className={darkMode ? "fill-emerald-800/40" : "fill-emerald-400/30"} />
                             <polygon points="850,50 860,20 870,50" className={darkMode ? "fill-emerald-800/40" : "fill-emerald-400/30"} />
@@ -787,7 +340,7 @@ const TypingRunnerGame: React.FC = () => {
                         </svg>
                     </div>
 
-                    {/* ===== 구름 (CSS div) ===== */}
+                    {/* 구름 */}
                     {[
                         { top: "6%", right: "10%", w: "60px", h: "20px", opacity: darkMode ? 0.08 : 0.25, speed: "slow" },
                         { top: "12%", right: "35%", w: "80px", h: "24px", opacity: darkMode ? 0.06 : 0.2, speed: "fast" },
@@ -798,7 +351,7 @@ const TypingRunnerGame: React.FC = () => {
                         <div
                             key={i}
                             className={`absolute rounded-full pointer-events-none ${darkMode ? "bg-slate-400" : "bg-white"} ${
-                                isRunning
+                                engine.isRunning
                                     ? cloud.speed === "slow" ? "animate-runner-cloud-slow" : "animate-runner-cloud"
                                     : ""
                             }`}
@@ -812,21 +365,19 @@ const TypingRunnerGame: React.FC = () => {
                         />
                     ))}
 
-                    {/* ===== 지면 - 다층 구조 ===== */}
+                    {/* 지면 */}
                     <div className="absolute bottom-0 left-0 right-0" style={{ height: `${GROUND_BOTTOM}%` }}>
-                        {/* SVG 톱니 잔디 */}
                         <div className="absolute -top-2 left-0 pointer-events-none" style={{ width: "200%" }}>
                             <svg
                                 viewBox="0 0 2400 16"
                                 className={`w-full h-3 sm:h-4 ${darkMode ? "fill-emerald-600/50" : "fill-emerald-500/70"}`}
                                 preserveAspectRatio="none"
                                 style={{
-                                    animation: isRunning
-                                        ? `runnerParallax ${groundAnimDuration}s linear infinite`
+                                    animation: engine.isRunning
+                                        ? `runnerParallax ${engine.groundAnimDuration}s linear infinite`
                                         : "none",
                                 }}
                             >
-                                {/* Zigzag grass pattern */}
                                 <path d={Array.from({ length: 120 }, (_, i) => {
                                     const x = i * 20;
                                     const tipY = 2 + (i % 3) * 2;
@@ -834,9 +385,7 @@ const TypingRunnerGame: React.FC = () => {
                                 }).join(" ") + " L2400,16 Z"} />
                             </svg>
                         </div>
-                        {/* 잔디 라인 */}
                         <div className={`absolute top-0 left-0 right-0 h-1.5 sm:h-2 ${darkMode ? "bg-emerald-500/40" : "bg-emerald-500/60"}`} />
-                        {/* 흙 레이어 */}
                         <div
                             className={`absolute inset-0 top-1.5 sm:top-2 ${darkMode ? "bg-[#1a2a1a]" : "bg-gradient-to-b from-emerald-200/70 to-amber-100/50"}`}
                             style={{
@@ -844,12 +393,11 @@ const TypingRunnerGame: React.FC = () => {
                                     ? "repeating-linear-gradient(90deg, transparent, transparent 38px, rgba(255,255,255,0.02) 38px, rgba(255,255,255,0.02) 40px), repeating-linear-gradient(180deg, transparent, transparent 8px, rgba(255,255,255,0.01) 8px, rgba(255,255,255,0.01) 10px)"
                                     : "repeating-linear-gradient(90deg, transparent, transparent 38px, rgba(0,0,0,0.03) 38px, rgba(0,0,0,0.03) 40px), repeating-linear-gradient(180deg, transparent, transparent 8px, rgba(0,0,0,0.02) 8px, rgba(0,0,0,0.02) 10px)",
                                 backgroundSize: "40px 10px",
-                                animation: isRunning
-                                    ? `runnerGround ${groundAnimDuration}s linear infinite`
+                                animation: engine.isRunning
+                                    ? `runnerGround ${engine.groundAnimDuration}s linear infinite`
                                     : "none",
                             }}
                         >
-                            {/* 지면 장식: 꽃, 돌 */}
                             <div className="absolute top-1 left-[10%] w-1.5 h-1.5 rounded-full bg-rose-400/40" />
                             <div className="absolute top-2 left-[30%] w-1 h-1 rounded-full bg-amber-400/30" />
                             <div className={`absolute top-1 left-[55%] w-2 h-1 rounded-sm ${darkMode ? "bg-slate-600/20" : "bg-slate-400/20"}`} />
@@ -858,32 +406,30 @@ const TypingRunnerGame: React.FC = () => {
                         </div>
                     </div>
 
-                    {/* ===== 캐릭터 ===== */}
+                    {/* 캐릭터 */}
                     <div
                         className={`absolute z-10 select-none ${
-                            charState === "jumping"
+                            engine.charState === "jumping"
                                 ? "animate-runner-jump"
-                                : charState === "hit"
+                                : engine.charState === "hit"
                                 ? "animate-runner-hit"
-                                : isRunning
+                                : engine.isRunning
                                 ? "animate-runner-bounce"
                                 : ""
-                        } ${isInvincible ? "animate-runner-blink" : ""}`}
+                        } ${engine.isInvincible ? "animate-runner-blink" : ""}`}
                         style={{
                             left: `${CHAR_X_PERCENT}%`,
                             bottom: `${GROUND_BOTTOM}%`,
                         }}
                     >
-                        {/* 캐릭터 그림자 */}
                         <div className={`absolute -bottom-2 left-1/2 -translate-x-1/2 w-8 h-2 sm:w-10 sm:h-2.5 rounded-full ${
                             darkMode ? "bg-black/30" : "bg-black/15"
-                        } ${charState === "jumping" ? "scale-50 opacity-50" : ""} transition-all`} />
-                        {/* 픽셀아트 캐릭터 */}
-                        <PixelCharacter state={charState} frame={runFrame} />
+                        } ${engine.charState === "jumping" ? "scale-50 opacity-50" : ""} transition-all`} />
+                        <PixelCharacter state={engine.charState} frame={engine.runFrame} />
                     </div>
 
-                    {/* 점프 먼지 파티클 */}
-                    {dustParticles.map((p) => (
+                    {/* 먼지 파티클 */}
+                    {particles.dustParticles.map((p) => (
                         <div
                             key={p.id}
                             className="absolute pointer-events-none animate-runner-dust"
@@ -899,9 +445,9 @@ const TypingRunnerGame: React.FC = () => {
                         />
                     ))}
 
-                    {/* ===== 장애물들 ===== */}
-                    {obstacles.map((o) => {
-                        const isTarget = targetObstacle?.id === o.id;
+                    {/* 장애물들 */}
+                    {engine.obstacles.map((o) => {
+                        const isTarget = engine.targetObstacle?.id === o.id;
                         const isClearing = o.cleared && o.clearedAt;
 
                         return (
@@ -915,7 +461,6 @@ const TypingRunnerGame: React.FC = () => {
                                     bottom: `${GROUND_BOTTOM}%`,
                                 }}
                             >
-                                {/* 단어 라벨 */}
                                 {!o.cleared && (
                                     <div className={`absolute left-1/2 -translate-x-1/2 whitespace-nowrap transition-all duration-200 ${
                                         isTarget ? "-top-12 sm:-top-14" : "-top-8 sm:-top-10"
@@ -935,14 +480,14 @@ const TypingRunnerGame: React.FC = () => {
                                                     : "0 0 12px rgba(56,189,248,0.1)",
                                             } : undefined}
                                         >
-                                            {isTarget && input.length > 0 ? (
+                                            {isTarget && engine.input.length > 0 ? (
                                                 <span>
                                                     {o.word.split("").map((ch, i) => (
                                                         <span
                                                             key={i}
                                                             className={
-                                                                i < input.length
-                                                                    ? input[i] === ch
+                                                                i < engine.input.length
+                                                                    ? engine.input[i] === ch
                                                                         ? "text-emerald-400"
                                                                         : "text-rose-500"
                                                                     : ""
@@ -951,14 +496,12 @@ const TypingRunnerGame: React.FC = () => {
                                                             {ch}
                                                         </span>
                                                     ))}
-                                                    {/* 타이핑 커서 */}
                                                     <span className="animate-pulse text-sky-400">|</span>
                                                 </span>
                                             ) : (
                                                 o.word
                                             )}
                                         </div>
-                                        {/* 타겟 화살표 */}
                                         {isTarget && (
                                             <div className={`w-0 h-0 mx-auto border-l-[5px] border-r-[5px] border-t-[5px] border-l-transparent border-r-transparent ${
                                                 darkMode ? "border-t-sky-500/30" : "border-t-sky-300/60"
@@ -967,10 +510,8 @@ const TypingRunnerGame: React.FC = () => {
                                     </div>
                                 )}
 
-                                {/* 장애물 SVG 본체 */}
                                 <div className="relative flex items-end justify-center">
                                     <ObstacleSVG type={o.type} />
-                                    {/* 장애물 그림자 */}
                                     <div className={`absolute -bottom-1 left-1/2 -translate-x-1/2 w-[80%] h-1 rounded-full ${
                                         darkMode ? "bg-black/20" : "bg-black/10"
                                     }`} />
@@ -980,7 +521,7 @@ const TypingRunnerGame: React.FC = () => {
                     })}
 
                     {/* 클리어 파티클 */}
-                    {clearParticles.map((p) => (
+                    {particles.clearParticles.map((p) => (
                         <div
                             key={p.id}
                             className="absolute pointer-events-none animate-particle-burst"
@@ -997,7 +538,7 @@ const TypingRunnerGame: React.FC = () => {
                     ))}
 
                     {/* 점수 팝업 */}
-                    {scorePopups.map((p) => (
+                    {particles.scorePopups.map((p) => (
                         <div
                             key={p.id}
                             className="absolute animate-score-popup z-20 text-sm sm:text-lg font-bold text-emerald-400 pointer-events-none"
@@ -1008,43 +549,42 @@ const TypingRunnerGame: React.FC = () => {
                     ))}
 
                     {/* 마일스톤 토스트 */}
-                    {milestone !== null && (
+                    {engine.milestone !== null && (
                         <div className="absolute inset-0 flex items-center justify-center z-30 pointer-events-none">
                             <div className="animate-level-up text-3xl sm:text-5xl font-black text-amber-400 drop-shadow-[0_0_20px_rgba(251,191,36,0.5)]"
                                 style={{ position: "absolute", top: "50%", left: "50%" }}
                             >
-                                {milestone}m!
+                                {engine.milestone}m!
                             </div>
                         </div>
                     )}
                 </div>
 
-                {/* ===== 입력 영역 ===== */}
+                {/* 입력 영역 */}
                 <div
                     className={`absolute bottom-0 left-0 right-0 p-2 sm:p-3 backdrop-blur-sm border-t ${
                         darkMode ? "bg-white/[0.04] border-white/[0.06]" : "bg-white/70 border-sky-100/50"
                     }`}
                 >
                     <GameInput
-                        key={inputKey}
-                        inputRef={inputRef}
-                        value={input}
-                        onChange={handleInput}
-                        onSubmit={handleSubmit}
-                        disabled={!gameStarted || isPaused || gameOver}
+                        key={engine.inputKey}
+                        inputRef={engine.inputRef}
+                        value={engine.input}
+                        onChange={engine.handleInput}
+                        onSubmit={engine.handleSubmit}
+                        disabled={!engine.gameStarted || engine.isPaused || engine.gameOver}
                         placeholder={language === "korean" ? "" : "Type the word…"}
                         ariaLabel={language === "korean" ? "러너 단어 입력" : "Runner word input"}
                     />
                 </div>
             </div>
 
-            {/* ===== 시작 오버레이 ===== */}
-            {!gameStarted && !gameOver && countdown === null && (
+            {/* 시작 오버레이 */}
+            {!engine.gameStarted && !engine.gameOver && engine.countdown === null && (
                 <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/50 backdrop-blur-sm">
                     <div className={`text-center px-8 py-8 rounded-2xl border ${
                         darkMode ? "bg-[#162032]/90 border-white/10" : "bg-white/90 border-sky-100"
                     } shadow-2xl max-w-xs mx-4`}>
-                        {/* 시작 화면 캐릭터 */}
                         <div className="flex justify-center mb-3">
                             <PixelCharacter state="running" frame={0} />
                         </div>
@@ -1073,46 +613,46 @@ const TypingRunnerGame: React.FC = () => {
             )}
 
             {/* 카운트다운 */}
-            {countdown !== null && countdown > 0 && (
+            {engine.countdown !== null && engine.countdown > 0 && (
                 <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/40 backdrop-blur-sm">
                     <div
-                        key={countdown}
+                        key={engine.countdown}
                         className="animate-countdown text-7xl sm:text-9xl font-black text-white drop-shadow-[0_0_30px_rgba(56,189,248,0.6)]"
                     >
-                        {countdown}
+                        {engine.countdown}
                     </div>
                 </div>
             )}
 
             {/* 일시정지 */}
-            {isPaused && !gameOver && <PauseOverlay language={language} />}
+            {engine.isPaused && !engine.gameOver && <PauseOverlay language={language} />}
 
             {/* 게임오버 */}
-            {gameOver && (
+            {engine.gameOver && (
                 <GameOverModal
                     title="Game Over!"
                     primaryStat={
                         <p className={`text-xl mb-1 ${darkMode ? "text-white" : "text-slate-800"}`}>
-                            Score: <span className="font-bold tabular-nums">{score.toLocaleString()}</span>
+                            Score: <span className="font-bold tabular-nums">{engine.score.toLocaleString()}</span>
                         </p>
                     }
                     stats={[
                         {
                             label: language === "korean" ? "이동 거리" : "Distance",
-                            value: `${Math.round(distance)}m`,
+                            value: `${Math.round(engine.distance)}m`,
                         },
                         {
                             label: language === "korean" ? "클리어 장애물" : "Cleared",
-                            value: `${clearedCountRef.current}${language === "korean" ? "개" : ""}`,
+                            value: `${engine.clearedCountRef.current}${language === "korean" ? "개" : ""}`,
                         },
                         {
                             label: language === "korean" ? "최고 속도" : "Max speed",
-                            value: `${maxSpeedRef.current.toFixed(1)}x`,
+                            value: `${engine.maxSpeedRef.current.toFixed(1)}x`,
                         },
                         {
                             label: language === "korean" ? "플레이 시간" : "Play time",
                             value: formatPlayTime(
-                                Date.now() - gameStartTimeRef.current,
+                                Date.now() - engine.gameStartTimeRef.current,
                                 language === "korean" ? "ko" : "en"
                             ),
                         },

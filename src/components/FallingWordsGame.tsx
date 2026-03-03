@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import useTypingStore from "../store/store";
-import wordsData from "../data/word.json";
 import { decomposeHangul } from "../utils/hangulUtils";
 import { formatPlayTime } from "../utils/formatting";
 import { useGameAudio } from "../hooks/useGameAudio";
 import { usePauseHandler } from "../hooks/usePauseHandler";
+import { useKoreanWords } from "../hooks/useKoreanWords";
+import { usePowerUpSystem } from "../hooks/usePowerUpSystem";
 import PauseOverlay from "./game/PauseOverlay";
 import GameOverModal from "./game/GameOverModal";
 import GameInput from "./game/GameInput";
@@ -20,7 +21,7 @@ interface Word {
     type: "normal" | "life" | "slow" | "clear" | "shield" | "score";
     color?: string;
     status: "falling" | "matched" | "missed";
-    floatDelay: number; // 각 단어마다 다른 흔들림 타이밍
+    floatDelay: number;
 }
 
 interface ScorePopup {
@@ -43,7 +44,6 @@ const DIFFICULTY_CONFIG = {
     normal: { spawnMul: 1.0, speedMul: 1.0, lives: 3, scorePerLevel: 500 },
     hard:   { spawnMul: 0.7, speedMul: 1.3, lives: 3, scorePerLevel: 600 },
 } as const;
-import { pickRandomStarts, HANGUL_WORD_REGEX } from "../utils/koreanConstants";
 
 const FallingWordsGame: React.FC = () => {
     const darkMode = useTypingStore((state) => state.darkMode);
@@ -63,21 +63,14 @@ const FallingWordsGame: React.FC = () => {
     const [lives, setLives] = useState<number>(DIFFICULTY_CONFIG[difficulty].lives);
     const [levelUp, setLevelUp] = useState<boolean>(false);
     const [combo, setCombo] = useState<number>(0);
-    const [slowMotion, setSlowMotion] = useState<boolean>(false);
-    const [shield, setShield] = useState<boolean>(false);
-    const [activeEffects, setActiveEffects] = useState<Set<string>>(new Set());
     const [lastTypedTime, setLastTypedTime] = useState<number>(0);
     const [scorePopups, setScorePopups] = useState<ScorePopup[]>([]);
     const [isPaused, setIsPaused] = useState<boolean>(false);
     const [gameStarted, setGameStarted] = useState<boolean>(false);
     const [countdown, setCountdown] = useState<number | null>(null);
-    const [koreanWords, setKoreanWords] = useState<string[]>([]);
-    const [wordSource, setWordSource] = useState<"krdict" | "local">("local");
-    const [fallbackMessage, setFallbackMessage] = useState<string | null>(null);
 
     const gameAreaRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
-    const recentWordsRef = useRef<string[]>([]);
 
     // 게임 통계 refs
     const totalWordsTypedRef = useRef(0);
@@ -85,15 +78,17 @@ const FallingWordsGame: React.FC = () => {
     const gameStartTimeRef = useRef(Date.now());
     const itemsCollectedRef = useRef(0);
 
+    const { getRandomWord, koreanWords, fetchKoreanWords, wordSource, fallbackMessage } =
+        useKoreanWords(language, { trackFallback: true });
+
+    const { slowMotion, shield, activeEffects, applyEffect, resetEffects } = usePowerUpSystem();
+
     const spawnInterval =
         Math.max(2000 - level * 100, 300) * (slowMotion ? 1.5 : 1) * config.spawnMul;
-    // 바닥 도달 시간(초): 레벨 1 ≈ 6.7초, 레벨이 올라갈수록 빨라짐, 최소 1초
     const fallSeconds = Math.max(7 / (1 + level * 0.5), 1) * (slowMotion ? 2 : 1) / config.speedMul;
 
     const lifeLostRef = useRef(false);
-    const activeTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
-    // 공유 훅: 효과음, 일시정지
     const { playSound } = useGameAudio();
     usePauseHandler(gameStarted, gameOver, setIsPaused);
 
@@ -111,127 +106,6 @@ const FallingWordsGame: React.FC = () => {
         return () => clearTimeout(timer);
     }, [countdown]);
 
-    const fetchKoreanWords = useCallback(async () => {
-        if (language !== "korean") return;
-        try {
-            const starts = encodeURIComponent(pickRandomStarts(15).join(","));
-            const response = await fetch(`/api/krdict/candidates?starts=${starts}&num=300`);
-            if (!response.ok) {
-                setWordSource("local");
-                setFallbackMessage("사전 연결이 불안정해 로컬 단어로 진행 중입니다.");
-                return;
-            }
-            const data: unknown = await response.json();
-            if (
-                typeof data === "object" &&
-                data !== null &&
-                "words" in data &&
-                Array.isArray((data as { words: unknown }).words)
-            ) {
-                const words = ((data as { words: string[] }).words ?? [])
-                    .map((w) => w.trim())
-                    .filter((w) => HANGUL_WORD_REGEX.test(w));
-                if (words.length > 0) {
-                    setKoreanWords([...new Set(words)]);
-                    setWordSource("krdict");
-                    setFallbackMessage(null);
-                    return;
-                }
-            }
-            setWordSource("local");
-            setFallbackMessage("사전 응답이 비어 로컬 단어로 진행 중입니다.");
-        } catch {
-            setWordSource("local");
-            setFallbackMessage("사전 연결 실패로 로컬 단어로 진행 중입니다.");
-        }
-    }, [language]);
-
-    // 한국어 단어 풀 초기 로딩 + 부족 시 보충
-    useEffect(() => {
-        if (language === "korean" && koreanWords.length < 50) {
-            void fetchKoreanWords();
-        }
-    }, [language, koreanWords.length, fetchKoreanWords]);
-
-    useEffect(() => {
-        recentWordsRef.current = [];
-    }, [language]);
-
-    const getSharedPrefixLength = useCallback((a: string, b: string): number => {
-        const max = Math.min(a.length, b.length);
-        let i = 0;
-        while (i < max && a[i] === b[i]) i += 1;
-        return i;
-    }, []);
-
-    const isTooSimilarWord = useCallback(
-        (candidate: string, languageKey: "korean" | "english"): boolean => {
-            const recent = recentWordsRef.current;
-            for (let i = recent.length - 1; i >= 0; i -= 1) {
-                const prev = recent[i];
-                if (candidate === prev) return true;
-                const sharedPrefix = getSharedPrefixLength(candidate, prev);
-                const isImmediatePrevious = i === recent.length - 1;
-
-                if (languageKey === "korean") {
-                    if (sharedPrefix >= 2) return true;
-                    if (isImmediatePrevious && sharedPrefix >= 1) return true;
-                    continue;
-                }
-
-                if (sharedPrefix >= 3) return true;
-            }
-            return false;
-        },
-        [getSharedPrefixLength]
-    );
-
-    const getRandomWord = useCallback((): string => {
-        if (language === "korean") {
-            const pool = koreanWords.length > 0 ? koreanWords : wordsData.korean;
-            const diversePool = pool.filter((w) => !isTooSimilarWord(w, "korean"));
-            const finalPool = diversePool.length > 0 ? diversePool : pool;
-            const picked = finalPool[Math.floor(Math.random() * finalPool.length)];
-            recentWordsRef.current = [...recentWordsRef.current.slice(-3), picked];
-            return picked;
-        }
-
-        const wordsList = wordsData[language];
-        if (!Array.isArray(wordsList) || wordsList.length === 0) {
-            return "";
-        }
-        const diversePool = wordsList.filter((w) => !isTooSimilarWord(w, "english"));
-        const finalPool = diversePool.length > 0 ? diversePool : wordsList;
-        const picked = finalPool[Math.floor(Math.random() * finalPool.length)];
-        recentWordsRef.current = [...recentWordsRef.current.slice(-3), picked];
-        return picked;
-    }, [language, koreanWords, isTooSimilarWord]);
-
-    const updateActiveEffects = (effect: string, duration: number) => {
-        if (activeTimersRef.current[effect]) {
-            clearTimeout(activeTimersRef.current[effect]);
-        }
-
-        setActiveEffects((prev) => new Set(prev).add(effect));
-
-        if (effect === "slow") setSlowMotion(true);
-        if (effect === "shield") setShield(true);
-
-        activeTimersRef.current[effect] = setTimeout(() => {
-            setActiveEffects((prev) => {
-                const next = new Set(prev);
-                next.delete(effect);
-                return next;
-            });
-
-            if (effect === "slow") setSlowMotion(false);
-            if (effect === "shield") setShield(false);
-
-            delete activeTimersRef.current[effect];
-        }, duration);
-    };
-
-    // 점수 팝업 표시
     const showScorePopup = (text: string, left: number, top: number) => {
         const id = Date.now() + Math.random();
         setScorePopups((prev) => [...prev, { id, text, left, top }]);
@@ -324,14 +198,14 @@ const FallingWordsGame: React.FC = () => {
                 setLives((prev) => Math.min(prev + 1, config.lives + 2));
                 break;
             case "slow":
-                updateActiveEffects("slow", 8000);
+                applyEffect("slow", 8000);
                 break;
             case "clear":
                 setWords((curr) => curr.filter((w) => w.type !== "normal"));
                 setScore((prev) => prev + 50 * level);
                 break;
             case "shield":
-                updateActiveEffects("shield", 5000);
+                applyEffect("shield", 5000);
                 break;
             case "score":
                 setScore((prev) => prev + 200 * level);
@@ -351,7 +225,6 @@ const FallingWordsGame: React.FC = () => {
             const delta = timestamp - lastFrameRef.current;
             lastFrameRef.current = timestamp;
 
-            // delta를 16ms 기준으로 정규화 (60fps 기준 1.0)
             const factor = Math.min(delta / 16, 3);
 
             setWords((currentWords) => {
@@ -428,14 +301,12 @@ const FallingWordsGame: React.FC = () => {
         if (score > highScore) setHighScore(score);
     }, [gameOver, score, highScore, setHighScore]);
 
-    // 게임오버 시 XP 지급 (1회만)
     const getLevelRequirements = (currentLevel: number) => ({
         scoreNeeded: currentLevel * config.scorePerLevel,
     });
 
     const clearInput = () => {
         setInput("");
-        // IME 잔여 글자 방지: DOM 직접 클리어
         if (inputRef.current) {
             inputRef.current.value = "";
         }
@@ -451,7 +322,6 @@ const FallingWordsGame: React.FC = () => {
             setLastTypedTime(now);
             totalWordsTypedRef.current += 1;
 
-            // matched 애니메이션으로 전환
             setWords((curr) =>
                 curr.map((word) =>
                     word.id === matchedWord.id
@@ -473,12 +343,10 @@ const FallingWordsGame: React.FC = () => {
                 setCombo((prevCombo) => {
                     const newCombo = prevCombo + 1;
 
-                    // 최대 콤보 추적
                     if (newCombo > maxComboRef.current) {
                         maxComboRef.current = newCombo;
                     }
 
-                    // 콤보 5+ 효과음
                     if (newCombo >= 5) {
                         playSound("combo");
                     }
@@ -503,7 +371,6 @@ const FallingWordsGame: React.FC = () => {
                         return newScore;
                     });
 
-                    // 점수 팝업
                     showScorePopup(
                         `+${finalScore}`,
                         matchedWord.left,
@@ -520,8 +387,7 @@ const FallingWordsGame: React.FC = () => {
     };
 
     const restartGame = (): void => {
-        Object.values(activeTimersRef.current).forEach(clearTimeout);
-        activeTimersRef.current = {};
+        resetEffects();
 
         setWords([]);
         setScore(0);
@@ -531,9 +397,6 @@ const FallingWordsGame: React.FC = () => {
         setGameStarted(false);
         setLevelUp(false);
         setCombo(0);
-        setSlowMotion(false);
-        setShield(false);
-        setActiveEffects(new Set());
         setScorePopups([]);
         setIsPaused(false);
         clearInput();
@@ -542,13 +405,10 @@ const FallingWordsGame: React.FC = () => {
             void fetchKoreanWords();
         }
 
-        // 통계 리셋
         totalWordsTypedRef.current = 0;
         maxComboRef.current = 0;
         itemsCollectedRef.current = 0;
-        recentWordsRef.current = [];
 
-        // 카운트다운 시작 (3→2→1→GO)
         setCountdown(3);
     };
 
@@ -558,7 +418,6 @@ const FallingWordsGame: React.FC = () => {
         }
     }, []);
 
-    // 일시정지 해제 시 입력에 포커스
     useEffect(() => {
         if (!isPaused && !gameOver && inputRef.current) {
             inputRef.current.focus();
@@ -587,14 +446,11 @@ const FallingWordsGame: React.FC = () => {
         return "animate-word-spawn animate-word-float";
     };
 
-    // 실시간 입력 힌트: 타겟 단어 매칭
     const targetWord = useMemo(() => {
         if (input.length === 0) return null;
         const fallingWords = words.filter((w) => w.status === "falling");
-        // startsWith 완전 매칭 우선
         const exact = fallingWords.find((w) => w.text.startsWith(input));
         if (exact) return exact;
-        // 한국어: 조합 중인 글자를 위해 자모 분해 prefix 비교
         if (language === "korean") {
             const inputJamo = input.split("").flatMap(decomposeHangul);
             return fallingWords.find((w) => {
@@ -603,16 +459,13 @@ const FallingWordsGame: React.FC = () => {
                 return inputJamo.every((j, i) => j === targetJamo[i]);
             }) ?? null;
         }
-        // 첫 글자 매칭 폴백
         return fallingWords.find((w) => w.text[0] === input[0]) ?? null;
     }, [input, words, language]);
 
-    // 한국어 글자 단위 비교
     const checkKoreanCharMatch = (target: string, userInput: string, charIndex: number): boolean => {
         if (charIndex < userInput.length - 1) {
             return target[charIndex] === userInput[charIndex];
         }
-        // 마지막 글자 (조합 중일 수 있음): 자모 분해 후 prefix 비교
         const targetJamo = decomposeHangul(target[charIndex]);
         const inputJamo = decomposeHangul(userInput[charIndex]);
         return inputJamo.every((j, i) => j === targetJamo[i]);

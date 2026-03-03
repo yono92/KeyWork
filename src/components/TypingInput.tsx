@@ -1,334 +1,51 @@
-import React, { useEffect, useRef, useState, useCallback, useMemo } from "react";
+import React, { useEffect, useRef, useState, useMemo } from "react";
 import useTypingStore from "../store/store";
-import { calculateHangulAccuracy, countKeystrokes } from "../utils/hangulUtils";
-import { extractPracticePrompts, getRandomSentence, normalizePracticePrompt } from "../utils/sentenceUtils";
 import Keyboard from "./Keyboard";
 import ProgressBar from "./ProgressBar";
 import FallbackNotice from "./game/FallbackNotice";
 import { useScreenSize } from "../hooks/useScreenSize";
-
-type AudioContextClass = typeof AudioContext;
-
-const getAudioContextClass = (): AudioContextClass | undefined => {
-    const w = window as Window &
-        typeof globalThis & { webkitAudioContext?: AudioContextClass };
-    return w.AudioContext || w.webkitAudioContext;
-};
-
-const normalizeCode = (code: string): string => {
-    if (code.startsWith("Key")) return code.slice(3).toLowerCase();
-    if (code.startsWith("Digit")) return code.slice(5);
-
-    const codeMap: Record<string, string> = {
-        Backquote: "`",
-        Minus: "-",
-        Equal: "=",
-        BracketLeft: "[",
-        BracketRight: "]",
-        Backslash: "\\",
-        Semicolon: ";",
-        Quote: "'",
-        Comma: ",",
-        Period: ".",
-        Slash: "/",
-        Space: "space",
-        Enter: "enter",
-        Tab: "tab",
-        Backspace: "backspace",
-        CapsLock: "capslock",
-        ShiftLeft: "shiftleft",
-        ShiftRight: "shiftright",
-        ControlLeft: "controlleft",
-        ControlRight: "controlright",
-        AltLeft: "altleft",
-        AltRight: "altright",
-        MetaLeft: "metaleft",
-        MetaRight: "metaright",
-    };
-
-    return codeMap[code] || code.toLowerCase();
-};
-
-const MODIFIER_KEYS = [
-    "shiftleft",
-    "shiftright",
-    "controlleft",
-    "controlright",
-    "altleft",
-    "altright",
-    "metaleft",
-    "metaright",
-] as const;
-
-const NON_TYPING_KEYS = new Set([
-    "Shift",
-    "Control",
-    "Alt",
-    "Meta",
-    "CapsLock",
-    "Tab",
-    "Escape",
-    "ArrowLeft",
-    "ArrowRight",
-    "ArrowUp",
-    "ArrowDown",
-    "Home",
-    "End",
-    "PageUp",
-    "PageDown",
-    "Insert",
-    "Delete",
-]);
-
-const syncModifierKeys = (keys: string[], e: KeyboardEvent): string[] => {
-    const next = keys.filter((key) => !MODIFIER_KEYS.includes(key as (typeof MODIFIER_KEYS)[number]));
-    if (e.shiftKey) next.push("shiftleft");
-    if (e.ctrlKey) next.push("controlleft");
-    if (e.altKey) next.push("altleft");
-    if (e.metaKey) next.push("metaleft");
-    return [...new Set(next)];
-};
+import { useKeyboardState } from "../hooks/useKeyboardState";
+import { usePracticeText } from "../hooks/usePracticeText";
+import { useTypingMetrics } from "../hooks/useTypingMetrics";
 
 const TypingInput: React.FC = () => {
     const text = useTypingStore((state) => state.text);
-    const setProgress = useTypingStore((state) => state.setProgress);
     const darkMode = useTypingStore((state) => state.darkMode);
-    const setText = useTypingStore((state) => state.setText);
     const language = useTypingStore((state) => state.language);
-
-    const [input, setInput] = useState<string>("");
-    const [startTime, setStartTime] = useState<number | null>(null);
-    const [typingSpeed, setTypingSpeed] = useState<number>(0);
-    const [accuracy, setAccuracy] = useState<number>(0);
-    const [allSpeeds, setAllSpeeds] = useState<number[]>([]);
-    const [allAccuracies, setAllAccuracies] = useState<number[]>([]);
-    const [averageSpeed, setAverageSpeed] = useState<number>(0);
-    const [averageAccuracy, setAverageAccuracy] = useState<number>(0);
-    const inputRef = useRef<HTMLTextAreaElement>(null);
-    const [pressedKeys, setPressedKeys] = useState<string[]>([]);
-    const { isMobile, isShortScreen, isLargeScreen } = useScreenSize();
-    const [platform, setPlatform] = useState<"mac" | "windows">("windows");
-    const [textSource, setTextSource] = useState<"wikipedia" | "proverb-fallback">("proverb-fallback");
-    const [fallbackMessage, setFallbackMessage] = useState<string | null>(null);
-    const audioContextRef = useRef<AudioContext | null>(null);
-    const initializedRef = useRef(false);
-    const promptQueueRef = useRef<string[]>([]);
-    const isMuted = useTypingStore((state) => state.isMuted);
+    const setProgress = useTypingStore((state) => state.setProgress);
     const retroTheme = useTypingStore((state) => state.retroTheme);
 
-    const handleKeyDown = useCallback((e: KeyboardEvent) => {
-        const keyCode = normalizeCode(e.code);
-        setPressedKeys((prevKeys) => {
-            if (keyCode === "fn") {
-                return syncModifierKeys(prevKeys, e);
-            }
-            return syncModifierKeys([...new Set([...prevKeys, keyCode])], e);
-        });
-    }, []);
+    const inputRef = useRef<HTMLTextAreaElement>(null);
+    const { isMobile, isShortScreen, isLargeScreen } = useScreenSize();
+    const [platform, setPlatform] = useState<"mac" | "windows">("windows");
 
-    const handleKeyUp = useCallback((e: KeyboardEvent) => {
-        const keyCode = normalizeCode(e.code);
-        setPressedKeys((prevKeys) =>
-            syncModifierKeys(
-                prevKeys.filter((key) => key !== keyCode && key !== "fn"),
-                e
-            )
-        );
-    }, []);
+    const { pressedKeys } = useKeyboardState();
+    const { textSource, fallbackMessage, fetchPracticeText, advanceToNextPrompt } = usePracticeText();
+    const {
+        input,
+        setInput,
+        typingSpeed,
+        accuracy,
+        allSpeeds,
+        allAccuracies,
+        averageSpeed,
+        averageAccuracy,
+        handleTypingStart,
+        recordSession,
+        resetCurrentMetrics,
+        playKeyClickSound,
+    } = useTypingMetrics();
 
+    // 언어 변경 시 입력 초기화 + 포커스
     useEffect(() => {
-        const handleWindowBlur = () => setPressedKeys([]);
-        const handleVisibilityChange = () => {
-            if (document.hidden) setPressedKeys([]);
-        };
-
-        window.addEventListener("keydown", handleKeyDown);
-        window.addEventListener("keyup", handleKeyUp);
-        window.addEventListener("blur", handleWindowBlur);
-        document.addEventListener("visibilitychange", handleVisibilityChange);
-
-        return () => {
-            window.removeEventListener("keydown", handleKeyDown);
-            window.removeEventListener("keyup", handleKeyUp);
-            window.removeEventListener("blur", handleWindowBlur);
-            document.removeEventListener("visibilitychange", handleVisibilityChange);
-        };
-    }, [handleKeyDown, handleKeyUp]);
-
-    const getRandomProverb = useCallback((nextLanguage: "korean" | "english") => {
-        const candidate = getRandomSentence(nextLanguage);
-        if (candidate.length > 0) return candidate;
-        return nextLanguage === "korean"
-            ? "기본 문장으로 타자 연습을 시작합니다"
-            : "Start typing with a basic practice sentence";
-    }, []);
-
-    const beep = useCallback(
-        (frequency = 800, duration = 30, volume = 0.2) => {
-            try {
-                if (!audioContextRef.current) {
-                    const AudioCtor = getAudioContextClass();
-                    if (!AudioCtor) return;
-                    audioContextRef.current = new AudioCtor();
-                }
-
-                const ctx = audioContextRef.current;
-                const oscillator = ctx.createOscillator();
-                const gainNode = ctx.createGain();
-
-                oscillator.type = "sine";
-                oscillator.frequency.setValueAtTime(frequency, ctx.currentTime);
-                gainNode.gain.setValueAtTime(volume, ctx.currentTime);
-
-                oscillator.connect(gainNode);
-                gainNode.connect(ctx.destination);
-
-                oscillator.start();
-                oscillator.stop(ctx.currentTime + duration / 1000);
-            } catch {
-                // beep 실패 시 무시
-            }
-        },
-        []
-    );
-
-    const fetchPracticeText = useCallback(async () => {
-        const nextLanguageCode = language === "korean" ? "ko" : "en";
-        try {
-            const response = await fetch(`/api/wikipedia?lang=${nextLanguageCode}`);
-            if (!response.ok) {
-                promptQueueRef.current = [];
-                setText(getRandomProverb(language));
-                setTextSource("proverb-fallback");
-                setFallbackMessage("위키 문서 연결이 불안정해 속담으로 연습 중입니다.");
-                return;
-            }
-
-            const data: unknown = await response.json();
-            if (
-                typeof data === "object" &&
-                data !== null &&
-                "text" in data &&
-                typeof (data as { text: unknown }).text === "string" &&
-                (data as { text: string }).text.trim().length > 0
-            ) {
-                const prompts = extractPracticePrompts((data as { text: string }).text, language);
-                if (prompts.length > 0) {
-                    setText(prompts[0]);
-                    promptQueueRef.current = prompts.slice(1);
-                    setTextSource("wikipedia");
-                    setFallbackMessage(null);
-                    return;
-                }
-            }
-
-            promptQueueRef.current = [];
-            setText(getRandomProverb(language));
-            setTextSource("proverb-fallback");
-            setFallbackMessage("위키 문서를 가져오지 못해 속담으로 연습 중입니다.");
-        } catch {
-            promptQueueRef.current = [];
-            setText(getRandomProverb(language));
-            setTextSource("proverb-fallback");
-            setFallbackMessage("네트워크 오류로 속담 연습 모드로 전환되었습니다.");
-        }
-    }, [language, setText, getRandomProverb]);
-
-    // 텍스트 초기화 (마운트 시, 언어 변경 시)
-    useEffect(() => {
-        promptQueueRef.current = [];
-        void fetchPracticeText();
-        setInput("");
-        setStartTime(null);
-        setTypingSpeed(0);
-        setAccuracy(0);
+        resetCurrentMetrics();
         setProgress(0);
+    }, [language, setProgress, resetCurrentMetrics]);
 
-        if (!initializedRef.current) {
-            initializedRef.current = true;
-            if (inputRef.current) inputRef.current.focus();
-        }
-    }, [language, setProgress, fetchPracticeText]);
-
-    // 안전장치: 비어있는 텍스트는 즉시 속담으로 교정
+    // 마운트 시 포커스
     useEffect(() => {
-        const normalized = normalizePracticePrompt(text ?? "", language);
-        if (normalized !== text && normalized.length > 0) {
-            setText(normalized);
-            return;
-        }
-        if (!normalized) {
-            promptQueueRef.current = [];
-            setText(getRandomProverb(language));
-            setTextSource("proverb-fallback");
-        }
-    }, [text, language, setText, getRandomProverb]);
-
-    // AudioContext 초기화 (사용자 상호작용 시)
-    useEffect(() => {
-        const handleUserInteraction = () => {
-            if (audioContextRef.current) return;
-            try {
-                const AudioCtor = getAudioContextClass();
-                if (!AudioCtor) return;
-                audioContextRef.current = new AudioCtor();
-            } catch {
-                // AudioContext 초기화 실패 시 무시
-            }
-        };
-
-        document.addEventListener("click", handleUserInteraction);
-        document.addEventListener("keydown", handleUserInteraction);
-
-        return () => {
-            document.removeEventListener("click", handleUserInteraction);
-            document.removeEventListener("keydown", handleUserInteraction);
-        };
+        if (inputRef.current) inputRef.current.focus();
     }, []);
-
-    // 속도/정확도 계산
-    useEffect(() => {
-        const progress = text.length > 0 ? (input.length / text.length) * 100 : 0;
-        setProgress(progress);
-
-        if (input.length > 0 && startTime !== null) {
-            const currentTime = Date.now();
-            const timeElapsedInMinutes = Math.max(
-                5 / 60,
-                (currentTime - startTime) / 60000
-            );
-
-            // Net KPM: 정확하게 입력한 자모 수만 카운트 (오타 자동 차감)
-            let correctKeystrokes = 0;
-            for (let i = 0; i < input.length && i < text.length; i++) {
-                if (input[i] === text[i]) {
-                    correctKeystrokes += countKeystrokes(input[i]);
-                }
-            }
-
-            // 영어: WPM (1 word = 5 chars), 한국어: KPM (자모 기준)
-            const rawSpeed = language === "english"
-                ? correctKeystrokes / 5 / timeElapsedInMinutes
-                : correctKeystrokes / timeElapsedInMinutes;
-
-            let calculatedSpeed = Math.round(rawSpeed);
-
-            // 12초 미만일 경우 상한 보정
-            if (timeElapsedInMinutes < 0.2) {
-                const cap = language === "english" ? 200 : 700;
-                calculatedSpeed = Math.min(calculatedSpeed, cap);
-            }
-
-            setTypingSpeed(calculatedSpeed);
-
-            const calculatedAccuracy = calculateHangulAccuracy(text, input);
-            setAccuracy(calculatedAccuracy);
-        } else {
-            // 입력이 없을 때는 0으로 설정
-            setTypingSpeed(0);
-            setAccuracy(0);
-        }
-    }, [input, text, startTime, setProgress, language]);
 
     useEffect(() => {
         const uaDataPlatform = (navigator as Navigator & {
@@ -340,22 +57,15 @@ const TypingInput: React.FC = () => {
         setPlatform(/mac|iphone|ipad|ipod/i.test(detectSource) ? "mac" : "windows");
     }, []);
 
-    const playKeyClickSound = useCallback(() => {
-        if (isMuted) return;
-        beep(800, 30, 0.2);
-    }, [beep, isMuted]);
-
     const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
         const value = e.target.value.replace(/\r?\n/g, " ");
         const lastChar = value.slice(-1);
 
-        // 입력값이 비어있거나 백스페이스인 경우는 허용
         if (!value || value.length < input.length) {
             setInput(value);
             return;
         }
 
-        // 스페이스바는 항상 허용
         if (lastChar === " ") {
             setInput(value);
             playKeyClickSound();
@@ -367,97 +77,13 @@ const TypingInput: React.FC = () => {
     };
 
     const handleInputKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-        const isTypingKey =
-            !e.repeat &&
-            !e.ctrlKey &&
-            !e.metaKey &&
-            !e.altKey &&
-            !NON_TYPING_KEYS.has(e.key);
-
-        if (isTypingKey && startTime === null) {
-            setStartTime(Date.now());
-        }
+        handleTypingStart(e);
 
         if (e.key === "Enter") {
             e.preventDefault();
-            // 현재 속도와 정확도가 0이 아닌 경우에만 기록
-            if (typingSpeed > 0 && accuracy > 0) {
-                setAllSpeeds((prevSpeeds) => {
-                    const updatedSpeeds = [...prevSpeeds, typingSpeed];
-
-                    // 이상치 제거 (평균의 2배 이상인 값은 제외)
-                    const validSpeeds =
-                        updatedSpeeds.length > 1
-                            ? updatedSpeeds.filter((speed) => {
-                                  const currentAvg =
-                                      updatedSpeeds.reduce(
-                                          (acc, curr) => acc + curr,
-                                          0
-                                      ) / updatedSpeeds.length;
-                                  return speed <= currentAvg * 2;
-                              })
-                            : updatedSpeeds;
-
-                    // 최근 값에 더 높은 가중치 부여 (최근 값일수록 더 중요하게 반영)
-                    let weightedSum = 0;
-                    let weightSum = 0;
-
-                    validSpeeds.forEach((speed, index) => {
-                        const weight = index + 1; // 인덱스가 클수록(최근 값일수록) 가중치가 높음
-                        weightedSum += speed * weight;
-                        weightSum += weight;
-                    });
-
-                    const newAverageSpeed =
-                        weightSum > 0
-                            ? weightedSum / weightSum
-                            : validSpeeds.reduce((acc, curr) => acc + curr, 0) /
-                              validSpeeds.length;
-
-                    setAverageSpeed(Math.round(newAverageSpeed));
-                    return updatedSpeeds;
-                });
-
-                setAllAccuracies((prevAccuracies) => {
-                    const updatedAccuracies = [...prevAccuracies, accuracy];
-
-                    // 가중 평균 계산 (최근 값에 더 높은 가중치 부여)
-                    let weightedSum = 0;
-                    let weightSum = 0;
-
-                    updatedAccuracies.forEach((acc, index) => {
-                        const weight = index + 1; // 인덱스가 클수록(최근 값일수록) 가중치가 높음
-                        weightedSum += acc * weight;
-                        weightSum += weight;
-                    });
-
-                    const newAverageAccuracy =
-                        weightSum > 0
-                            ? weightedSum / weightSum
-                            : updatedAccuracies.reduce(
-                                  (acc, curr) => acc + curr,
-                                  0
-                              ) / updatedAccuracies.length;
-
-                    setAverageAccuracy(Math.round(newAverageAccuracy));
-                    return updatedAccuracies;
-                });
-            }
-
-            // XP 지급 (정확도 기반, 최대 15)
-            // 입력 필드 초기화 및 상태 초기화
-            setInput("");
-            setStartTime(null);
-            setTypingSpeed(0);
-            setAccuracy(0);
-            const nextPrompt = promptQueueRef.current.shift();
-            if (nextPrompt) {
-                setText(nextPrompt);
-                setTextSource("wikipedia");
-                setFallbackMessage(null);
-            } else {
-                void fetchPracticeText();
-            }
+            recordSession();
+            resetCurrentMetrics();
+            advanceToNextPrompt();
         }
     };
 
