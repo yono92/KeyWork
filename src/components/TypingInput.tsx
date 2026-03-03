@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import useTypingStore from "../store/store";
 import { calculateHangulAccuracy, countKeystrokes } from "../utils/hangulUtils";
-import { getRandomSentence, sanitizePracticeSentence } from "../utils/sentenceUtils";
+import { getRandomSentence, normalizePracticePrompt } from "../utils/sentenceUtils";
 import Keyboard from "./Keyboard";
 import ProgressBar from "./ProgressBar";
 import FallbackNotice from "./game/FallbackNotice";
@@ -104,7 +104,7 @@ const TypingInput: React.FC = () => {
     const [allAccuracies, setAllAccuracies] = useState<number[]>([]);
     const [averageSpeed, setAverageSpeed] = useState<number>(0);
     const [averageAccuracy, setAverageAccuracy] = useState<number>(0);
-    const inputRef = useRef<HTMLInputElement>(null);
+    const inputRef = useRef<HTMLTextAreaElement>(null);
     const [pressedKeys, setPressedKeys] = useState<string[]>([]);
     const { isMobile, isShortScreen, isLargeScreen } = useScreenSize();
     const [platform, setPlatform] = useState<"mac" | "windows">("windows");
@@ -210,9 +210,9 @@ const TypingInput: React.FC = () => {
                 typeof (data as { text: unknown }).text === "string" &&
                 (data as { text: string }).text.trim().length > 0
             ) {
-                const sanitized = sanitizePracticeSentence((data as { text: string }).text, language);
-                if (sanitized.length > 0) {
-                    setText(sanitized);
+                const normalized = normalizePracticePrompt((data as { text: string }).text, language);
+                if (normalized.length > 0) {
+                    setText(normalized);
                     setTextSource("wikipedia");
                     setFallbackMessage(null);
                     return;
@@ -246,12 +246,12 @@ const TypingInput: React.FC = () => {
 
     // 안전장치: 비어있는 텍스트는 즉시 속담으로 교정
     useEffect(() => {
-        const sanitized = sanitizePracticeSentence(text ?? "", language);
-        if (sanitized !== text && sanitized.length > 0) {
-            setText(sanitized);
+        const normalized = normalizePracticePrompt(text ?? "", language);
+        if (normalized !== text && normalized.length > 0) {
+            setText(normalized);
             return;
         }
-        if (!sanitized) {
+        if (!normalized) {
             setText(getRandomProverb(language));
             setTextSource("proverb-fallback");
         }
@@ -338,8 +338,8 @@ const TypingInput: React.FC = () => {
         beep(800, 30, 0.2);
     }, [beep, isMuted]);
 
-    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const value = e.target.value;
+    const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+        const value = e.target.value.replace(/\r?\n/g, " ");
         const lastChar = value.slice(-1);
 
         // 입력값이 비어있거나 백스페이스인 경우는 허용
@@ -359,7 +359,7 @@ const TypingInput: React.FC = () => {
         setInput(value);
     };
 
-    const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    const handleInputKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
         const isTypingKey =
             !e.repeat &&
             !e.ctrlKey &&
@@ -372,6 +372,7 @@ const TypingInput: React.FC = () => {
         }
 
         if (e.key === "Enter") {
+            e.preventDefault();
             // 현재 속도와 정확도가 0이 아닌 경우에만 기록
             if (typingSpeed > 0 && accuracy > 0) {
                 setAllSpeeds((prevSpeeds) => {
@@ -446,6 +447,13 @@ const TypingInput: React.FC = () => {
         }
     };
 
+    useEffect(() => {
+        const el = inputRef.current;
+        if (!el) return;
+        el.style.height = "0px";
+        el.style.height = `${el.scrollHeight}px`;
+    }, [input]);
+
     const renderedText = useMemo(() => {
         return text.split("").map((char, index) => {
             let className = darkMode ? "text-slate-500" : "text-slate-400";
@@ -505,17 +513,17 @@ const TypingInput: React.FC = () => {
                     />
                 )}
                 <ProgressBar trackWidth={progressBarWidth} className={lg ? "mb-7" : "mb-5"} />
-                <input
+                <textarea
                     ref={inputRef}
-                    type="text"
                     value={input}
                     onChange={handleInputChange}
                     onKeyDown={handleInputKeyDown}
+                    rows={1}
                     className={`w-full ${lg ? "px-5 py-4 text-2xl" : "px-4 py-3.5 text-xl"} outline-none border-2 ${
                         retroTheme === "mac-classic"
                             ? "rounded-lg border-[var(--retro-border-mid)] border-t-[var(--retro-border-dark)] border-l-[var(--retro-border-dark)] border-r-[var(--retro-border-light)] border-b-[var(--retro-border-light)] bg-[var(--retro-field-bg)] text-[var(--retro-field-text)] placeholder:text-[var(--retro-field-placeholder)]"
                             : "rounded-none border-[var(--retro-border-mid)] border-t-[var(--retro-border-dark)] border-l-[var(--retro-border-dark)] border-r-[var(--retro-border-light)] border-b-[var(--retro-border-light)] bg-[var(--retro-field-bg)] text-[var(--retro-field-text)] placeholder:text-[var(--retro-field-placeholder)]"
-                    } focus:ring-2 focus:ring-[var(--retro-accent)]`}
+                    } focus:ring-2 focus:ring-[var(--retro-accent)] resize-none overflow-hidden leading-relaxed`}
                     placeholder=""
                     autoFocus
                 />

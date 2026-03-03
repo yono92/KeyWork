@@ -1,4 +1,4 @@
-import { sanitizePracticeSentence } from "../../src/utils/sentenceUtils";
+import { normalizePracticePrompt, sanitizePracticeSentence } from "../../src/utils/sentenceUtils";
 
 describe("sanitizePracticeSentence", () => {
     it("keeps hangul, spaces, digits and basic punctuation in korean mode", () => {
@@ -14,5 +14,18 @@ describe("sanitizePracticeSentence", () => {
     it("normalizes repeated spaces", () => {
         const result = sanitizePracticeSentence("Hello   world   !", "english");
         expect(result).toBe("Hello world !");
+    });
+});
+
+describe("normalizePracticePrompt", () => {
+    it("removes bracket and parenthesis chunks", () => {
+        const result = normalizePracticePrompt("테스트[12] 문장 (부가설명) 입니다!", "korean");
+        expect(result).toBe("테스트 문장 입니다!");
+    });
+
+    it("trims very long korean text", () => {
+        const longText = "가".repeat(300);
+        const result = normalizePracticePrompt(longText, "korean");
+        expect(result.length).toBeLessThanOrEqual(90);
     });
 });

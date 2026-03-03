@@ -1,9 +1,21 @@
 import proverbsData from "../data/proverbs.json";
 
 const BASIC_PUNCTUATION = ".,!?\"'():;-";
+const MAX_PROMPT_LENGTH: Record<"korean" | "english", number> = {
+    korean: 90,
+    english: 140,
+};
 
 const escapeForCharClass = (text: string): string =>
     text.replace(/[\\\-\]^]/g, "\\$&");
+
+const trimToLength = (text: string, maxLength: number): string => {
+    if (text.length <= maxLength) return text;
+    const sliced = text.slice(0, maxLength).trim();
+    const lastSpace = sliced.lastIndexOf(" ");
+    if (lastSpace < maxLength * 0.6) return sliced;
+    return sliced.slice(0, lastSpace).trim();
+};
 
 export function sanitizePracticeSentence(
     text: string,
@@ -21,10 +33,22 @@ export function sanitizePracticeSentence(
         .trim();
 }
 
+export function normalizePracticePrompt(
+    text: string,
+    language: "korean" | "english",
+): string {
+    const noMarkup = text
+        .replace(/\[[^\]]*\]/g, " ")
+        .replace(/\([^)]*\)/g, " ");
+    const sanitized = sanitizePracticeSentence(noMarkup, language);
+    if (!sanitized) return "";
+    return trimToLength(sanitized, MAX_PROMPT_LENGTH[language]);
+}
+
 /** 단순 랜덤 문장 반환 (TypingDefenseGame, TypingInput용) */
 export function getRandomSentence(language: "korean" | "english"): string {
     const sentences = proverbsData[language];
-    return sanitizePracticeSentence(
+    return normalizePracticePrompt(
         sentences[Math.floor(Math.random() * sentences.length)],
         language
     );
@@ -40,5 +64,5 @@ export function getRandomSentenceUnique(
     const pool = available.length > 0 ? available : sentences;
     const idx = sentences.indexOf(pool[Math.floor(Math.random() * pool.length)]);
     usedIndices.add(idx);
-    return sanitizePracticeSentence(sentences[idx], language);
+    return normalizePracticePrompt(sentences[idx], language);
 }
