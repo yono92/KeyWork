@@ -109,7 +109,6 @@ export async function GET(request: NextRequest) {
         method: "exact",
         num: "20",
         advanced: "y",
-        pos: "1",
     });
 
     try {

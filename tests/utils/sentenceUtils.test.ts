@@ -1,4 +1,4 @@
-import { normalizePracticePrompt, sanitizePracticeSentence } from "../../src/utils/sentenceUtils";
+import { extractPracticePrompts, normalizePracticePrompt, sanitizePracticeSentence } from "../../src/utils/sentenceUtils";
 
 describe("sanitizePracticeSentence", () => {
     it("keeps hangul, spaces, digits and basic punctuation in korean mode", () => {
@@ -27,5 +27,20 @@ describe("normalizePracticePrompt", () => {
         const longText = "가".repeat(300);
         const result = normalizePracticePrompt(longText, "korean");
         expect(result.length).toBeLessThanOrEqual(90);
+    });
+});
+
+describe("extractPracticePrompts", () => {
+    it("splits long text into multiple prompts by sentence boundaries", () => {
+        const long = "첫 문장입니다. 두 번째 문장입니다. 세 번째 문장입니다. 네 번째 문장입니다.";
+        const prompts = extractPracticePrompts(long.repeat(5), "korean");
+        expect(prompts.length).toBeGreaterThan(1);
+        expect(prompts.every((p) => p.length <= 90)).toBe(true);
+    });
+
+    it("removes bracket metadata before splitting", () => {
+        const prompts = extractPracticePrompts("테스트[1] 문장입니다. 다음(부가 설명) 문장입니다.", "korean");
+        expect(prompts.join(" ")).not.toContain("[1]");
+        expect(prompts.join(" ")).not.toContain("부가 설명");
     });
 });

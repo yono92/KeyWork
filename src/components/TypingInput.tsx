@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import useTypingStore from "../store/store";
 import { calculateHangulAccuracy, countKeystrokes } from "../utils/hangulUtils";
-import { getRandomSentence, normalizePracticePrompt } from "../utils/sentenceUtils";
+import { extractPracticePrompts, getRandomSentence, normalizePracticePrompt } from "../utils/sentenceUtils";
 import Keyboard from "./Keyboard";
 import ProgressBar from "./ProgressBar";
 import FallbackNotice from "./game/FallbackNotice";
@@ -112,6 +112,7 @@ const TypingInput: React.FC = () => {
     const [fallbackMessage, setFallbackMessage] = useState<string | null>(null);
     const audioContextRef = useRef<AudioContext | null>(null);
     const initializedRef = useRef(false);
+    const promptQueueRef = useRef<string[]>([]);
     const isMuted = useTypingStore((state) => state.isMuted);
     const retroTheme = useTypingStore((state) => state.retroTheme);
 
@@ -196,6 +197,7 @@ const TypingInput: React.FC = () => {
         try {
             const response = await fetch(`/api/wikipedia?lang=${nextLanguageCode}`);
             if (!response.ok) {
+                promptQueueRef.current = [];
                 setText(getRandomProverb(language));
                 setTextSource("proverb-fallback");
                 setFallbackMessage("위키 문서 연결이 불안정해 속담으로 연습 중입니다.");
@@ -210,19 +212,22 @@ const TypingInput: React.FC = () => {
                 typeof (data as { text: unknown }).text === "string" &&
                 (data as { text: string }).text.trim().length > 0
             ) {
-                const normalized = normalizePracticePrompt((data as { text: string }).text, language);
-                if (normalized.length > 0) {
-                    setText(normalized);
+                const prompts = extractPracticePrompts((data as { text: string }).text, language);
+                if (prompts.length > 0) {
+                    setText(prompts[0]);
+                    promptQueueRef.current = prompts.slice(1);
                     setTextSource("wikipedia");
                     setFallbackMessage(null);
                     return;
                 }
             }
 
+            promptQueueRef.current = [];
             setText(getRandomProverb(language));
             setTextSource("proverb-fallback");
             setFallbackMessage("위키 문서를 가져오지 못해 속담으로 연습 중입니다.");
         } catch {
+            promptQueueRef.current = [];
             setText(getRandomProverb(language));
             setTextSource("proverb-fallback");
             setFallbackMessage("네트워크 오류로 속담 연습 모드로 전환되었습니다.");
@@ -231,6 +236,7 @@ const TypingInput: React.FC = () => {
 
     // 텍스트 초기화 (마운트 시, 언어 변경 시)
     useEffect(() => {
+        promptQueueRef.current = [];
         void fetchPracticeText();
         setInput("");
         setStartTime(null);
@@ -252,6 +258,7 @@ const TypingInput: React.FC = () => {
             return;
         }
         if (!normalized) {
+            promptQueueRef.current = [];
             setText(getRandomProverb(language));
             setTextSource("proverb-fallback");
         }
@@ -443,7 +450,14 @@ const TypingInput: React.FC = () => {
             setStartTime(null);
             setTypingSpeed(0);
             setAccuracy(0);
-            void fetchPracticeText();
+            const nextPrompt = promptQueueRef.current.shift();
+            if (nextPrompt) {
+                setText(nextPrompt);
+                setTextSource("wikipedia");
+                setFallbackMessage(null);
+            } else {
+                void fetchPracticeText();
+            }
         }
     };
 

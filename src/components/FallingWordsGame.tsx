@@ -335,7 +335,7 @@ const FallingWordsGame: React.FC = () => {
                 break;
             case "score":
                 setScore((prev) => prev + 200 * level);
-                setCombo((prev) => prev + 2);
+                setCombo((prev) => prev + 1);
                 break;
         }
     };
@@ -621,11 +621,16 @@ const FallingWordsGame: React.FC = () => {
     const isNewHighScore = gameOver && score > 0 && score >= highScore;
     const retroRadiusClass = retroTheme === "mac-classic" ? "rounded-xl" : "rounded-none";
     const retroSoftRadiusClass = retroTheme === "mac-classic" ? "rounded-lg" : "rounded-none";
+    const getWordSizeClass = (wordText: string) => {
+        if (wordText.length >= 9) return "text-base sm:text-lg lg:text-xl";
+        if (wordText.length >= 6) return "text-lg sm:text-xl lg:text-2xl";
+        return "text-xl sm:text-2xl lg:text-3xl";
+    };
 
     return (
         <div
             ref={gameAreaRef}
-            className={`relative w-full flex-1 min-h-[280px] sm:min-h-[400px] overflow-hidden ${retroRadiusClass} border-2 border-[var(--retro-border-mid)] border-t-[var(--retro-border-light)] border-l-[var(--retro-border-light)] border-r-[var(--retro-border-dark)] border-b-[var(--retro-border-dark)] bg-[var(--retro-surface-alt)]`}
+            className={`relative w-full flex-1 min-h-[340px] sm:min-h-[460px] overflow-hidden ${retroRadiusClass} border-2 border-[var(--retro-border-mid)] border-t-[var(--retro-border-light)] border-l-[var(--retro-border-light)] border-r-[var(--retro-border-dark)] border-b-[var(--retro-border-dark)] bg-[var(--retro-surface-alt)]`}
         >
             <div className={`absolute inset-0 ${darkMode ? "bg-[#1f2730]" : "bg-[var(--retro-surface-alt)]"}`}>
                 <div
@@ -637,15 +642,15 @@ const FallingWordsGame: React.FC = () => {
                 />
                 {/* 상단 스코어바 */}
                 <div className={`absolute top-0 left-0 right-0 flex justify-between items-center px-2.5 py-2 sm:px-5 sm:py-3 border-b-2 z-10 bg-[var(--retro-surface)] border-[var(--retro-border-mid)]`}>
-                    <div className={`text-xs sm:text-lg font-bold font-mono text-[var(--retro-text)]`}>
+                    <div className="text-sm sm:text-lg lg:text-xl font-bold font-mono text-[var(--retro-text)]">
                         Score: <span className="tabular-nums">{score}</span>
                         {highScore > 0 && (
-                            <span className="ml-1 sm:ml-2 text-[10px] sm:text-xs font-medium text-[var(--retro-text)]/70">
+                            <span className="ml-1 sm:ml-2 text-xs sm:text-sm font-medium text-[var(--retro-text)]/70">
                                 Best: <span className="tabular-nums">{highScore}</span>
                             </span>
                         )}
                         {combo > 0 && (
-                            <span className="ml-1 sm:ml-2 text-[10px] sm:text-sm text-sky-400">
+                            <span className="ml-1 sm:ml-2 text-xs sm:text-base text-sky-400">
                                 x{Math.min(1 + combo * 0.2, 2).toFixed(1)}
                             </span>
                         )}
@@ -657,10 +662,10 @@ const FallingWordsGame: React.FC = () => {
                     }`}>
                         {difficulty === "easy" ? "Easy" : difficulty === "normal" ? "Normal" : "Hard"}
                     </span>
-                    <div className="text-xs sm:text-lg font-bold font-mono text-[var(--retro-text)]">
+                    <div className="text-sm sm:text-lg lg:text-xl font-bold font-mono text-[var(--retro-text)]">
                         Lv.<span className="tabular-nums">{level}</span>
                     </div>
-                    <div className="text-sm sm:text-lg font-bold">
+                    <div className="text-base sm:text-lg lg:text-xl font-bold">
                         {"❤️".repeat(Math.max(lives, 0))}
                         {"🖤".repeat(Math.max(config.lives - lives, 0))}
                     </div>
@@ -683,7 +688,7 @@ const FallingWordsGame: React.FC = () => {
                 {combo >= 3 && (
                     <div className="absolute top-11 sm:top-14 left-2 sm:left-5 z-10">
                         <div
-                        className={`text-sm sm:text-lg font-bold font-mono ${
+                        className={`text-base sm:text-xl lg:text-2xl font-bold font-mono ${
                                 combo >= 10
                                     ? "text-amber-400"
                                     : combo >= 5
@@ -714,7 +719,7 @@ const FallingWordsGame: React.FC = () => {
                 {scorePopups.map((popup) => (
                     <div
                         key={popup.id}
-                        className="absolute animate-score-popup z-20 text-sm sm:text-lg font-bold text-sky-400 font-mono"
+                        className="absolute animate-score-popup z-20 text-base sm:text-xl lg:text-2xl font-bold text-sky-400 font-mono"
                         style={{ left: `${popup.left}px`, top: `${popup.top}px` }}
                     >
                         {popup.text}
@@ -727,7 +732,7 @@ const FallingWordsGame: React.FC = () => {
                     return (
                         <div
                             key={word.id}
-                            className={`absolute text-sm sm:text-lg font-bold font-mono flex items-center gap-1 sm:gap-1.5 ${getWordAnimClass(word)} ${
+                            className={`absolute ${getWordSizeClass(word.text)} font-bold font-mono flex items-center gap-1 sm:gap-2 ${getWordAnimClass(word)} ${
                                 word.type === "normal"
                                     ? darkMode
                                         ? "text-[#f5f7fa] drop-shadow-[1px_1px_0_rgba(0,0,0,0.5)]"
@@ -776,6 +781,7 @@ const FallingWordsGame: React.FC = () => {
                         onChange={setInput}
                         onSubmit={handleSubmit}
                         disabled={!gameStarted || isPaused || gameOver}
+                        className="w-full text-lg sm:text-xl lg:text-2xl py-3 sm:py-4"
                         placeholder={language === "korean" ? "" : "Type the word…"}
                         ariaLabel={language === "korean" ? "단어 낙하 입력" : "Falling words input"}
                     />

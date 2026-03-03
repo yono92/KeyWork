@@ -459,24 +459,6 @@ const WordChainGame: React.FC = () => {
         }
     };
 
-    const handlePass = () => {
-        if (isAiTurn || isValidatingWord || gameOver || !gameStarted || isPaused) return;
-        playSound("lifeLost");
-        setCombo(0);
-        setInput("");
-        addMessage("(패스)", "player", false);
-        setLives((l) => {
-            const newLives = l - 1;
-            if (newLives <= 0) {
-                setGameOver(true);
-                playSound("gameOver");
-            } else {
-                doAiTurn(currentChar);
-            }
-            return Math.max(newLives, 0);
-        });
-    };
-
     const restartGame = useCallback(() => {
         const cfg = DIFFICULTY_CONFIG.normal;
         setScore(0);
@@ -690,21 +672,6 @@ const WordChainGame: React.FC = () => {
                             }
                             ariaLabel="끝말잇기 단어 입력"
                         />
-                        <Button
-                            onClick={handlePass}
-                            disabled={!gameStarted || isPaused || gameOver || isAiTurn || isValidatingWord}
-                            title="단어를 모를 때 패스 (목숨 -1)"
-                            variant="outline"
-                            className={`h-auto px-3 py-2 sm:px-4 sm:py-3 font-medium text-sm sm:text-base transition-all duration-200 border-2 disabled:opacity-50 ${
-                                retroTheme === "mac-classic" ? "rounded-lg" : "rounded-none"
-                            } ${
-                                darkMode
-                                    ? "bg-transparent border-white/10 text-slate-400 hover:border-rose-500/30 hover:text-rose-400"
-                                    : "border-slate-200 text-slate-500 hover:border-rose-300 hover:text-rose-500"
-                            }`}
-                        >
-                            패스
-                        </Button>
                         <Button
                             onClick={() => void handleSubmit()}
                             disabled={!gameStarted || isPaused || gameOver || isAiTurn || isValidatingWord || !input.trim()}

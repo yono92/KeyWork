@@ -15,6 +15,9 @@
 - `word-random-diversity`: 랜덤 단어 출제 다양성 개선
 - `practice-text-normalization`: 연습 문장 문자 집합 정규화
 - `falling-words-retro-refresh`: 단어낙하 레트로 스타일 강화
+- `practice-prompt-rotation`: 문장 연습 텍스트 분할/순환 개선
+- `falling-words-combo-responsive`: 단어낙하 콤보/반응형 가독성 개선
+- `word-chain-validation-ux`: 끝말잇기 패스 제거 및 검증 완화
 
 ## 표준 절차
 1. `specs/[feature-name]/README.md` 작성
