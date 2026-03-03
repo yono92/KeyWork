@@ -14,6 +14,7 @@
 - `mobile-tetris-lite`: 모바일 경량 테트리스 모드 추가
 - `word-random-diversity`: 랜덤 단어 출제 다양성 개선
 - `practice-text-normalization`: 연습 문장 문자 집합 정규화
+- `falling-words-retro-refresh`: 단어낙하 레트로 스타일 강화
 
 ## 표준 절차
 1. `specs/[feature-name]/README.md` 작성

@@ -619,21 +619,28 @@ const FallingWordsGame: React.FC = () => {
     };
 
     const isNewHighScore = gameOver && score > 0 && score >= highScore;
+    const retroRadiusClass = retroTheme === "mac-classic" ? "rounded-xl" : "rounded-none";
+    const retroSoftRadiusClass = retroTheme === "mac-classic" ? "rounded-lg" : "rounded-none";
 
     return (
         <div
             ref={gameAreaRef}
-            className="relative w-full flex-1 min-h-[280px] sm:min-h-[400px] rounded-2xl overflow-hidden border border-sky-200/40 dark:border-sky-500/10"
+            className={`relative w-full flex-1 min-h-[280px] sm:min-h-[400px] overflow-hidden ${retroRadiusClass} border-2 border-[var(--retro-border-mid)] border-t-[var(--retro-border-light)] border-l-[var(--retro-border-light)] border-r-[var(--retro-border-dark)] border-b-[var(--retro-border-dark)] bg-[var(--retro-surface-alt)]`}
         >
-            <div className={`absolute inset-0 ${darkMode ? "bg-[#0e1825]" : "bg-gradient-to-b from-sky-50/80 to-white"}`}>
+            <div className={`absolute inset-0 ${darkMode ? "bg-[#1f2730]" : "bg-[var(--retro-surface-alt)]"}`}>
+                <div
+                    className="absolute inset-0 pointer-events-none opacity-30"
+                    style={{
+                        backgroundImage:
+                            "repeating-linear-gradient(to bottom, rgba(255,255,255,0.05) 0px, rgba(255,255,255,0.05) 1px, transparent 1px, transparent 4px)",
+                    }}
+                />
                 {/* 상단 스코어바 */}
-                <div className={`absolute top-0 left-0 right-0 flex justify-between items-center px-2.5 py-2 sm:px-5 sm:py-3 backdrop-blur-sm border-b z-10 ${
-                    darkMode ? "bg-white/[0.04] border-white/[0.06]" : "bg-white/70 border-sky-100/50"
-                }`}>
-                    <div className={`text-xs sm:text-lg font-bold ${darkMode ? "text-white" : "text-slate-800"}`}>
+                <div className={`absolute top-0 left-0 right-0 flex justify-between items-center px-2.5 py-2 sm:px-5 sm:py-3 border-b-2 z-10 bg-[var(--retro-surface)] border-[var(--retro-border-mid)]`}>
+                    <div className={`text-xs sm:text-lg font-bold font-mono text-[var(--retro-text)]`}>
                         Score: <span className="tabular-nums">{score}</span>
                         {highScore > 0 && (
-                            <span className={`ml-1 sm:ml-2 text-[10px] sm:text-xs font-medium ${darkMode ? "text-slate-500" : "text-slate-400"}`}>
+                            <span className="ml-1 sm:ml-2 text-[10px] sm:text-xs font-medium text-[var(--retro-text)]/70">
                                 Best: <span className="tabular-nums">{highScore}</span>
                             </span>
                         )}
@@ -650,10 +657,10 @@ const FallingWordsGame: React.FC = () => {
                     }`}>
                         {difficulty === "easy" ? "Easy" : difficulty === "normal" ? "Normal" : "Hard"}
                     </span>
-                    <div className={`text-xs sm:text-lg font-bold ${darkMode ? "text-white" : "text-slate-800"}`}>
+                    <div className="text-xs sm:text-lg font-bold font-mono text-[var(--retro-text)]">
                         Lv.<span className="tabular-nums">{level}</span>
                     </div>
-                    <div className={`text-sm sm:text-lg font-bold ${darkMode ? "text-white" : "text-slate-800"}`}>
+                    <div className="text-sm sm:text-lg font-bold">
                         {"❤️".repeat(Math.max(lives, 0))}
                         {"🖤".repeat(Math.max(config.lives - lives, 0))}
                     </div>
@@ -676,7 +683,7 @@ const FallingWordsGame: React.FC = () => {
                 {combo >= 3 && (
                     <div className="absolute top-11 sm:top-14 left-2 sm:left-5 z-10">
                         <div
-                            className={`text-sm sm:text-lg font-bold ${
+                        className={`text-sm sm:text-lg font-bold font-mono ${
                                 combo >= 10
                                     ? "text-amber-400"
                                     : combo >= 5
@@ -707,7 +714,7 @@ const FallingWordsGame: React.FC = () => {
                 {scorePopups.map((popup) => (
                     <div
                         key={popup.id}
-                        className="absolute animate-score-popup z-20 text-sm sm:text-lg font-bold text-sky-400"
+                        className="absolute animate-score-popup z-20 text-sm sm:text-lg font-bold text-sky-400 font-mono"
                         style={{ left: `${popup.left}px`, top: `${popup.top}px` }}
                     >
                         {popup.text}
@@ -720,16 +727,15 @@ const FallingWordsGame: React.FC = () => {
                     return (
                         <div
                             key={word.id}
-                            className={`absolute text-sm sm:text-lg font-bold flex items-center gap-1 sm:gap-1.5 ${getWordAnimClass(word)} ${
+                            className={`absolute text-sm sm:text-lg font-bold font-mono flex items-center gap-1 sm:gap-1.5 ${getWordAnimClass(word)} ${
                                 word.type === "normal"
                                     ? darkMode
-                                        ? "text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)]"
-                                        : "text-slate-800 drop-shadow-[0_1px_2px_rgba(0,0,0,0.1)]"
+                                        ? "text-[#f5f7fa] drop-shadow-[1px_1px_0_rgba(0,0,0,0.5)]"
+                                        : "text-[var(--retro-text)] drop-shadow-[1px_1px_0_rgba(255,255,255,0.5)]"
                                     : word.color
                             } ${
                                 word.type !== "normal"
-                                    ? "rounded-lg px-2.5 py-1 " +
-                                      (darkMode ? "bg-white/10 backdrop-blur-sm shadow-lg" : "bg-white/60 backdrop-blur-sm shadow-md")
+                                    ? `${retroSoftRadiusClass} px-2.5 py-1 border border-[var(--retro-border-mid)] bg-[var(--retro-surface)]`
                                     : ""
                             } ${isTarget ? "underline decoration-sky-400/50 decoration-2 underline-offset-4" : ""}`}
                             style={{
@@ -763,9 +769,7 @@ const FallingWordsGame: React.FC = () => {
                 })}
 
                 {/* 하단 입력 영역 */}
-                <div className={`absolute bottom-0 left-0 right-0 p-2.5 sm:p-4 backdrop-blur-sm border-t ${
-                    darkMode ? "bg-white/[0.04] border-white/[0.06]" : "bg-white/70 border-sky-100/50"
-                }`}>
+                <div className="absolute bottom-0 left-0 right-0 p-2.5 sm:p-4 border-t-2 bg-[var(--retro-surface)] border-[var(--retro-border-mid)]">
                     <GameInput
                         inputRef={inputRef}
                         value={input}
@@ -781,19 +785,17 @@ const FallingWordsGame: React.FC = () => {
             {/* 시작 오버레이 */}
             {!gameStarted && !gameOver && countdown === null && (
                 <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-                    <div className={`text-center px-8 py-8 rounded-2xl border ${
-                        darkMode ? "bg-[#162032]/90 border-white/10" : "bg-white/90 border-sky-100"
-                    } shadow-2xl max-w-xs mx-4`}>
+                    <div className={`text-center px-8 py-8 ${retroRadiusClass} border-2 border-[var(--retro-border-mid)] border-t-[var(--retro-border-light)] border-l-[var(--retro-border-light)] border-r-[var(--retro-border-dark)] border-b-[var(--retro-border-dark)] bg-[var(--retro-surface)] shadow-2xl max-w-xs mx-4`}>
                         <div className="text-5xl mb-3">🌧️</div>
-                        <h2 className={`text-2xl sm:text-3xl font-black mb-2 ${darkMode ? "text-white" : "text-slate-800"}`}>
+                        <h2 className="text-2xl sm:text-3xl font-black mb-2 text-[var(--retro-text)]">
                             {language === "korean" ? "소나기 모드" : "Falling Words"}
                         </h2>
-                        <p className={`text-sm mb-1 ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
+                        <p className="text-sm mb-1 text-[var(--retro-text)]/80">
                             {language === "korean"
                                 ? "떨어지는 단어를 타이핑하세요!"
                                 : "Type the falling words before they hit the ground!"}
                         </p>
-                        <p className={`text-xs mb-5 ${darkMode ? "text-slate-500" : "text-slate-400"}`}>
+                        <p className="text-xs mb-5 text-[var(--retro-text)]/70">
                             {language === "korean"
                                 ? "콤보를 쌓아 높은 점수를 노리세요"
                                 : "Build combos for higher scores"}
