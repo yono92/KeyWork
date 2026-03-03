@@ -158,6 +158,13 @@ export default function TetrisGame() {
     const [shaking, setShaking] = useState(false);
     const [scorePop, setScorePop] = useState(false);
     const [animEnabled, setAnimEnabled] = useState(true);
+    const [combo, setCombo] = useState(0);
+    const [floatingTexts, setFloatingTexts] = useState<{ id: number; text: string; color: string }[]>([]);
+    const [levelGlow, setLevelGlow] = useState(false);
+    const [hardDropDistance, setHardDropDistance] = useState(0);
+    const [impactRow, setImpactRow] = useState<number | null>(null);
+    const floatingIdRef = useRef(0);
+    const prevLevelRef = useRef(1);
 
     const level = Math.min(10, Math.floor(lines / 10) + 1);
     const dropIntervalMs = isMobile
@@ -215,7 +222,8 @@ export default function TetrisGame() {
     const triggerFlash = useCallback((rows: number[]) => {
         if (!animEnabled || rows.length === 0) return;
         setFlashRows(rows);
-        setTimeout(() => setFlashRows([]), 350);
+        // 500ms = max animation (0.5s) + max delay (4.5 * 40ms = 180ms)
+        setTimeout(() => setFlashRows([]), 700);
     }, [animEnabled]);
 
     const triggerShake = useCallback(() => {
@@ -228,6 +236,19 @@ export default function TetrisGame() {
         if (!animEnabled) return;
         setScorePop(true);
         setTimeout(() => setScorePop(false), 300);
+    }, [animEnabled]);
+
+    const addFloatingText = useCallback((text: string, color: string) => {
+        if (!animEnabled) return;
+        const id = ++floatingIdRef.current;
+        setFloatingTexts((prev) => [...prev, { id, text, color }]);
+        setTimeout(() => setFloatingTexts((prev) => prev.filter((t) => t.id !== id)), 1200);
+    }, [animEnabled]);
+
+    const triggerLevelGlow = useCallback(() => {
+        if (!animEnabled) return;
+        setLevelGlow(true);
+        setTimeout(() => setLevelGlow(false), 600);
     }, [animEnabled]);
 
     const resetGame = useCallback(() => {
@@ -243,6 +264,10 @@ export default function TetrisGame() {
         setPaused(false);
         setRunning(true);
         setFlashRows([]);
+        setCombo(0);
+        setFloatingTexts([]);
+        setImpactRow(null);
+        prevLevelRef.current = 1;
     }, []);
 
     const spawnFromQueue = useCallback(
@@ -269,15 +294,24 @@ export default function TetrisGame() {
         if (removed > 0) {
             triggerFlash(clearedRows);
             triggerScorePop();
+            const newCombo = combo + 1;
+            setCombo(newCombo);
+            const lineScore = getLineScore(removed, level);
+            const comboBonus = newCombo >= 1 ? 50 * newCombo * level : 0;
+            const totalGain = lineScore + comboBonus;
+            setLines((prev) => prev + removed);
+            setScore((prev) => prev + totalGain);
+            addFloatingText(`+${totalGain}`, "#ffe000");
+            if (newCombo >= 2) {
+                addFloatingText(`COMBO x${newCombo}`, "#00e5ff");
+            }
+        } else {
+            setCombo(0);
         }
 
         setBoard(nextBoard);
-        if (removed > 0) {
-            setLines((prev) => prev + removed);
-            setScore((prev) => prev + getLineScore(removed, level));
-        }
         spawnFromQueue(nextBoard);
-    }, [activePiece, board, level, spawnFromQueue, triggerFlash, triggerScorePop]);
+    }, [activePiece, board, combo, level, spawnFromQueue, triggerFlash, triggerScorePop, addFloatingText]);
 
     const moveHorizontal = useCallback(
         (deltaX: number) => {
@@ -324,19 +358,37 @@ export default function TetrisGame() {
         const merged = mergePiece(board, droppedPiece);
         const { nextBoard, removed, clearedRows } = clearFullLines(merged);
 
+        setHardDropDistance(distance);
         triggerShake();
+
+        // impact line at landing row
+        if (animEnabled && distance > 2) {
+            const landingRow = Math.max(...PIECES[activePiece.type][activePiece.rotation].map(([, dy]) => droppedPiece.y + dy));
+            setImpactRow(landingRow);
+            setTimeout(() => setImpactRow(null), 400);
+        }
+
         if (removed > 0) {
             triggerFlash(clearedRows);
             triggerScorePop();
+            const newCombo = combo + 1;
+            setCombo(newCombo);
+            const lineScore = getLineScore(removed, level);
+            const comboBonus = newCombo >= 1 ? 50 * newCombo * level : 0;
+            const totalGain = lineScore + comboBonus;
+            setLines((prev) => prev + removed);
+            setScore((prev) => prev + totalGain);
+            addFloatingText(`+${totalGain}`, "#ffe000");
+            if (newCombo >= 2) {
+                addFloatingText(`COMBO x${newCombo}`, "#00e5ff");
+            }
+        } else {
+            setCombo(0);
         }
 
         setBoard(nextBoard);
-        if (removed > 0) {
-            setLines((prev) => prev + removed);
-            setScore((prev) => prev + getLineScore(removed, level));
-        }
         spawnFromQueue(nextBoard);
-    }, [activePiece, board, gameOver, level, paused, running, spawnFromQueue, triggerFlash, triggerShake, triggerScorePop]);
+    }, [activePiece, board, combo, gameOver, level, paused, running, spawnFromQueue, triggerFlash, triggerShake, triggerScorePop, addFloatingText, animEnabled]);
 
     const holdPiece = useCallback(() => {
         if (!running || paused || gameOver || holdUsedThisTurn) return;
@@ -355,6 +407,14 @@ export default function TetrisGame() {
         setActivePiece(swappedPiece);
         setHoldUsedThisTurn(true);
     }, [activePiece, board, gameOver, heldPieceType, holdUsedThisTurn, paused, running, spawnFromQueue]);
+
+    // Level-up glow effect
+    useEffect(() => {
+        if (level > prevLevelRef.current && running) {
+            triggerLevelGlow();
+        }
+        prevLevelRef.current = level;
+    }, [level, running, triggerLevelGlow]);
 
     useEffect(() => {
         if (!running || paused || gameOver) return;
@@ -510,6 +570,14 @@ export default function TetrisGame() {
         );
     };
 
+    const shakeAnim = shaking
+        ? hardDropDistance > 6
+            ? "tetris-hard-shake 0.25s ease-out"
+            : hardDropDistance > 2
+                ? "tetris-hard-shake 0.2s ease-out"
+                : "tetris-shake 0.18s ease-out"
+        : undefined;
+
     const renderBoard = () => (
         <div
             style={{
@@ -517,7 +585,7 @@ export default function TetrisGame() {
                 alignSelf: "start",
                 width: "fit-content",
                 margin: "0 auto",
-                animation: shaking ? "tetris-shake 0.18s ease-out" : undefined,
+                animation: shakeAnim,
             }}
         >
             {/* 외곽 프레임 — 두꺼운 bevel */}
@@ -531,6 +599,7 @@ export default function TetrisGame() {
                     borderLeftColor: "#666",
                     borderBottomColor: "#111",
                     borderRightColor: "#111",
+                    animation: levelGlow ? "tetris-level-glow 0.6s ease-out" : undefined,
                 }}
             >
                 {/* 안쪽 inset */}
@@ -556,12 +625,16 @@ export default function TetrisGame() {
                                 const isFlash = flashRows.includes(ri);
 
                                 if (isFlash && cell) {
+                                    // NES-style: cells dissolve from center outward
+                                    const distFromCenter = Math.abs(ci - (BOARD_WIDTH - 1) / 2);
+                                    const delay = distFromCenter * 40; // 40ms per column from center
                                     return (
                                         <div
                                             key={key}
                                             style={{
                                                 width: cellSize, height: cellSize,
-                                                animation: "tetris-flash 0.35s linear forwards",
+                                                background: "#fff",
+                                                animation: `tetris-line-clear 0.5s ${delay}ms ease-out forwards`,
                                             }}
                                             aria-hidden="true"
                                         />
@@ -605,6 +678,48 @@ export default function TetrisGame() {
                     </div>
                 </div>
             </div>
+
+            {/* 하드드롭 임팩트 라인 */}
+            {impactRow !== null && (
+                <div
+                    style={{
+                        position: "absolute",
+                        left: 7, // frame padding
+                        right: 7,
+                        top: 7 + impactRow * cellSize + cellSize / 2 - 1,
+                        height: 2,
+                        background: "linear-gradient(90deg, transparent, #fff, #ffe000, #fff, transparent)",
+                        animation: "tetris-impact-line 0.4s ease-out forwards",
+                        pointerEvents: "none",
+                        zIndex: 5,
+                    }}
+                />
+            )}
+
+            {/* 플로팅 점수/콤보 텍스트 */}
+            {floatingTexts.map((ft) => (
+                <div
+                    key={ft.id}
+                    style={{
+                        position: "absolute",
+                        left: "50%",
+                        top: "40%",
+                        transform: "translateX(-50%)",
+                        color: ft.color,
+                        fontSize: ft.text.startsWith("COMBO") ? Math.max(16, cellSize * 0.8) : Math.max(14, cellSize * 0.7),
+                        fontWeight: 900,
+                        letterSpacing: 2,
+                        textShadow: "2px 2px 0 #000, -1px -1px 0 #000",
+                        animation: ft.text.startsWith("COMBO") ? "tetris-combo-pulse 1.2s ease-out forwards" : "tetris-float-up 1s ease-out forwards",
+                        pointerEvents: "none",
+                        zIndex: 8,
+                        whiteSpace: "nowrap",
+                        fontFamily: "monospace",
+                    }}
+                >
+                    {ft.text}
+                </div>
+            ))}
 
             {/* 일시정지 오버레이 */}
             {paused && running && !gameOver && (
@@ -799,6 +914,27 @@ export default function TetrisGame() {
                         <span style={{ color: "#555", fontSize: spFont(9) }}>SPEED {dropIntervalMs}ms</span>
                     </div>
                 </div>
+
+                {/* COMBO */}
+                {combo >= 2 && (
+                    <div style={{
+                        ...bevel(),
+                        background: "#1a1a2a",
+                        padding: `${spPad(4)}px ${spPad(8)}px`,
+                        textAlign: "center",
+                    }}>
+                        <span style={{
+                            color: "#00e5ff",
+                            fontSize: spFont(14),
+                            fontWeight: 900,
+                            letterSpacing: 2,
+                            textShadow: "0 0 6px #00e5ff66",
+                            fontFamily: "monospace",
+                        }}>
+                            COMBO x{combo}
+                        </span>
+                    </div>
+                )}
 
                 {/* 데스크탑 조작법 + FX 토글 — 하나의 LCD 패널 */}
                 {!isMobile && (

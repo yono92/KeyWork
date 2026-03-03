@@ -611,16 +611,55 @@
         50% { opacity: 1; background: #ffe000; }
         75% { opacity: 1; background: #fff; }
     }
+    @keyframes tetris-line-clear {
+        0% { transform: scaleX(1); opacity: 1; }
+        60% { transform: scaleX(1); opacity: 1; background: #fff; }
+        80% { transform: scaleX(0.3); opacity: 0.6; background: #ffe000; }
+        100% { transform: scaleX(0); opacity: 0; }
+    }
     @keyframes tetris-shake {
         0%, 100% { transform: translateY(0); }
         25% { transform: translateY(2px); }
         50% { transform: translateY(-1px); }
         75% { transform: translateY(1px); }
     }
+    @keyframes tetris-hard-shake {
+        0%, 100% { transform: translate(0, 0); }
+        10% { transform: translate(0, 4px); }
+        20% { transform: translate(-2px, -3px); }
+        30% { transform: translate(2px, 3px); }
+        40% { transform: translate(-1px, -2px); }
+        50% { transform: translate(1px, 2px); }
+        60% { transform: translate(0, -1px); }
+        80% { transform: translate(0, 1px); }
+    }
+    @keyframes tetris-impact-line {
+        0% { transform: scaleX(0); opacity: 1; }
+        30% { transform: scaleX(1); opacity: 0.9; }
+        100% { transform: scaleX(1); opacity: 0; }
+    }
     @keyframes tetris-score-pop {
         0% { transform: scale(1); }
         40% { transform: scale(1.35); }
         100% { transform: scale(1); }
+    }
+    @keyframes tetris-float-up {
+        0% { opacity: 1; transform: translateY(0) scale(1); }
+        70% { opacity: 1; transform: translateY(-30px) scale(1.1); }
+        100% { opacity: 0; transform: translateY(-50px) scale(0.9); }
+    }
+    @keyframes tetris-combo-pulse {
+        0% { opacity: 0; transform: scale(0.5); }
+        20% { opacity: 1; transform: scale(1.3); }
+        40% { transform: scale(0.95); }
+        60% { transform: scale(1.05); }
+        80% { opacity: 1; transform: scale(1); }
+        100% { opacity: 0; transform: scale(0.8) translateY(-10px); }
+    }
+    @keyframes tetris-level-glow {
+        0% { box-shadow: inset 0 0 8px 2px #ffe000aa, 0 0 12px 2px #ffe00066; }
+        50% { box-shadow: inset 0 0 16px 4px #ffe000cc, 0 0 24px 6px #ffe00088; }
+        100% { box-shadow: inset 0 0 0 0 transparent, 0 0 0 0 transparent; }
     }
     @keyframes tetris-blink {
         0%, 100% { opacity: 1; }
