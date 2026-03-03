@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
+import { getSiteUrl } from "@/utils/siteUrl";
 import "./globals.css";
 
-const BASE_URL = "https://key-work-rho.vercel.app";
+const BASE_URL = getSiteUrl();
 
 export const metadata: Metadata = {
     title: {
@@ -32,7 +33,7 @@ export const metadata: Metadata = {
         siteName: "KeyWork",
         images: [
             {
-                url: "/og-image.jpg",
+                url: "/opengraph-image",
                 width: 1200,
                 height: 630,
                 alt: "KeyWork - 타이핑 연습 게임",
@@ -46,7 +47,7 @@ export const metadata: Metadata = {
         title: "KeyWork - 타이핑 연습 게임",
         description:
             "한국어와 영어 타이핑 실력을 게임으로 키워보세요. 7가지 게임 모드 제공.",
-        images: ["/og-image.jpg"],
+        images: ["/twitter-image"],
     },
     robots: {
         index: true,

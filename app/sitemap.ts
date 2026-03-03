@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next";
+import { getSiteUrl } from "@/utils/siteUrl";
 
-const BASE_URL = "https://key-work-rho.vercel.app";
+const BASE_URL = getSiteUrl();
 
 export default function sitemap(): MetadataRoute.Sitemap {
     const routes = [

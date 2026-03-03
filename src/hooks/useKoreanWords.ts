@@ -22,6 +22,7 @@ export function useKoreanWords(
     const { startCount = 15, trackFallback = false, wordFilter } = options;
 
     const [koreanWords, setKoreanWords] = useState<string[]>([]);
+    const usedWordsRef = useRef<Set<string>>(new Set());
     const recentWordsRef = useRef<string[]>([]);
 
     // trackFallback 모드용 상태 (trackFallback=false일 때도 할당은 하되 무시)
@@ -79,6 +80,7 @@ export function useKoreanWords(
     }, [language, fetchKoreanWords]);
 
     useEffect(() => {
+        usedWordsRef.current.clear();
         recentWordsRef.current = [];
     }, [language]);
 
@@ -111,6 +113,26 @@ export function useKoreanWords(
         [getSharedPrefixLength]
     );
 
+    const pickFromPool = useCallback((source: string[], lang: "korean" | "english"): string => {
+        // 1차: 사용 안 한 단어 중에서 유사도도 낮은 것
+        const unused = source.filter((w) => !usedWordsRef.current.has(w));
+        const base = unused.length > 0 ? unused : source;
+
+        // 풀의 80% 이상 소진 시 리셋 (무한 반복 방지)
+        if (unused.length <= source.length * 0.2) {
+            usedWordsRef.current.clear();
+            recentWordsRef.current = [];
+        }
+
+        const diverse = base.filter((w) => !isTooSimilarWord(w, lang));
+        const finalPool = diverse.length > 0 ? diverse : base;
+        const picked = finalPool[Math.floor(Math.random() * finalPool.length)];
+
+        usedWordsRef.current.add(picked);
+        recentWordsRef.current = [...recentWordsRef.current.slice(-6), picked];
+        return picked || "";
+    }, [isTooSimilarWord]);
+
     const getRandomWord = useCallback((): string => {
         if (language === "korean") {
             const pool = koreanWords.length > 0 ? koreanWords : wordsData.korean;
@@ -125,11 +147,7 @@ export function useKoreanWords(
                 const filtered = pool.filter(wordFilter);
                 source = filtered.length > 0 ? filtered : pool;
             }
-            const diversePool = source.filter((w) => !isTooSimilarWord(w, "korean"));
-            const finalPool = diversePool.length > 0 ? diversePool : source;
-            const picked = finalPool[Math.floor(Math.random() * finalPool.length)];
-            recentWordsRef.current = [...recentWordsRef.current.slice(-3), picked];
-            return picked || "";
+            return pickFromPool(source, "korean");
         }
 
         const wordsList = wordsData[language];
@@ -141,12 +159,8 @@ export function useKoreanWords(
             const filtered = wordsList.filter(wordFilter);
             source = filtered.length > 0 ? filtered : wordsList;
         }
-        const diversePool = source.filter((w) => !isTooSimilarWord(w, "english"));
-        const finalPool = diversePool.length > 0 ? diversePool : source;
-        const picked = finalPool[Math.floor(Math.random() * finalPool.length)];
-        recentWordsRef.current = [...recentWordsRef.current.slice(-3), picked];
-        return picked || "";
-    }, [language, koreanWords, fetchKoreanWords, isTooSimilarWord, wordFilter]);
+        return pickFromPool(source, "english");
+    }, [language, koreanWords, fetchKoreanWords, pickFromPool, wordFilter]);
 
     return {
         koreanWords,

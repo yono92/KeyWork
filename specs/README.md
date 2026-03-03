@@ -18,6 +18,7 @@
 - `practice-prompt-rotation`: 문장 연습 텍스트 분할/순환 개선
 - `falling-words-combo-responsive`: 단어낙하 콤보/반응형 가독성 개선
 - `word-chain-validation-ux`: 끝말잇기 패스 제거 및 검증 완화
+- `link-preview-fix`: 공유 링크 Open Graph/Twitter 프리뷰 안정화
 
 ## 표준 절차
 1. `specs/[feature-name]/README.md` 작성

@@ -126,7 +126,7 @@ export function useWordChainGame() {
         if (starts.length === 0) return [];
         try {
             const query = encodeURIComponent(starts.join(","));
-            const response = await fetch(`/api/krdict/candidates?starts=${query}`);
+            const response = await fetch(`/api/krdict/candidates?starts=${query}&num=200`);
             if (!response.ok) {
                 setDictionarySource("local");
                 setFallbackMessage("사전 연결이 불안정해 로컬 단어 후보로 진행합니다.");

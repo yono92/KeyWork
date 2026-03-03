@@ -10,7 +10,7 @@ const KRDICT_SEARCH_URL = "https://krdict.korean.go.kr/api/search";
 const CACHE_TTL_MS = 10 * 60 * 1000;
 const DEFAULT_RETURN = 30;
 const MAX_RETURN = 300;
-const MAX_FETCH_PER_START = 1;
+const MAX_FETCH_PER_START = 3;
 const FETCH_TIMEOUT_MS = 2500;
 const FETCH_RETRIES = 1;
 const MAX_CACHE_ENTRIES = 200;
@@ -126,15 +126,21 @@ export async function GET(request: NextRequest) {
             }
         }
 
-        const deduped = [...new Set(allWords)].slice(0, limit);
+        // 셔플하여 매 캐시마다 다른 순서로 반환
+        const deduped = [...new Set(allWords)];
+        for (let i = deduped.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [deduped[i], deduped[j]] = [deduped[j], deduped[i]];
+        }
+        const sliced = deduped.slice(0, limit);
         pruneCache(candidatesCache, MAX_CACHE_ENTRIES);
         candidatesCache.set(cacheKey, {
-            words: deduped,
+            words: sliced,
             expiresAt: Date.now() + CACHE_TTL_MS,
         });
 
         return NextResponse.json(
-            { words: deduped, source: "krdict" },
+            { words: sliced, source: "krdict" },
             { headers: { "Cache-Control": "s-maxage=600, stale-while-revalidate=300" } }
         );
     } catch (error) {
