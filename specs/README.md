@@ -12,6 +12,8 @@
 ## 활성 스펙
 - `game-reliability-hardening`: 외부 API 실패 대비 및 폴백 UX 통일
 - `mobile-tetris-lite`: 모바일 경량 테트리스 모드 추가
+- `word-random-diversity`: 랜덤 단어 출제 다양성 개선
+- `practice-text-normalization`: 연습 문장 문자 집합 정규화
 
 ## 표준 절차
 1. `specs/[feature-name]/README.md` 작성

@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { KOREAN_START_POOL, HANGUL_WORD_REGEX } from "../utils/koreanConstants";
 import wordsData from "../data/word.json";
 
@@ -8,6 +8,7 @@ import wordsData from "../data/word.json";
  */
 export function useKoreanWords(language: "korean" | "english") {
     const [koreanWords, setKoreanWords] = useState<string[]>([]);
+    const recentWordsRef = useRef<string[]>([]);
 
     const fetchKoreanWords = useCallback(async () => {
         if (language !== "korean") return;
@@ -41,6 +42,39 @@ export function useKoreanWords(language: "korean" | "english") {
         }
     }, [language, fetchKoreanWords]);
 
+    useEffect(() => {
+        recentWordsRef.current = [];
+    }, [language]);
+
+    const getSharedPrefixLength = useCallback((a: string, b: string): number => {
+        const max = Math.min(a.length, b.length);
+        let i = 0;
+        while (i < max && a[i] === b[i]) i += 1;
+        return i;
+    }, []);
+
+    const isTooSimilarWord = useCallback(
+        (candidate: string, languageKey: "korean" | "english"): boolean => {
+            const recent = recentWordsRef.current;
+            for (let i = recent.length - 1; i >= 0; i -= 1) {
+                const prev = recent[i];
+                if (candidate === prev) return true;
+                const sharedPrefix = getSharedPrefixLength(candidate, prev);
+                const isImmediatePrevious = i === recent.length - 1;
+
+                if (languageKey === "korean") {
+                    if (sharedPrefix >= 2) return true;
+                    if (isImmediatePrevious && sharedPrefix >= 1) return true;
+                    continue;
+                }
+
+                if (sharedPrefix >= 3) return true;
+            }
+            return false;
+        },
+        [getSharedPrefixLength]
+    );
+
     const getRandomWord = useCallback((): string => {
         if (language === "korean") {
             if (koreanWords.length === 0) {
@@ -50,15 +84,23 @@ export function useKoreanWords(language: "korean" | "english") {
             if (koreanWords.length < 50) {
                 void fetchKoreanWords();
             }
-            return koreanWords[Math.floor(Math.random() * koreanWords.length)];
+            const diversePool = koreanWords.filter((w) => !isTooSimilarWord(w, "korean"));
+            const finalPool = diversePool.length > 0 ? diversePool : koreanWords;
+            const picked = finalPool[Math.floor(Math.random() * finalPool.length)];
+            recentWordsRef.current = [...recentWordsRef.current.slice(-3), picked];
+            return picked;
         }
 
         const wordsList = wordsData[language];
         if (!Array.isArray(wordsList) || wordsList.length === 0) {
             return "";
         }
-        return wordsList[Math.floor(Math.random() * wordsList.length)];
-    }, [language, koreanWords, fetchKoreanWords]);
+        const diversePool = wordsList.filter((w) => !isTooSimilarWord(w, "english"));
+        const finalPool = diversePool.length > 0 ? diversePool : wordsList;
+        const picked = finalPool[Math.floor(Math.random() * finalPool.length)];
+        recentWordsRef.current = [...recentWordsRef.current.slice(-3), picked];
+        return picked;
+    }, [language, koreanWords, fetchKoreanWords, isTooSimilarWord]);
 
     return { koreanWords, fetchKoreanWords, getRandomWord };
 }

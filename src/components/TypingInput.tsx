@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import useTypingStore from "../store/store";
-import proverbsData from "../data/proverbs.json";
 import { calculateHangulAccuracy, countKeystrokes } from "../utils/hangulUtils";
+import { getRandomSentence, sanitizePracticeSentence } from "../utils/sentenceUtils";
 import Keyboard from "./Keyboard";
 import ProgressBar from "./ProgressBar";
 import FallbackNotice from "./game/FallbackNotice";
@@ -155,8 +155,11 @@ const TypingInput: React.FC = () => {
     }, [handleKeyDown, handleKeyUp]);
 
     const getRandomProverb = useCallback((nextLanguage: "korean" | "english") => {
-        const arr = proverbsData[nextLanguage];
-        return arr[Math.floor(Math.random() * arr.length)];
+        const candidate = getRandomSentence(nextLanguage);
+        if (candidate.length > 0) return candidate;
+        return nextLanguage === "korean"
+            ? "기본 문장으로 타자 연습을 시작합니다"
+            : "Start typing with a basic practice sentence";
     }, []);
 
     const beep = useCallback(
@@ -207,10 +210,13 @@ const TypingInput: React.FC = () => {
                 typeof (data as { text: unknown }).text === "string" &&
                 (data as { text: string }).text.trim().length > 0
             ) {
-                setText((data as { text: string }).text.trim());
-                setTextSource("wikipedia");
-                setFallbackMessage(null);
-                return;
+                const sanitized = sanitizePracticeSentence((data as { text: string }).text, language);
+                if (sanitized.length > 0) {
+                    setText(sanitized);
+                    setTextSource("wikipedia");
+                    setFallbackMessage(null);
+                    return;
+                }
             }
 
             setText(getRandomProverb(language));
@@ -240,7 +246,12 @@ const TypingInput: React.FC = () => {
 
     // 안전장치: 비어있는 텍스트는 즉시 속담으로 교정
     useEffect(() => {
-        if (!text || !text.trim()) {
+        const sanitized = sanitizePracticeSentence(text ?? "", language);
+        if (sanitized !== text && sanitized.length > 0) {
+            setText(sanitized);
+            return;
+        }
+        if (!sanitized) {
             setText(getRandomProverb(language));
             setTextSource("proverb-fallback");
         }

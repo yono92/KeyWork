@@ -322,6 +322,7 @@ const TypingRunnerGame: React.FC = () => {
     const maxSpeedRef = useRef(INITIAL_SPEED);
     const lastMilestoneRef = useRef(0);
     const clearTimeRef = useRef(0);
+    const recentWordsRef = useRef<string[]>([]);
 
     const { playSound } = useGameAudio();
     usePauseHandler(gameStarted, gameOver, setIsPaused);
@@ -408,6 +409,35 @@ const TypingRunnerGame: React.FC = () => {
         }
     }, [language, fetchKoreanWords]);
 
+    const getSharedPrefixLength = useCallback((a: string, b: string): number => {
+        const max = Math.min(a.length, b.length);
+        let i = 0;
+        while (i < max && a[i] === b[i]) i += 1;
+        return i;
+    }, []);
+
+    const isTooSimilarWord = useCallback(
+        (candidate: string, languageKey: "korean" | "english"): boolean => {
+            const recent = recentWordsRef.current;
+            for (let i = recent.length - 1; i >= 0; i -= 1) {
+                const prev = recent[i];
+                if (candidate === prev) return true;
+                const sharedPrefix = getSharedPrefixLength(candidate, prev);
+                const isImmediatePrevious = i === recent.length - 1;
+
+                if (languageKey === "korean") {
+                    if (sharedPrefix >= 2) return true;
+                    if (isImmediatePrevious && sharedPrefix >= 1) return true;
+                    continue;
+                }
+
+                if (sharedPrefix >= 3) return true;
+            }
+            return false;
+        },
+        [getSharedPrefixLength]
+    );
+
     // --- 단어 선택 (API 단어 우선, 로컬 폴백) ---
     const getRandomWord = useCallback((): string => {
         const cleared = clearedCountRef.current;
@@ -422,9 +452,13 @@ const TypingRunnerGame: React.FC = () => {
                 (w) => w.length >= minLen && w.length <= maxLen && /^[\uAC00-\uD7A3]+$/.test(w)
             );
             const source = filtered.length > 0 ? filtered : pool.filter((w) => /^[\uAC00-\uD7A3]{2,}$/.test(w));
-            return source.length > 0
-                ? source[Math.floor(Math.random() * source.length)]
+            const diversePool = source.filter((w) => !isTooSimilarWord(w, "korean"));
+            const finalPool = diversePool.length > 0 ? diversePool : source;
+            const picked = finalPool.length > 0
+                ? finalPool[Math.floor(Math.random() * finalPool.length)]
                 : "타이핑";
+            recentWordsRef.current = [...recentWordsRef.current.slice(-3), picked];
+            return picked;
         }
 
         const pool = wordsData[language];
@@ -433,10 +467,14 @@ const TypingRunnerGame: React.FC = () => {
             (w) => w.length >= minLen && w.length <= maxLen && /^[a-zA-Z]+$/.test(w)
         );
         const source = filtered.length > 0 ? filtered : pool.filter((w) => /^[a-zA-Z]+$/.test(w));
-        return source.length > 0
-            ? source[Math.floor(Math.random() * source.length)]
+        const diversePool = source.filter((w) => !isTooSimilarWord(w, "english"));
+        const finalPool = diversePool.length > 0 ? diversePool : source;
+        const picked = finalPool.length > 0
+            ? finalPool[Math.floor(Math.random() * finalPool.length)]
             : "typing";
-    }, [language, koreanWords, fetchKoreanWords]);
+        recentWordsRef.current = [...recentWordsRef.current.slice(-3), picked];
+        return picked;
+    }, [language, koreanWords, fetchKoreanWords, isTooSimilarWord]);
 
     // --- 타겟 장애물 ---
     const targetObstacle = useMemo(() => {
@@ -631,6 +669,7 @@ const TypingRunnerGame: React.FC = () => {
         invincibleRef.current = false;
         maxSpeedRef.current = INITIAL_SPEED;
         lastMilestoneRef.current = 0;
+        recentWordsRef.current = [];
         setInputKey((k) => k + 1);
         setCountdown(3);
     };
