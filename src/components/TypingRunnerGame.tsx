@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import { useRunnerEngine, CHAR_X_PERCENT, INITIAL_LIVES, OBSTACLE_CLEAR_COLORS } from "../hooks/useRunnerEngine";
 import { useParticleSystem } from "../hooks/useParticleSystem";
 
+const comboCounterRef = { current: 0 };
+
 // --- 하늘 색상 보간 ---
 function lerpColor(a: [number, number, number], b: [number, number, number], t: number): string {
     const r = Math.round(a[0] + (b[0] - a[0]) * t);
@@ -212,6 +214,7 @@ const TypingRunnerGame: React.FC = () => {
 
     const onHit = useCallback(() => {
         particles.triggerShake();
+        comboCounterRef.current = 0;
     }, [particles]);
 
     const onClear = useCallback((x: number, type: string, wordScore: number) => {
@@ -219,6 +222,10 @@ const TypingRunnerGame: React.FC = () => {
         particles.showScorePopup(`+${wordScore}`, x);
         particles.spawnClearParticles(x, color);
         particles.spawnDust();
+        comboCounterRef.current++;
+        if (comboCounterRef.current >= 5 && comboCounterRef.current % 5 === 0) {
+            particles.triggerComboGlow();
+        }
     }, [particles]);
 
     const onMilestone = useCallback(() => {
@@ -279,7 +286,7 @@ const TypingRunnerGame: React.FC = () => {
                                 <span
                                     key={i}
                                     className={`transition-transform ${i >= engine.lives ? "grayscale opacity-40" : ""} ${
-                                        i === engine.lives - 1 && particles.hitFlash ? "animate-pulse" : ""
+                                        i === engine.lives && particles.hitFlash ? "animate-heart-break" : ""
                                     }`}
                                 >
                                     {i < engine.lives ? "❤️" : "🖤"}
@@ -296,10 +303,24 @@ const TypingRunnerGame: React.FC = () => {
                 </div>
 
                 {/* 게임 스테이지 */}
-                <div className={`absolute inset-0 top-[52px] sm:top-[62px] bottom-12 sm:bottom-16 overflow-hidden ${particles.isShaking ? "animate-runner-shake" : ""}`}>
+                <div
+                    className={`absolute inset-0 top-[52px] sm:top-[62px] bottom-12 sm:bottom-16 overflow-hidden ${particles.isShaking ? "animate-runner-shake" : ""}`}
+                    style={{
+                        transform: particles.hitZoom ? "scale(1.02)" : "scale(1)",
+                        transition: "transform 200ms ease-out",
+                    }}
+                >
 
                     {particles.hitFlash && (
-                        <div className="absolute inset-0 bg-red-500/20 z-30 pointer-events-none animate-runner-hit-flash" />
+                        <div className="absolute inset-0 bg-red-500/35 z-30 pointer-events-none animate-runner-hit-flash" />
+                    )}
+                    {particles.comboGlow && (
+                        <div className="absolute inset-0 pointer-events-none z-25"
+                            style={{
+                                boxShadow: "inset 0 0 40px 10px rgba(56,189,248,0.2), inset 0 0 80px 20px rgba(56,189,248,0.1)",
+                                animation: "game-screen-flash 800ms ease-out forwards",
+                            }}
+                        />
                     )}
 
                     {/* 패럴랙스 레이어 1: 먼 산 */}
@@ -437,10 +458,11 @@ const TypingRunnerGame: React.FC = () => {
                                 left: `${CHAR_X_PERCENT}%`,
                                 bottom: `${GROUND_BOTTOM}%`,
                                 ["--dx" as string]: `${p.dx}px`,
-                                width: "4px",
-                                height: "4px",
+                                width: `${p.size}px`,
+                                height: `${p.size}px`,
                                 borderRadius: "50%",
-                                backgroundColor: darkMode ? "rgba(180,180,150,0.5)" : "rgba(120,100,60,0.4)",
+                                backgroundColor: darkMode ? "rgba(180,180,150,0.6)" : "rgba(120,100,60,0.5)",
+                                opacity: 0.5 + Math.random() * 0.3,
                             }}
                         />
                     ))}
@@ -530,9 +552,10 @@ const TypingRunnerGame: React.FC = () => {
                                 bottom: `${p.bottom}%`,
                                 ["--angle" as string]: `${p.angle}deg`,
                                 backgroundColor: p.color,
-                                width: "6px",
-                                height: "6px",
+                                width: `${p.size}px`,
+                                height: `${p.size}px`,
                                 borderRadius: "50%",
+                                boxShadow: `0 0 4px ${p.color}66`,
                             }}
                         />
                     ))}
@@ -548,11 +571,34 @@ const TypingRunnerGame: React.FC = () => {
                         </div>
                     ))}
 
+                    {/* 콤보 카운터 */}
+                    {comboCounterRef.current >= 3 && engine.isRunning && !engine.gameOver && (
+                        <div className="absolute top-2 left-2 z-20 pointer-events-none">
+                            <div className={`px-2 py-1 rounded text-xs sm:text-sm font-bold ${
+                                comboCounterRef.current >= 10
+                                    ? "text-amber-400"
+                                    : comboCounterRef.current >= 5
+                                    ? "text-sky-400"
+                                    : "text-emerald-400"
+                            }`}
+                                style={{
+                                    textShadow: "1px 1px 2px rgba(0,0,0,0.5)",
+                                }}
+                            >
+                                {comboCounterRef.current}x Clear!
+                            </div>
+                        </div>
+                    )}
+
                     {/* 마일스톤 토스트 */}
                     {engine.milestone !== null && (
                         <div className="absolute inset-0 flex items-center justify-center z-30 pointer-events-none">
-                            <div className="animate-level-up text-3xl sm:text-5xl font-black text-amber-400 drop-shadow-[0_0_20px_rgba(251,191,36,0.5)]"
-                                style={{ position: "absolute", top: "50%", left: "50%" }}
+                            <div className="animate-level-up text-3xl sm:text-5xl font-black text-amber-400"
+                                style={{
+                                    position: "absolute", top: "50%", left: "50%",
+                                    filter: "drop-shadow(0 0 20px rgba(251,191,36,0.5)) drop-shadow(0 0 40px rgba(251,191,36,0.3))",
+                                    textShadow: "0 0 30px rgba(251,191,36,0.8), 2px 2px 0 rgba(0,0,0,0.5)",
+                                }}
                             >
                                 {engine.milestone}m!
                             </div>

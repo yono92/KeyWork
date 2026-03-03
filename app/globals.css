@@ -334,14 +334,17 @@
         0% {
             opacity: 1;
             transform: scale(1);
+            filter: brightness(1);
         }
-        50% {
-            opacity: 0.8;
-            transform: scale(1.4);
+        30% {
+            opacity: 1;
+            transform: scale(1.6);
+            filter: brightness(1.5) drop-shadow(0 0 8px rgba(56, 189, 248, 0.6));
         }
         100% {
             opacity: 0;
-            transform: scale(1.8) translateY(-20px);
+            transform: scale(2.5) translateY(-25px);
+            filter: brightness(1) drop-shadow(0 0 0 transparent);
         }
     }
 
@@ -349,11 +352,16 @@
     @keyframes wordMissed {
         0% {
             opacity: 1;
-            transform: scale(1);
+            transform: scale(1) rotate(0deg);
+        }
+        50% {
+            opacity: 0.5;
+            transform: scale(0.7) translateY(15px) rotate(8deg);
+            color: #ef4444;
         }
         100% {
             opacity: 0;
-            transform: scale(0.6) translateY(10px);
+            transform: scale(0.4) translateY(30px) rotate(15deg);
             color: #ef4444;
         }
     }
@@ -362,11 +370,15 @@
     @keyframes scorePopup {
         0% {
             opacity: 1;
-            transform: translateY(0) scale(1);
+            transform: translateY(0) scale(0.8) rotate(-2deg);
+        }
+        20% {
+            opacity: 1;
+            transform: translateY(-10px) scale(1.3) rotate(2deg);
         }
         100% {
             opacity: 0;
-            transform: translateY(-40px) scale(0.8);
+            transform: translateY(-50px) scale(0.7) rotate(0deg);
         }
     }
 
@@ -503,10 +515,11 @@
 
     /* 러너 게임 - 피격 (brightness 플래시) */
     @keyframes runnerHit {
-        0% { transform: translate(0); filter: brightness(1); }
-        15% { transform: translate(-8px, -10px); filter: brightness(2) saturate(0); }
-        30% { transform: translate(6px, 0); filter: brightness(1.5); }
-        100% { transform: translate(0); filter: brightness(1); }
+        0% { transform: translate(0) scale(1); filter: brightness(1); }
+        10% { transform: translate(-14px, -12px) scale(1.1); filter: brightness(3) saturate(0); }
+        25% { transform: translate(10px, -4px) scale(0.95); filter: brightness(2) saturate(0.5); }
+        40% { transform: translate(-6px, 2px) scale(1.05); filter: brightness(1.5); }
+        100% { transform: translate(0) scale(1); filter: brightness(1); }
     }
     .animate-runner-hit {
         animation: runnerHit 500ms ease-out forwards;
@@ -612,31 +625,33 @@
         75% { opacity: 1; background: #fff; }
     }
     @keyframes tetris-line-clear {
-        0% { transform: scaleX(1); opacity: 1; }
-        60% { transform: scaleX(1); opacity: 1; background: #fff; }
-        80% { transform: scaleX(0.3); opacity: 0.6; background: #ffe000; }
-        100% { transform: scaleX(0); opacity: 0; }
+        0% { transform: scaleX(1) rotate(0deg); opacity: 1; filter: brightness(1); }
+        40% { transform: scaleX(1.05) rotate(2deg); opacity: 1; background: #fff; filter: brightness(2); }
+        70% { transform: scaleX(0.4) rotate(5deg); opacity: 0.7; background: #ffe000; filter: brightness(1.5); }
+        100% { transform: scaleX(0) rotate(5deg); opacity: 0; filter: brightness(1); }
     }
     @keyframes tetris-shake {
-        0%, 100% { transform: translateY(0); }
-        25% { transform: translateY(2px); }
-        50% { transform: translateY(-1px); }
-        75% { transform: translateY(1px); }
+        0%, 100% { transform: translate(0, 0); }
+        20% { transform: translate(0, 4px); }
+        40% { transform: translate(-2px, -3px); }
+        60% { transform: translate(2px, 2px); }
+        80% { transform: translate(-1px, -1px); }
     }
     @keyframes tetris-hard-shake {
-        0%, 100% { transform: translate(0, 0); }
-        10% { transform: translate(0, 4px); }
-        20% { transform: translate(-2px, -3px); }
-        30% { transform: translate(2px, 3px); }
-        40% { transform: translate(-1px, -2px); }
-        50% { transform: translate(1px, 2px); }
-        60% { transform: translate(0, -1px); }
-        80% { transform: translate(0, 1px); }
+        0%, 100% { transform: translate(0, 0) rotate(0deg); }
+        8% { transform: translate(0, 8px) rotate(0.5deg); }
+        16% { transform: translate(-5px, -6px) rotate(-1.5deg); }
+        24% { transform: translate(5px, 6px) rotate(1.5deg); }
+        32% { transform: translate(-3px, -4px) rotate(-1deg); }
+        44% { transform: translate(3px, 4px) rotate(0.8deg); }
+        56% { transform: translate(-2px, -2px) rotate(-0.5deg); }
+        68% { transform: translate(1px, 2px) rotate(0.3deg); }
+        80% { transform: translate(0, 1px) rotate(0deg); }
     }
     @keyframes tetris-impact-line {
-        0% { transform: scaleX(0); opacity: 1; }
-        30% { transform: scaleX(1); opacity: 0.9; }
-        100% { transform: scaleX(1); opacity: 0; }
+        0% { transform: scaleX(0) scaleY(1); opacity: 1; filter: blur(0); }
+        20% { transform: scaleX(1) scaleY(2); opacity: 1; filter: blur(0) drop-shadow(0 0 6px #ffe000); }
+        100% { transform: scaleX(1) scaleY(0.5); opacity: 0; filter: blur(2px); }
     }
     @keyframes tetris-score-pop {
         0% { transform: scale(1); }
@@ -644,21 +659,23 @@
         100% { transform: scale(1); }
     }
     @keyframes tetris-float-up {
-        0% { opacity: 1; transform: translateY(0) scale(1); }
-        70% { opacity: 1; transform: translateY(-30px) scale(1.1); }
-        100% { opacity: 0; transform: translateY(-50px) scale(0.9); }
+        0% { opacity: 1; transform: translateX(0) translateY(0) scale(1); }
+        30% { opacity: 1; transform: translateX(3px) translateY(-15px) scale(1.2); }
+        60% { opacity: 1; transform: translateX(-5px) translateY(-35px) scale(1.15); }
+        100% { opacity: 0; transform: translateX(2px) translateY(-55px) scale(0.85); }
     }
     @keyframes tetris-combo-pulse {
-        0% { opacity: 0; transform: scale(0.5); }
-        20% { opacity: 1; transform: scale(1.3); }
-        40% { transform: scale(0.95); }
-        60% { transform: scale(1.05); }
-        80% { opacity: 1; transform: scale(1); }
-        100% { opacity: 0; transform: scale(0.8) translateY(-10px); }
+        0% { opacity: 0; transform: scale(0.5) translateY(0); color: #00e5ff; }
+        15% { opacity: 1; transform: scale(1.4) translateY(-5px); color: #00e5ff; }
+        30% { transform: scale(0.9) translateY(-8px); }
+        45% { transform: scale(1.1) translateY(-12px); color: #ffd700; }
+        65% { opacity: 1; transform: scale(1) translateY(-18px); color: #ffd700; }
+        100% { opacity: 0; transform: scale(0.8) translateY(-28px); color: #ffd700; }
     }
     @keyframes tetris-level-glow {
-        0% { box-shadow: inset 0 0 8px 2px #ffe000aa, 0 0 12px 2px #ffe00066; }
-        50% { box-shadow: inset 0 0 16px 4px #ffe000cc, 0 0 24px 6px #ffe00088; }
+        0% { box-shadow: inset 0 0 12px 3px #ffe000cc, 0 0 20px 4px #ffe00088; }
+        30% { box-shadow: inset 0 0 24px 6px #ffe000ee, 0 0 40px 10px #ffe000aa; }
+        60% { box-shadow: inset 0 0 16px 4px #ffe000aa, 0 0 30px 6px #ffe00066; }
         100% { box-shadow: inset 0 0 0 0 transparent, 0 0 0 0 transparent; }
     }
     @keyframes tetris-blink {
@@ -668,5 +685,99 @@
     @keyframes tetris-fade-in {
         0% { opacity: 0; }
         100% { opacity: 1; }
+    }
+
+    /* 테트리스 - TETRIS(4줄) 클리어 금색 폭발 */
+    @keyframes tetris-tetris-clear {
+        0% { opacity: 0; transform: scale(0.3); filter: brightness(1); }
+        15% { opacity: 1; transform: scale(1.2); filter: brightness(2); }
+        30% { transform: scale(0.95); filter: brightness(1.5); }
+        50% { transform: scale(1.05); }
+        75% { opacity: 1; transform: scale(1); }
+        100% { opacity: 0; transform: scale(0.9) translateY(-15px); }
+    }
+
+    /* 공용 - 화면 전체 플래시 */
+    @keyframes game-screen-flash {
+        0% { opacity: 0.7; }
+        100% { opacity: 0; }
+    }
+
+    /* 공용 - 임팩트 리플 웨이브 */
+    @keyframes game-ripple {
+        0% { transform: scale(0); opacity: 0.6; }
+        100% { transform: scale(3); opacity: 0; }
+    }
+
+    /* 공용 - 승리/기록 갱신 축하 */
+    @keyframes game-celebration {
+        0% { transform: scale(0.8); opacity: 0; filter: brightness(1); }
+        20% { transform: scale(1.15); opacity: 1; filter: brightness(1.3); }
+        40% { transform: scale(0.95); }
+        60% { transform: scale(1.05); filter: brightness(1.1); }
+        80% { transform: scale(1); opacity: 1; }
+        100% { transform: scale(1); opacity: 1; filter: brightness(1); }
+    }
+
+    /* 끝말잇기 - 실패 시 좌우 흔들림 */
+    @keyframes wordchain-shake {
+        0%, 100% { transform: translateX(0); }
+        15% { transform: translateX(-6px); }
+        30% { transform: translateX(5px); }
+        45% { transform: translateX(-4px); }
+        60% { transform: translateX(3px); }
+        75% { transform: translateX(-2px); }
+    }
+
+    /* 끝말잇기 - 타이머 ≤3초 맥박 */
+    @keyframes wordchain-timer-pulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.2); color: #ef4444; }
+    }
+
+    /* 러너 - 콤보 스파크 */
+    @keyframes runner-combo-spark {
+        0% { opacity: 1; transform: translateY(0) scale(1); }
+        100% { opacity: 0; transform: translateY(-30px) scale(0.5); }
+    }
+
+    /* 하트 깨지는 효과 */
+    @keyframes heart-break {
+        0% { transform: scale(1); }
+        15% { transform: scale(1.3); }
+        30% { transform: scale(0.8) rotate(-10deg); filter: brightness(2); }
+        50% { transform: scale(1.1) rotate(5deg); }
+        100% { transform: scale(1) rotate(0deg); filter: brightness(1); }
+    }
+
+    /* 게임오버 커튼 */
+    @keyframes game-over-curtain {
+        0% { clip-path: inset(0 0 100% 0); }
+        100% { clip-path: inset(0 0 0 0); }
+    }
+
+    /* 공용 유틸 클래스 */
+    .animate-screen-flash {
+        animation: game-screen-flash 150ms ease-out forwards;
+        pointer-events: none;
+    }
+    .animate-game-ripple {
+        animation: game-ripple 500ms ease-out forwards;
+        pointer-events: none;
+    }
+    .animate-celebration {
+        animation: game-celebration 600ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+    }
+    .animate-wordchain-shake {
+        animation: wordchain-shake 400ms ease-out;
+    }
+    .animate-wordchain-timer-pulse {
+        animation: wordchain-timer-pulse 500ms ease-in-out infinite;
+    }
+    .animate-heart-break {
+        animation: heart-break 500ms ease-out;
+    }
+    .animate-game-over-curtain {
+        animation: game-over-curtain 800ms ease-out forwards;
     }
 }

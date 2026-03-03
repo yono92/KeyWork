@@ -7,7 +7,7 @@ interface FloatingText {
 }
 
 /**
- * Tetris 시각 효과 상태 — flashRows, shaking, scorePop, floatingTexts, levelGlow, impactRow
+ * Tetris 시각 효과 상태 — flashRows, shaking, scorePop, floatingTexts, levelGlow, impactRow, screenFlash, clearLabel
  */
 export function useTetrisAnimations(animEnabled: boolean) {
     const [flashRows, setFlashRows] = useState<number[]>([]);
@@ -17,18 +17,20 @@ export function useTetrisAnimations(animEnabled: boolean) {
     const [levelGlow, setLevelGlow] = useState(false);
     const [hardDropDistance, setHardDropDistance] = useState(0);
     const [impactRow, setImpactRow] = useState<number | null>(null);
+    const [screenFlash, setScreenFlash] = useState(false);
+    const [clearLabel, setClearLabel] = useState<string | null>(null);
     const floatingIdRef = useRef(0);
 
     const triggerFlash = useCallback((rows: number[]) => {
         if (!animEnabled || rows.length === 0) return;
         setFlashRows(rows);
-        setTimeout(() => setFlashRows([]), 700);
+        setTimeout(() => setFlashRows([]), 500);
     }, [animEnabled]);
 
     const triggerShake = useCallback(() => {
         if (!animEnabled) return;
         setShaking(true);
-        setTimeout(() => setShaking(false), 180);
+        setTimeout(() => setShaking(false), 250);
     }, [animEnabled]);
 
     const triggerScorePop = useCallback(() => {
@@ -47,7 +49,19 @@ export function useTetrisAnimations(animEnabled: boolean) {
     const triggerLevelGlow = useCallback(() => {
         if (!animEnabled) return;
         setLevelGlow(true);
-        setTimeout(() => setLevelGlow(false), 600);
+        setTimeout(() => setLevelGlow(false), 1000);
+    }, [animEnabled]);
+
+    const triggerScreenFlash = useCallback(() => {
+        if (!animEnabled) return;
+        setScreenFlash(true);
+        setTimeout(() => setScreenFlash(false), 150);
+    }, [animEnabled]);
+
+    const triggerClearLabel = useCallback((label: string) => {
+        if (!animEnabled) return;
+        setClearLabel(label);
+        setTimeout(() => setClearLabel(null), 1500);
     }, [animEnabled]);
 
     return {
@@ -60,10 +74,14 @@ export function useTetrisAnimations(animEnabled: boolean) {
         setHardDropDistance,
         impactRow,
         setImpactRow,
+        screenFlash,
+        clearLabel,
         triggerFlash,
         triggerShake,
         triggerScorePop,
         addFloatingText,
         triggerLevelGlow,
+        triggerScreenFlash,
+        triggerClearLabel,
     };
 }

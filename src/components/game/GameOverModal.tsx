@@ -24,9 +24,19 @@ const GameOverModal: React.FC<GameOverModalProps> = ({
     const retroTheme = useTypingStore((s) => s.retroTheme);
 
     return (
-        <div className="absolute inset-0 flex items-center justify-center bg-black/50 z-30">
+        <div className="absolute inset-0 flex items-center justify-center z-30"
+            style={{
+                background: "rgba(0,0,0,0.5)",
+                backdropFilter: "blur(8px)",
+                WebkitBackdropFilter: "blur(8px)",
+                animation: "tetris-fade-in 0.3s ease-out",
+            }}
+        >
             <Card
-                className={`text-center animate-panel-in w-full max-w-xs sm:max-w-sm mx-4 max-h-[90vh] overflow-y-auto ${retroTheme === "mac-classic" ? "rounded-xl" : "rounded-none"}`}
+                className={`text-center w-full max-w-xs sm:max-w-sm mx-4 max-h-[90vh] overflow-y-auto ${retroTheme === "mac-classic" ? "rounded-xl" : "rounded-none"}`}
+                style={{
+                    animation: "game-celebration 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both",
+                }}
             >
                 <CardContent className="px-5 py-5 sm:px-10 sm:py-8">
                 <h2

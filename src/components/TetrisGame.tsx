@@ -17,8 +17,24 @@ export default function TetrisGame() {
         anim.triggerFlash(rows);
         anim.triggerScorePop();
         anim.addFloatingText(`+${totalGain}`, "#ffe000");
+
+        // Clear type labels
+        const lineCount = rows.length;
+        if (lineCount === 2) {
+            anim.triggerClearLabel("DOUBLE");
+        } else if (lineCount === 3) {
+            anim.triggerClearLabel("TRIPLE");
+        } else if (lineCount >= 4) {
+            anim.triggerClearLabel("TETRIS!");
+            anim.triggerScreenFlash();
+        }
+
         if (newCombo >= 2) {
             anim.addFloatingText(`COMBO x${newCombo}`, "#00e5ff");
+        }
+        // Auto shake on combo 3+
+        if (newCombo >= 3) {
+            anim.triggerShake();
         }
     }, [anim]);
 
@@ -242,29 +258,79 @@ export default function TetrisGame() {
                 />
             )}
 
-            {anim.floatingTexts.map((ft) => (
+            {anim.floatingTexts.map((ft) => {
+                const isCombo = ft.text.startsWith("COMBO");
+                const comboNum = isCombo ? parseInt(ft.text.replace(/\D/g, "")) || 2 : 0;
+                return (
+                    <div
+                        key={ft.id}
+                        style={{
+                            position: "absolute",
+                            left: "50%",
+                            top: "40%",
+                            transform: "translateX(-50%)",
+                            color: ft.color,
+                            fontSize: isCombo
+                                ? Math.max(16, cellSize * 0.8) + comboNum * 2
+                                : Math.max(14, cellSize * 0.7),
+                            fontWeight: 900,
+                            letterSpacing: 2,
+                            textShadow: "2px 2px 0 #000, -1px -1px 0 #000",
+                            animation: isCombo
+                                ? "tetris-combo-pulse 1.2s ease-out forwards"
+                                : "tetris-float-up 1s ease-out forwards",
+                            pointerEvents: "none",
+                            zIndex: 8,
+                            whiteSpace: "nowrap",
+                            fontFamily: "monospace",
+                        }}
+                    >
+                        {ft.text}
+                    </div>
+                );
+            })}
+
+            {/* Clear label (DOUBLE / TRIPLE / TETRIS!) */}
+            {anim.clearLabel && (
                 <div
-                    key={ft.id}
                     style={{
                         position: "absolute",
                         left: "50%",
-                        top: "40%",
+                        top: "30%",
                         transform: "translateX(-50%)",
-                        color: ft.color,
-                        fontSize: ft.text.startsWith("COMBO") ? Math.max(16, cellSize * 0.8) : Math.max(14, cellSize * 0.7),
+                        color: anim.clearLabel === "TETRIS!" ? "#ffd700" : "#fff",
+                        fontSize: anim.clearLabel === "TETRIS!" ? Math.max(24, cellSize * 1.4) : Math.max(18, cellSize * 1),
                         fontWeight: 900,
-                        letterSpacing: 2,
-                        textShadow: "2px 2px 0 #000, -1px -1px 0 #000",
-                        animation: ft.text.startsWith("COMBO") ? "tetris-combo-pulse 1.2s ease-out forwards" : "tetris-float-up 1s ease-out forwards",
+                        letterSpacing: 4,
+                        textShadow: anim.clearLabel === "TETRIS!"
+                            ? "0 0 20px #ffd700, 0 0 40px #ff8c00, 2px 2px 0 #000"
+                            : "0 0 10px #fff, 2px 2px 0 #000",
+                        animation: anim.clearLabel === "TETRIS!"
+                            ? "tetris-tetris-clear 1.5s ease-out forwards"
+                            : "tetris-float-up 1.2s ease-out forwards",
                         pointerEvents: "none",
-                        zIndex: 8,
+                        zIndex: 12,
                         whiteSpace: "nowrap",
                         fontFamily: "monospace",
                     }}
                 >
-                    {ft.text}
+                    {anim.clearLabel}
                 </div>
-            ))}
+            )}
+
+            {/* Screen flash for TETRIS clear */}
+            {anim.screenFlash && (
+                <div
+                    style={{
+                        position: "absolute",
+                        inset: 0,
+                        background: "linear-gradient(180deg, rgba(255,255,255,0.7), rgba(255,224,0,0.4))",
+                        animation: "game-screen-flash 150ms ease-out forwards",
+                        pointerEvents: "none",
+                        zIndex: 11,
+                    }}
+                />
+            )}
 
             {engine.paused && engine.running && !engine.gameOver && (
                 <div
@@ -294,32 +360,42 @@ export default function TetrisGame() {
             )}
 
             {engine.gameOver && (
-                <div
-                    style={{
-                        position: "absolute",
-                        inset: 0,
-                        display: "flex",
-                        flexDirection: "column",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        background: "rgba(0,0,0,0.85)",
-                        animation: "tetris-fade-in 0.3s ease-out",
-                        zIndex: 10,
-                    }}
-                >
-                    <p style={{ color: "#ff3333", fontSize: 22, fontWeight: 900, letterSpacing: 4, textShadow: "2px 2px 0 #000" }}>
-                        GAME OVER
-                    </p>
-                    <p style={{ color: "#ccc", fontSize: 13, marginTop: 4 }}>
-                        SCORE: {engine.score.toLocaleString()}
-                    </p>
-                    <button
-                        onClick={engine.resetGame}
-                        style={{ ...bevel(), background: "#444", color: "#fff", padding: "6px 20px", cursor: "pointer", marginTop: 12, fontSize: 13, fontWeight: 900, letterSpacing: 2 }}
+                <>
+                    <div
+                        style={{
+                            position: "absolute",
+                            inset: 0,
+                            background: "linear-gradient(180deg, rgba(0,0,0,0.9), rgba(20,0,0,0.85))",
+                            animation: "game-over-curtain 0.8s ease-out forwards",
+                            zIndex: 9,
+                        }}
+                    />
+                    <div
+                        style={{
+                            position: "absolute",
+                            inset: 0,
+                            display: "flex",
+                            flexDirection: "column",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            animation: "tetris-fade-in 0.5s 0.3s ease-out both",
+                            zIndex: 10,
+                        }}
                     >
-                        RETRY
-                    </button>
-                </div>
+                        <p style={{ color: "#ff3333", fontSize: 22, fontWeight: 900, letterSpacing: 4, textShadow: "0 0 20px rgba(255,51,51,0.5), 2px 2px 0 #000" }}>
+                            GAME OVER
+                        </p>
+                        <p style={{ color: "#ccc", fontSize: 13, marginTop: 4 }}>
+                            SCORE: {engine.score.toLocaleString()}
+                        </p>
+                        <button
+                            onClick={engine.resetGame}
+                            style={{ ...bevel(), background: "#444", color: "#fff", padding: "6px 20px", cursor: "pointer", marginTop: 12, fontSize: 13, fontWeight: 900, letterSpacing: 2 }}
+                        >
+                            RETRY
+                        </button>
+                    </div>
+                </>
             )}
 
             {!engine.running && !engine.gameOver && (

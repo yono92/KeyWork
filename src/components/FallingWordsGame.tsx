@@ -68,6 +68,8 @@ const FallingWordsGame: React.FC = () => {
     const [isPaused, setIsPaused] = useState<boolean>(false);
     const [gameStarted, setGameStarted] = useState<boolean>(false);
     const [countdown, setCountdown] = useState<number | null>(null);
+    const [comboGlow, setComboGlow] = useState(false);
+    const [lifeLostShake, setLifeLostShake] = useState(false);
 
     const gameAreaRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
@@ -246,6 +248,8 @@ const FallingWordsGame: React.FC = () => {
                     setTimeout(() => { lifeLostRef.current = false; }, 500);
 
                     playSound("lifeLost");
+                    setLifeLostShake(true);
+                    setTimeout(() => setLifeLostShake(false), 400);
                     setLives((prevLives) => {
                         const newLives = Math.max(prevLives - 1, 0);
                         if (newLives === 0) {
@@ -349,6 +353,10 @@ const FallingWordsGame: React.FC = () => {
 
                     if (newCombo >= 5) {
                         playSound("combo");
+                        if (newCombo % 5 === 0) {
+                            setComboGlow(true);
+                            setTimeout(() => setComboGlow(false), 800);
+                        }
                     }
 
                     let wordScore = matchedWord.text.length * 10;
@@ -485,7 +493,7 @@ const FallingWordsGame: React.FC = () => {
             ref={gameAreaRef}
             className={`relative w-full flex-1 min-h-[340px] sm:min-h-[460px] overflow-hidden ${retroRadiusClass} border-2 border-[var(--retro-border-mid)] border-t-[var(--retro-border-light)] border-l-[var(--retro-border-light)] border-r-[var(--retro-border-dark)] border-b-[var(--retro-border-dark)] bg-[var(--retro-surface-alt)]`}
         >
-            <div className={`absolute inset-0 ${darkMode ? "bg-[#1f2730]" : "bg-[var(--retro-surface-alt)]"}`}>
+            <div className={`absolute inset-0 ${darkMode ? "bg-[#1f2730]" : "bg-[var(--retro-surface-alt)]"} ${lifeLostShake ? "animate-runner-shake" : ""}`}>
                 <div
                     className="absolute inset-0 pointer-events-none opacity-30"
                     style={{
@@ -518,9 +526,17 @@ const FallingWordsGame: React.FC = () => {
                     <div className="text-sm sm:text-lg lg:text-xl font-bold font-mono text-[var(--retro-text)]">
                         Lv.<span className="tabular-nums">{level}</span>
                     </div>
-                    <div className="text-base sm:text-lg lg:text-xl font-bold">
-                        {"❤️".repeat(Math.max(lives, 0))}
-                        {"🖤".repeat(Math.max(config.lives - lives, 0))}
+                    <div className="flex gap-0.5 text-base sm:text-lg lg:text-xl font-bold">
+                        {Array.from({ length: config.lives }, (_, i) => (
+                            <span
+                                key={i}
+                                className={`${i >= lives ? "grayscale opacity-40" : ""} ${
+                                    i === lives && lifeLostShake ? "animate-heart-break" : ""
+                                }`}
+                            >
+                                {i < lives ? "❤️" : "🖤"}
+                            </span>
+                        ))}
                     </div>
                 </div>
 
@@ -533,6 +549,16 @@ const FallingWordsGame: React.FC = () => {
                         sourceLabel={wordSource === "krdict" ? "krdict" : "local word.json"}
                         onRetry={() => {
                             void fetchKoreanWords();
+                        }}
+                    />
+                )}
+
+                {/* 콤보 글로우 */}
+                {comboGlow && (
+                    <div className="absolute inset-0 pointer-events-none z-5"
+                        style={{
+                            boxShadow: "inset 0 0 60px 15px rgba(56,189,248,0.15), inset 0 0 100px 30px rgba(56,189,248,0.08)",
+                            animation: "game-screen-flash 800ms ease-out forwards",
                         }}
                     />
                 )}
@@ -557,15 +583,22 @@ const FallingWordsGame: React.FC = () => {
 
                 {/* 레벨업 */}
                 {levelUp && (
-                    <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center z-20">
-                        <div className="text-2xl sm:text-4xl font-bold text-amber-400 animate-bounce">
-                            Level Up! 🎯
+                    <>
+                        <div className="absolute inset-0 pointer-events-none z-19 animate-screen-flash"
+                            style={{ background: "rgba(255,224,0,0.15)" }}
+                        />
+                        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center z-20">
+                            <div className="text-2xl sm:text-4xl font-bold text-amber-400 animate-celebration"
+                                style={{ textShadow: "0 0 20px rgba(251,191,36,0.6), 2px 2px 0 rgba(0,0,0,0.3)" }}
+                            >
+                                Level Up!
+                            </div>
+                            <div className="text-sm sm:text-lg text-sky-400 mt-2">
+                                Next goal:{" "}
+                                {getLevelRequirements(level + 1).scoreNeeded} points
+                            </div>
                         </div>
-                        <div className="text-sm sm:text-lg text-sky-400 mt-2">
-                            Next goal:{" "}
-                            {getLevelRequirements(level + 1).scoreNeeded} points
-                        </div>
-                    </div>
+                    </>
                 )}
 
                 {/* 점수 팝업들 */}
