@@ -493,7 +493,7 @@ const FallingWordsGame: React.FC = () => {
             ref={gameAreaRef}
             className={`relative w-full flex-1 min-h-[340px] sm:min-h-[460px] overflow-hidden ${retroRadiusClass} border-2 border-[var(--retro-border-mid)] border-t-[var(--retro-border-light)] border-l-[var(--retro-border-light)] border-r-[var(--retro-border-dark)] border-b-[var(--retro-border-dark)] bg-[var(--retro-surface-alt)]`}
         >
-            <div className={`absolute inset-0 ${darkMode ? "bg-[#1f2730]" : "bg-[var(--retro-surface-alt)]"} ${lifeLostShake ? "animate-runner-shake" : ""}`}>
+            <div className={`absolute inset-0 ${darkMode ? "bg-[var(--retro-game-bg)]" : "bg-[var(--retro-surface-alt)]"} ${lifeLostShake ? "animate-runner-shake" : ""}`}>
                 <div
                     className="absolute inset-0 pointer-events-none opacity-30"
                     style={{
@@ -511,7 +511,7 @@ const FallingWordsGame: React.FC = () => {
                             </span>
                         )}
                         {combo > 0 && (
-                            <span className="ml-1 sm:ml-2 text-xs sm:text-base text-sky-400">
+                            <span className="ml-1 sm:ml-2 text-xs sm:text-base text-[var(--retro-game-info)]">
                                 x{Math.min(1 + combo * 0.2, 2).toFixed(1)}
                             </span>
                         )}
@@ -569,10 +569,10 @@ const FallingWordsGame: React.FC = () => {
                         <div
                         className={`text-base sm:text-xl lg:text-2xl font-bold font-mono ${
                                 combo >= 10
-                                    ? "text-amber-400"
+                                    ? "text-[var(--retro-game-warning)]"
                                     : combo >= 5
-                                    ? "text-sky-400"
-                                    : "text-emerald-400"
+                                    ? "text-[var(--retro-game-info)]"
+                                    : "text-[var(--retro-game-success)]"
                             }`}
                         >
                             {combo} Combo!{" "}
@@ -588,12 +588,12 @@ const FallingWordsGame: React.FC = () => {
                             style={{ background: "rgba(255,224,0,0.15)" }}
                         />
                         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center z-20">
-                            <div className="text-2xl sm:text-4xl font-bold text-amber-400 animate-celebration"
+                            <div className="text-2xl sm:text-4xl font-bold text-[var(--retro-game-warning)] animate-celebration"
                                 style={{ textShadow: "0 0 20px rgba(251,191,36,0.6), 2px 2px 0 rgba(0,0,0,0.3)" }}
                             >
                                 Level Up!
                             </div>
-                            <div className="text-sm sm:text-lg text-sky-400 mt-2">
+                            <div className="text-sm sm:text-lg text-[var(--retro-game-info)] mt-2">
                                 Next goal:{" "}
                                 {getLevelRequirements(level + 1).scoreNeeded} points
                             </div>
@@ -605,7 +605,7 @@ const FallingWordsGame: React.FC = () => {
                 {scorePopups.map((popup) => (
                     <div
                         key={popup.id}
-                        className="absolute animate-score-popup z-20 text-base sm:text-xl lg:text-2xl font-bold text-sky-400 font-mono"
+                        className="absolute animate-score-popup z-20 text-base sm:text-xl lg:text-2xl font-bold text-[var(--retro-game-info)] font-mono"
                         style={{ left: `${popup.left}px`, top: `${popup.top}px` }}
                     >
                         {popup.text}
@@ -621,7 +621,7 @@ const FallingWordsGame: React.FC = () => {
                             className={`absolute ${getWordSizeClass(word.text)} font-bold font-mono flex items-center gap-1 sm:gap-2 ${getWordAnimClass(word)} ${
                                 word.type === "normal"
                                     ? darkMode
-                                        ? "text-[#f5f7fa] drop-shadow-[1px_1px_0_rgba(0,0,0,0.5)]"
+                                        ? "text-[var(--retro-game-text)] drop-shadow-[1px_1px_0_rgba(0,0,0,0.5)]"
                                         : "text-[var(--retro-text)] drop-shadow-[1px_1px_0_rgba(255,255,255,0.5)]"
                                     : word.color
                             } ${

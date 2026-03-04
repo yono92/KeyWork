@@ -16,9 +16,9 @@ const WordChainGame: React.FC = () => {
 
     return (
         <div className="relative w-full flex-1 min-h-[280px] sm:min-h-[400px] rounded-2xl overflow-hidden border border-sky-200/40 dark:border-sky-500/10">
-            <div className={`absolute inset-0 flex flex-col ${darkMode ? "bg-[#0e1825]" : "bg-gradient-to-b from-sky-50/80 to-white"} transition-all duration-300`}
+            <div className={`absolute inset-0 flex flex-col ${darkMode ? "bg-[var(--retro-game-bg)]" : "bg-gradient-to-b from-sky-50/80 to-white"} transition-all duration-300`}
                 style={game.timer <= 3 && game.gameStarted && !game.gameOver && !game.isAiTurn ? {
-                    boxShadow: "inset 0 0 40px rgba(239,68,68,0.1)",
+                    boxShadow: "inset 0 0 40px color-mix(in srgb, var(--retro-game-danger) 10%, transparent)",
                 } : undefined}
             >
                 {/* Top bar */}
@@ -28,7 +28,7 @@ const WordChainGame: React.FC = () => {
                     <div className={`text-xs sm:text-lg font-bold ${darkMode ? "text-white" : "text-slate-800"}`}>
                         Score: <span className="tabular-nums">{game.score}</span>
                         {game.combo > 0 && (
-                            <span className="ml-1 sm:ml-2 text-[10px] sm:text-sm text-sky-400">
+                            <span className="ml-1 sm:ml-2 text-[10px] sm:text-sm text-[var(--retro-game-info)]">
                                 x{Math.min(1 + game.combo * 0.2, 2).toFixed(1)}
                             </span>
                         )}
@@ -40,7 +40,7 @@ const WordChainGame: React.FC = () => {
                                 : darkMode ? "text-white" : "text-slate-800"
                         }`}
                             style={game.timer <= 3 ? {
-                                textShadow: "0 0 8px rgba(239,68,68,0.5)",
+                                textShadow: "0 0 8px color-mix(in srgb, var(--retro-game-danger) 50%, transparent)",
                             } : undefined}
                         >
                             ⏱ {game.timer}s
@@ -109,7 +109,7 @@ const WordChainGame: React.FC = () => {
                                             ? "bg-white/[0.08] text-white rounded-bl-md"
                                             : "bg-slate-100 text-slate-800 rounded-bl-md"
                                         : msg.isValid
-                                            ? "bg-gradient-to-r from-sky-500 to-cyan-500 text-white rounded-br-md shadow-[0_0_12px_rgba(56,189,248,0.3)]"
+                                            ? "bg-[var(--retro-game-highlight)] text-white rounded-br-md shadow-[0_0_12px_var(--retro-game-glow)]"
                                             : "bg-rose-500/80 text-white rounded-br-md line-through animate-wordchain-shake"
                                 }`}
                                     style={msg.sender === "player" && msg.isValid ? {
@@ -125,7 +125,7 @@ const WordChainGame: React.FC = () => {
                                             ? "bg-slate-950/50 border-sky-500/20 text-slate-200"
                                             : "bg-sky-50/80 border-sky-200 text-slate-700"
                                     }`}>
-                                        <span className="font-semibold text-sky-400 mr-1">
+                                        <span className="font-semibold text-[var(--retro-game-info)] mr-1">
                                             의미
                                         </span>
                                         <span>{msg.definition}</span>
@@ -204,7 +204,7 @@ const WordChainGame: React.FC = () => {
                 <GameOverModal
                     title={game.playerWon ? "승리!" : "게임 오버"}
                     badge={game.playerWon ? (
-                        <p className="text-amber-400 font-bold text-lg mb-3 animate-celebration"
+                        <p className="text-[var(--retro-game-warning)] font-bold text-lg mb-3 animate-celebration"
                             style={{ textShadow: "0 0 15px rgba(251,191,36,0.6)" }}
                         >
                             ★ ★ ★

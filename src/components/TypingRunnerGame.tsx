@@ -408,7 +408,7 @@ const TypingRunnerGame: React.FC = () => {
                         </div>
                         <div className={`absolute top-0 left-0 right-0 h-1.5 sm:h-2 ${darkMode ? "bg-emerald-500/40" : "bg-emerald-500/60"}`} />
                         <div
-                            className={`absolute inset-0 top-1.5 sm:top-2 ${darkMode ? "bg-[#1a2a1a]" : "bg-gradient-to-b from-emerald-200/70 to-amber-100/50"}`}
+                            className={`absolute inset-0 top-1.5 sm:top-2 ${darkMode ? "bg-[var(--retro-game-key-bg)]" : "bg-gradient-to-b from-emerald-200/70 to-amber-100/50"}`}
                             style={{
                                 backgroundImage: darkMode
                                     ? "repeating-linear-gradient(90deg, transparent, transparent 38px, rgba(255,255,255,0.02) 38px, rgba(255,255,255,0.02) 40px), repeating-linear-gradient(180deg, transparent, transparent 8px, rgba(255,255,255,0.01) 8px, rgba(255,255,255,0.01) 10px)"
@@ -564,7 +564,7 @@ const TypingRunnerGame: React.FC = () => {
                     {particles.scorePopups.map((p) => (
                         <div
                             key={p.id}
-                            className="absolute animate-score-popup z-20 text-sm sm:text-lg font-bold text-emerald-400 pointer-events-none"
+                            className="absolute animate-score-popup z-20 text-sm sm:text-lg font-bold text-[var(--retro-game-success)] pointer-events-none"
                             style={{ left: `${p.x}px`, bottom: `${p.bottom}%` }}
                         >
                             {p.text}
@@ -576,10 +576,10 @@ const TypingRunnerGame: React.FC = () => {
                         <div className="absolute top-2 left-2 z-20 pointer-events-none">
                             <div className={`px-2 py-1 rounded text-xs sm:text-sm font-bold ${
                                 comboCounterRef.current >= 10
-                                    ? "text-amber-400"
+                                    ? "text-[var(--retro-game-warning)]"
                                     : comboCounterRef.current >= 5
-                                    ? "text-sky-400"
-                                    : "text-emerald-400"
+                                    ? "text-[var(--retro-game-info)]"
+                                    : "text-[var(--retro-game-success)]"
                             }`}
                                 style={{
                                     textShadow: "1px 1px 2px rgba(0,0,0,0.5)",
@@ -593,7 +593,7 @@ const TypingRunnerGame: React.FC = () => {
                     {/* 마일스톤 토스트 */}
                     {engine.milestone !== null && (
                         <div className="absolute inset-0 flex items-center justify-center z-30 pointer-events-none">
-                            <div className="animate-level-up text-3xl sm:text-5xl font-black text-amber-400"
+                            <div className="animate-level-up text-3xl sm:text-5xl font-black text-[var(--retro-game-warning)]"
                                 style={{
                                     position: "absolute", top: "50%", left: "50%",
                                     filter: "drop-shadow(0 0 20px rgba(251,191,36,0.5)) drop-shadow(0 0 40px rgba(251,191,36,0.3))",

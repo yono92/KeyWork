@@ -16,7 +16,7 @@ export default function TetrisGame() {
     const onLinesCleared = useCallback((rows: number[], _removed: number, totalGain: number, newCombo: number) => {
         anim.triggerFlash(rows);
         anim.triggerScorePop();
-        anim.addFloatingText(`+${totalGain}`, "#ffe000");
+        anim.addFloatingText(`+${totalGain}`, "var(--retro-game-warning)");
 
         // Clear type labels
         const lineCount = rows.length;
@@ -30,7 +30,7 @@ export default function TetrisGame() {
         }
 
         if (newCombo >= 2) {
-            anim.addFloatingText(`COMBO x${newCombo}`, "#00e5ff");
+            anim.addFloatingText(`COMBO x${newCombo}`, "var(--retro-game-info)");
         }
         // Auto shake on combo 3+
         if (newCombo >= 3) {
@@ -67,10 +67,10 @@ export default function TetrisGame() {
     const bevel = (inset = false) => ({
         borderStyle: "solid" as const,
         borderWidth: "2px",
-        borderTopColor: inset ? "#222" : "#fff",
-        borderLeftColor: inset ? "#222" : "#fff",
-        borderBottomColor: inset ? "#fff" : "#222",
-        borderRightColor: inset ? "#fff" : "#222",
+        borderTopColor: inset ? "var(--retro-game-panel-border-lo)" : "var(--retro-game-panel-border-hi)",
+        borderLeftColor: inset ? "var(--retro-game-panel-border-lo)" : "var(--retro-game-panel-border-hi)",
+        borderBottomColor: inset ? "var(--retro-game-panel-border-hi)" : "var(--retro-game-panel-border-lo)",
+        borderRightColor: inset ? "var(--retro-game-panel-border-hi)" : "var(--retro-game-panel-border-lo)",
     });
 
     const blockStyle = (type: PieceType): React.CSSProperties => {
@@ -96,7 +96,7 @@ export default function TetrisGame() {
                     display: "grid",
                     gridTemplateColumns: `repeat(4, ${sz}px)`,
                     gap: 0,
-                    background: "#0a0a0a",
+                    background: "var(--retro-game-bg)",
                     padding: 2,
                     width: "fit-content",
                     margin: "0 auto",
@@ -131,7 +131,7 @@ export default function TetrisGame() {
                     return (
                         <div
                             key={idx}
-                            style={{ width: sz, height: sz, background: "#111" }}
+                            style={{ width: sz, height: sz, background: "var(--retro-game-bg-alt)" }}
                             aria-hidden="true"
                         />
                     );
@@ -163,24 +163,24 @@ export default function TetrisGame() {
             <div
                 style={{
                     padding: 4,
-                    background: "#333",
+                    background: "var(--retro-game-panel)",
                     borderStyle: "solid",
                     borderWidth: "3px",
-                    borderTopColor: "#666",
-                    borderLeftColor: "#666",
-                    borderBottomColor: "#111",
-                    borderRightColor: "#111",
+                    borderTopColor: "var(--retro-game-panel-border-hi)",
+                    borderLeftColor: "var(--retro-game-panel-border-hi)",
+                    borderBottomColor: "var(--retro-game-panel-border-lo)",
+                    borderRightColor: "var(--retro-game-panel-border-lo)",
                     animation: anim.levelGlow ? "tetris-level-glow 0.6s ease-out" : undefined,
                 }}
             >
-                <div style={{ padding: 1, background: "#000", ...bevel(true) }}>
+                <div style={{ padding: 1, background: "var(--retro-game-panel-border-lo)", ...bevel(true) }}>
                     <div
                         style={{
                             display: "grid",
                             gridTemplateColumns: `repeat(${BOARD_WIDTH}, ${cellSize}px)`,
                             gap: 0,
                             width: boardPx,
-                            background: "#0a0a0a",
+                            background: "var(--retro-game-bg)",
                         }}
                     >
                         {engine.renderedBoard.flatMap((row, ri) =>
@@ -229,9 +229,9 @@ export default function TetrisGame() {
                                         key={key}
                                         style={{
                                             width: cellSize, height: cellSize,
-                                            background: "#0a0a0a",
-                                            borderRight: "1px solid #151515",
-                                            borderBottom: "1px solid #151515",
+                                            background: "var(--retro-game-bg)",
+                                            borderRight: "1px solid var(--retro-game-grid)",
+                                            borderBottom: "1px solid var(--retro-game-grid)",
                                         }}
                                         aria-hidden="true"
                                     />
@@ -298,7 +298,7 @@ export default function TetrisGame() {
                         left: "50%",
                         top: "30%",
                         transform: "translateX(-50%)",
-                        color: anim.clearLabel === "TETRIS!" ? "#ffd700" : "#fff",
+                        color: anim.clearLabel === "TETRIS!" ? "var(--retro-game-warning)" : "var(--retro-game-text)",
                         fontSize: anim.clearLabel === "TETRIS!" ? Math.max(24, cellSize * 1.4) : Math.max(18, cellSize * 1),
                         fontWeight: 900,
                         letterSpacing: 4,
@@ -346,13 +346,13 @@ export default function TetrisGame() {
                         zIndex: 10,
                     }}
                 >
-                    <p style={{ color: "#ffe000", fontSize: 22, fontWeight: 900, letterSpacing: 6, textTransform: "uppercase", animation: "tetris-blink 1s step-end infinite", textShadow: "2px 2px 0 #000" }}>
+                    <p style={{ color: "var(--retro-game-warning)", fontSize: 22, fontWeight: 900, letterSpacing: 6, textTransform: "uppercase", animation: "tetris-blink 1s step-end infinite", textShadow: "2px 2px 0 #000" }}>
                         PAUSE
                     </p>
-                    <p style={{ color: "#aaa", fontSize: 11, marginTop: 6 }}>P 키로 재개</p>
+                    <p style={{ color: "var(--retro-game-text-dim)", fontSize: 11, marginTop: 6 }}>P 키로 재개</p>
                     <button
                         onClick={() => engine.setPaused(false)}
-                        style={{ ...bevel(), background: "#444", color: "#fff", padding: "6px 20px", cursor: "pointer", marginTop: 12, fontSize: 13, fontWeight: 900, letterSpacing: 2 }}
+                        style={{ ...bevel(), background: "var(--retro-game-panel)", color: "var(--retro-game-text)", padding: "6px 20px", cursor: "pointer", marginTop: 12, fontSize: 13, fontWeight: 900, letterSpacing: 2 }}
                     >
                         CONTINUE
                     </button>
@@ -382,15 +382,15 @@ export default function TetrisGame() {
                             zIndex: 10,
                         }}
                     >
-                        <p style={{ color: "#ff3333", fontSize: 22, fontWeight: 900, letterSpacing: 4, textShadow: "0 0 20px rgba(255,51,51,0.5), 2px 2px 0 #000" }}>
+                        <p style={{ color: "var(--retro-game-danger)", fontSize: 22, fontWeight: 900, letterSpacing: 4, textShadow: "0 0 20px rgba(255,51,51,0.5), 2px 2px 0 #000" }}>
                             GAME OVER
                         </p>
-                        <p style={{ color: "#ccc", fontSize: 13, marginTop: 4 }}>
+                        <p style={{ color: "var(--retro-game-text)", fontSize: 13, marginTop: 4 }}>
                             SCORE: {engine.score.toLocaleString()}
                         </p>
                         <button
                             onClick={engine.resetGame}
-                            style={{ ...bevel(), background: "#444", color: "#fff", padding: "6px 20px", cursor: "pointer", marginTop: 12, fontSize: 13, fontWeight: 900, letterSpacing: 2 }}
+                            style={{ ...bevel(), background: "var(--retro-game-panel)", color: "var(--retro-game-text)", padding: "6px 20px", cursor: "pointer", marginTop: 12, fontSize: 13, fontWeight: 900, letterSpacing: 2 }}
                         >
                             RETRY
                         </button>
@@ -411,15 +411,15 @@ export default function TetrisGame() {
                         zIndex: 10,
                     }}
                 >
-                    <p style={{ color: "#00e5ff", fontSize: 26, fontWeight: 900, letterSpacing: 6, textShadow: "2px 2px 0 #000", marginBottom: 6 }}>
+                    <p style={{ color: "var(--retro-game-info)", fontSize: 26, fontWeight: 900, letterSpacing: 6, textShadow: "2px 2px 0 #000", marginBottom: 6 }}>
                         TETRIS
                     </p>
-                    <p style={{ color: "#777", fontSize: 11, marginBottom: 14, animation: "tetris-blink 1.2s step-end infinite" }}>
+                    <p style={{ color: "var(--retro-game-text-dim)", fontSize: 11, marginBottom: 14, animation: "tetris-blink 1.2s step-end infinite" }}>
                         PRESS START
                     </p>
                     <button
                         onClick={engine.resetGame}
-                        style={{ ...bevel(), background: "#cc3300", color: "#fff", padding: "8px 28px", fontSize: 14, fontWeight: 900, letterSpacing: 3, cursor: "pointer" }}
+                        style={{ ...bevel(), background: "var(--retro-game-danger)", color: "var(--retro-game-text)", padding: "8px 28px", fontSize: 14, fontWeight: 900, letterSpacing: 3, cursor: "pointer" }}
                     >
                         START
                     </button>
@@ -436,17 +436,17 @@ export default function TetrisGame() {
         <div
             style={{
                 ...bevel(true),
-                background: "#111",
+                background: "var(--retro-game-bg-alt)",
                 padding: `${spPad(4)}px ${spPad(8)}px`,
                 display: "flex",
                 justifyContent: "space-between",
                 alignItems: "center",
             }}
         >
-            <span style={{ color: "#888", fontSize: spFont(11), textTransform: "uppercase", letterSpacing: 1 }}>{label}</span>
+            <span style={{ color: "var(--retro-game-text-dim)", fontSize: spFont(11), textTransform: "uppercase", letterSpacing: 1 }}>{label}</span>
             <span
                 style={{
-                    color: "#ffe000",
+                    color: "var(--retro-game-warning)",
                     fontSize: spFont(16),
                     fontWeight: 900,
                     fontVariantNumeric: "tabular-nums",
@@ -464,47 +464,47 @@ export default function TetrisGame() {
         const gap = Math.max(2, spPad(4));
         return (
             <div style={{ display: "flex", flexDirection: "column", gap, maxHeight: boardTotalH, overflow: "hidden" }}>
-                <div style={{ ...bevel(), background: "#333", padding: spPad(5) }}>
-                    <p style={{ fontSize: spFont(10), fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", color: "#aaa", textAlign: "center", marginBottom: spPad(3) }}>
+                <div style={{ ...bevel(), background: "var(--retro-game-panel)", padding: spPad(5) }}>
+                    <p style={{ fontSize: spFont(10), fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", color: "var(--retro-game-text-dim)", textAlign: "center", marginBottom: spPad(3) }}>
                         NEXT
                     </p>
                     {renderMiniPreview(engine.nextPieceType)}
                 </div>
 
-                <div style={{ ...bevel(), background: "#333", padding: spPad(5) }}>
+                <div style={{ ...bevel(), background: "var(--retro-game-panel)", padding: spPad(5) }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: spPad(3) }}>
-                        <p style={{ fontSize: spFont(10), fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", color: "#aaa" }}>
-                            HOLD <span style={{ fontSize: spFont(8), color: "#666", fontWeight: 400 }}>[C]</span>
+                        <p style={{ fontSize: spFont(10), fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", color: "var(--retro-game-text-dim)" }}>
+                            HOLD <span style={{ fontSize: spFont(8), color: "var(--retro-game-text-dim)", fontWeight: 400 }}>[C]</span>
                         </p>
                         {engine.holdUsedThisTurn && (
-                            <span style={{ fontSize: spFont(8), color: "#ff3333", fontWeight: 700 }}>LOCK</span>
+                            <span style={{ fontSize: spFont(8), color: "var(--retro-game-danger)", fontWeight: 700 }}>LOCK</span>
                         )}
                     </div>
                     {renderMiniPreview(engine.heldPieceType)}
                 </div>
 
-                <div style={{ ...bevel(), background: "#333", padding: spPad(5), display: "flex", flexDirection: "column", gap: spPad(2) }}>
+                <div style={{ ...bevel(), background: "var(--retro-game-panel)", padding: spPad(5), display: "flex", flexDirection: "column", gap: spPad(2) }}>
                     {renderStatRow("SCORE", engine.score, true)}
                     {renderStatRow("LINES", engine.lines)}
                     {renderStatRow("LEVEL", engine.level)}
-                    <div style={{ ...bevel(true), background: "#111", padding: `${spPad(2)}px ${spPad(8)}px`, textAlign: "center" }}>
-                        <span style={{ color: "#555", fontSize: spFont(9) }}>SPEED {engine.dropIntervalMs}ms</span>
+                    <div style={{ ...bevel(true), background: "var(--retro-game-bg-alt)", padding: `${spPad(2)}px ${spPad(8)}px`, textAlign: "center" }}>
+                        <span style={{ color: "var(--retro-game-text-dim)", fontSize: spFont(9) }}>SPEED {engine.dropIntervalMs}ms</span>
                     </div>
                 </div>
 
                 {engine.combo >= 2 && (
                     <div style={{
                         ...bevel(),
-                        background: "#1a1a2a",
+                        background: "var(--retro-game-bg-alt)",
                         padding: `${spPad(4)}px ${spPad(8)}px`,
                         textAlign: "center",
                     }}>
                         <span style={{
-                            color: "#00e5ff",
+                            color: "var(--retro-game-info)",
                             fontSize: spFont(14),
                             fontWeight: 900,
                             letterSpacing: 2,
-                            textShadow: "0 0 6px #00e5ff66",
+                            textShadow: "0 0 6px var(--retro-game-glow)",
                             fontFamily: "monospace",
                         }}>
                             COMBO x{engine.combo}
@@ -517,17 +517,17 @@ export default function TetrisGame() {
                         style={{
                             borderStyle: "solid",
                             borderWidth: "2px",
-                            borderTopColor: "#666",
-                            borderLeftColor: "#666",
-                            borderBottomColor: "#111",
-                            borderRightColor: "#111",
-                            background: "#2a2a2a",
+                            borderTopColor: "var(--retro-game-panel-border-hi)",
+                            borderLeftColor: "var(--retro-game-panel-border-hi)",
+                            borderBottomColor: "var(--retro-game-panel-border-lo)",
+                            borderRightColor: "var(--retro-game-panel-border-lo)",
+                            background: "var(--retro-game-panel)",
                             padding: 0,
                         }}
                     >
                         <div
                             style={{
-                                background: "#1a2a1a",
+                                background: "var(--retro-game-key-bg)",
                                 ...bevel(true),
                                 padding: `${spPad(4)}px ${spPad(6)}px`,
                             }}
@@ -540,10 +540,10 @@ export default function TetrisGame() {
                                     ["C/P", "홀드/정지"],
                                 ].map(([k, v]) => (
                                     <React.Fragment key={k}>
-                                        <span style={{ color: "#33ff33", fontSize: spFont(10), fontWeight: 900, fontFamily: "monospace", textAlign: "right", textShadow: "0 0 4px #33ff3388", lineHeight: 1.3 }}>
+                                        <span style={{ color: "var(--retro-game-key-text)", fontSize: spFont(10), fontWeight: 900, fontFamily: "monospace", textAlign: "right", textShadow: "0 0 4px var(--retro-game-glow)", lineHeight: 1.3 }}>
                                             {k}
                                         </span>
-                                        <span style={{ color: "#33ff3399", fontSize: spFont(9), fontFamily: "monospace", lineHeight: 1.3 }}>
+                                        <span style={{ color: "var(--retro-game-key-text)", fontSize: spFont(9), fontFamily: "monospace", lineHeight: 1.3, opacity: 0.6 }}>
                                             {v}
                                         </span>
                                     </React.Fragment>
@@ -560,10 +560,10 @@ export default function TetrisGame() {
                                     letterSpacing: 2,
                                     fontFamily: "monospace",
                                     ...bevel(animEnabled),
-                                    background: animEnabled ? "#1a2a1a" : "#2a2a2a",
-                                    color: animEnabled ? "#33ff33" : "#555",
+                                    background: animEnabled ? "var(--retro-game-key-bg)" : "var(--retro-game-panel)",
+                                    color: animEnabled ? "var(--retro-game-key-text)" : "var(--retro-game-text-dim)",
                                     cursor: "pointer",
-                                    textShadow: animEnabled ? "0 0 4px #33ff3388" : "none",
+                                    textShadow: animEnabled ? "0 0 4px var(--retro-game-glow)" : "none",
                                 }}
                             >
                                 FX {animEnabled ? "ON" : "OFF"}
@@ -573,7 +573,7 @@ export default function TetrisGame() {
                 )}
 
                 {isMobile && (
-                    <div style={{ ...bevel(), background: "#333", padding: spPad(3) }}>
+                    <div style={{ ...bevel(), background: "var(--retro-game-panel)", padding: spPad(3) }}>
                         <button
                             onClick={() => setAnimEnabled((v) => !v)}
                             style={{
@@ -584,10 +584,10 @@ export default function TetrisGame() {
                                 letterSpacing: 2,
                                 fontFamily: "monospace",
                                 ...bevel(animEnabled),
-                                background: animEnabled ? "#1a2a1a" : "#2a2a2a",
-                                color: animEnabled ? "#33ff33" : "#555",
+                                background: animEnabled ? "var(--retro-game-key-bg)" : "var(--retro-game-panel)",
+                                color: animEnabled ? "var(--retro-game-key-text)" : "var(--retro-game-text-dim)",
                                 cursor: "pointer",
-                                textShadow: animEnabled ? "0 0 4px #33ff3388" : "none",
+                                textShadow: animEnabled ? "0 0 4px var(--retro-game-glow)" : "none",
                             }}
                         >
                             FX {animEnabled ? "ON" : "OFF"}
@@ -605,17 +605,17 @@ export default function TetrisGame() {
             fontSize: 20,
             fontWeight: 900,
             cursor: disabled ? "not-allowed" : "pointer",
-            background: disabled ? "#3a3a3a" : "#666",
-            color: disabled ? "#555" : "#fff",
+            background: disabled ? "var(--retro-game-panel-border-lo)" : "var(--retro-game-panel)",
+            color: disabled ? "var(--retro-game-text-dim)" : "var(--retro-game-text)",
             borderStyle: "solid",
             borderWidth: "3px",
-            borderTopColor: disabled ? "#444" : "#999",
-            borderLeftColor: disabled ? "#444" : "#999",
-            borderBottomColor: disabled ? "#222" : "#333",
-            borderRightColor: disabled ? "#222" : "#333",
+            borderTopColor: disabled ? "var(--retro-game-panel)" : "var(--retro-game-panel-border-hi)",
+            borderLeftColor: disabled ? "var(--retro-game-panel)" : "var(--retro-game-panel-border-hi)",
+            borderBottomColor: disabled ? "var(--retro-game-panel-border-lo)" : "var(--retro-game-panel-border-lo)",
+            borderRightColor: disabled ? "var(--retro-game-panel-border-lo)" : "var(--retro-game-panel-border-lo)",
         });
         return (
-            <div style={{ background: "#444", padding: 6, borderStyle: "solid", borderWidth: "3px", borderTopColor: "#666", borderLeftColor: "#666", borderBottomColor: "#222", borderRightColor: "#222" }}>
+            <div style={{ background: "var(--retro-game-panel)", padding: 6, borderStyle: "solid", borderWidth: "3px", borderTopColor: "var(--retro-game-panel-border-hi)", borderLeftColor: "var(--retro-game-panel-border-hi)", borderBottomColor: "var(--retro-game-panel-border-lo)", borderRightColor: "var(--retro-game-panel-border-lo)" }}>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 5 }}>
                     <div />
                     <button onClick={engine.rotatePiece} disabled={controlsDisabled} style={dpadStyle(controlsDisabled)}>↑</button>
@@ -634,14 +634,14 @@ export default function TetrisGame() {
                             fontWeight: 900,
                             letterSpacing: 1,
                             cursor: (controlsDisabled || engine.holdUsedThisTurn) ? "not-allowed" : "pointer",
-                            background: (controlsDisabled || engine.holdUsedThisTurn) ? "#3a3a3a" : "#3355aa",
-                            color: (controlsDisabled || engine.holdUsedThisTurn) ? "#555" : "#fff",
+                            background: (controlsDisabled || engine.holdUsedThisTurn) ? "var(--retro-game-panel-border-lo)" : "var(--retro-game-highlight)",
+                            color: (controlsDisabled || engine.holdUsedThisTurn) ? "var(--retro-game-text-dim)" : "var(--retro-game-text)",
                             borderStyle: "solid",
                             borderWidth: "3px",
-                            borderTopColor: (controlsDisabled || engine.holdUsedThisTurn) ? "#444" : "#5588dd",
-                            borderLeftColor: (controlsDisabled || engine.holdUsedThisTurn) ? "#444" : "#5588dd",
-                            borderBottomColor: (controlsDisabled || engine.holdUsedThisTurn) ? "#222" : "#223377",
-                            borderRightColor: (controlsDisabled || engine.holdUsedThisTurn) ? "#222" : "#223377",
+                            borderTopColor: (controlsDisabled || engine.holdUsedThisTurn) ? "var(--retro-game-panel)" : "var(--retro-game-panel-border-hi)",
+                            borderLeftColor: (controlsDisabled || engine.holdUsedThisTurn) ? "var(--retro-game-panel)" : "var(--retro-game-panel-border-hi)",
+                            borderBottomColor: (controlsDisabled || engine.holdUsedThisTurn) ? "var(--retro-game-panel-border-lo)" : "var(--retro-game-panel-border-lo)",
+                            borderRightColor: (controlsDisabled || engine.holdUsedThisTurn) ? "var(--retro-game-panel-border-lo)" : "var(--retro-game-panel-border-lo)",
                         }}
                     >
                         HOLD
@@ -655,14 +655,14 @@ export default function TetrisGame() {
                             fontWeight: 900,
                             letterSpacing: 3,
                             cursor: controlsDisabled ? "not-allowed" : "pointer",
-                            background: controlsDisabled ? "#3a3a3a" : "#cc3300",
-                            color: controlsDisabled ? "#555" : "#fff",
+                            background: controlsDisabled ? "var(--retro-game-panel-border-lo)" : "var(--retro-game-danger)",
+                            color: controlsDisabled ? "var(--retro-game-text-dim)" : "var(--retro-game-text)",
                             borderStyle: "solid",
                             borderWidth: "3px",
-                            borderTopColor: controlsDisabled ? "#444" : "#ff6644",
-                            borderLeftColor: controlsDisabled ? "#444" : "#ff6644",
-                            borderBottomColor: controlsDisabled ? "#222" : "#881100",
-                            borderRightColor: controlsDisabled ? "#222" : "#881100",
+                            borderTopColor: controlsDisabled ? "var(--retro-game-panel)" : "var(--retro-game-panel-border-hi)",
+                            borderLeftColor: controlsDisabled ? "var(--retro-game-panel)" : "var(--retro-game-panel-border-hi)",
+                            borderBottomColor: controlsDisabled ? "var(--retro-game-panel-border-lo)" : "var(--retro-game-panel-border-lo)",
+                            borderRightColor: controlsDisabled ? "var(--retro-game-panel-border-lo)" : "var(--retro-game-panel-border-lo)",
                         }}
                     >
                         DROP
@@ -675,14 +675,14 @@ export default function TetrisGame() {
                             fontSize: 14,
                             fontWeight: 900,
                             cursor: (!engine.running || engine.gameOver) ? "not-allowed" : "pointer",
-                            background: (!engine.running || engine.gameOver) ? "#3a3a3a" : engine.paused ? "#997700" : "#666",
-                            color: (!engine.running || engine.gameOver) ? "#555" : engine.paused ? "#fff" : "#fff",
+                            background: (!engine.running || engine.gameOver) ? "var(--retro-game-panel-border-lo)" : engine.paused ? "var(--retro-game-warning)" : "var(--retro-game-panel)",
+                            color: (!engine.running || engine.gameOver) ? "var(--retro-game-text-dim)" : "var(--retro-game-text)",
                             borderStyle: "solid",
                             borderWidth: "3px",
-                            borderTopColor: (!engine.running || engine.gameOver) ? "#444" : engine.paused ? "#ccaa22" : "#999",
-                            borderLeftColor: (!engine.running || engine.gameOver) ? "#444" : engine.paused ? "#ccaa22" : "#999",
-                            borderBottomColor: (!engine.running || engine.gameOver) ? "#222" : engine.paused ? "#554400" : "#333",
-                            borderRightColor: (!engine.running || engine.gameOver) ? "#222" : engine.paused ? "#554400" : "#333",
+                            borderTopColor: (!engine.running || engine.gameOver) ? "var(--retro-game-panel)" : "var(--retro-game-panel-border-hi)",
+                            borderLeftColor: (!engine.running || engine.gameOver) ? "var(--retro-game-panel)" : "var(--retro-game-panel-border-hi)",
+                            borderBottomColor: (!engine.running || engine.gameOver) ? "var(--retro-game-panel-border-lo)" : "var(--retro-game-panel-border-lo)",
+                            borderRightColor: (!engine.running || engine.gameOver) ? "var(--retro-game-panel-border-lo)" : "var(--retro-game-panel-border-lo)",
                         }}
                     >
                         {engine.paused ? "▶" : "⏸"}
@@ -696,7 +696,7 @@ export default function TetrisGame() {
         <section
             ref={sectionRef}
             className="w-full mx-auto h-full min-h-0 overflow-hidden flex flex-col gap-2"
-            style={{ color: "#ddd", fontFamily: "inherit" }}
+            style={{ color: "var(--retro-game-text)", fontFamily: "inherit" }}
         >
             <div className="mx-auto w-fit max-w-full min-h-0 flex-1">
                 {isMobile ? (

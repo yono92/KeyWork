@@ -73,6 +73,22 @@
         --retro-field-bg: #ffffff;
         --retro-field-text: #141414;
         --retro-field-placeholder: #6b7280;
+        --retro-game-bg: #1a1a2e;
+        --retro-game-bg-alt: #222240;
+        --retro-game-grid: #252540;
+        --retro-game-text: #e0e0e0;
+        --retro-game-text-dim: #888899;
+        --retro-game-panel: #333355;
+        --retro-game-panel-border-hi: #5555aa;
+        --retro-game-panel-border-lo: #1a1a33;
+        --retro-game-success: #22c55e;
+        --retro-game-danger: #ef4444;
+        --retro-game-warning: #ffe000;
+        --retro-game-info: #00e5ff;
+        --retro-game-highlight: #3b82f6;
+        --retro-game-glow: rgba(0, 229, 255, 0.25);
+        --retro-game-key-bg: #1a2a1a;
+        --retro-game-key-text: #33ff33;
     }
     [data-retro-theme="mac-classic"] {
         --font-body: "Geneva", "Charcoal", "Chicago", "Helvetica", "Noto Sans KR", sans-serif;
@@ -93,6 +109,22 @@
         --retro-field-bg: #ffffff;
         --retro-field-text: #141414;
         --retro-field-placeholder: #6b7280;
+        --retro-game-bg: #1e1e30;
+        --retro-game-bg-alt: #252538;
+        --retro-game-grid: #282840;
+        --retro-game-text: #d8d8e0;
+        --retro-game-text-dim: #8888a0;
+        --retro-game-panel: #383850;
+        --retro-game-panel-border-hi: #6666aa;
+        --retro-game-panel-border-lo: #1e1e33;
+        --retro-game-success: #4ade80;
+        --retro-game-danger: #f87171;
+        --retro-game-warning: #fde68a;
+        --retro-game-info: #67e8f9;
+        --retro-game-highlight: #60a5fa;
+        --retro-game-glow: rgba(103, 232, 249, 0.2);
+        --retro-game-key-bg: #1e2a1e;
+        --retro-game-key-text: #4ade80;
     }
     .dark {
         color-scheme: dark;
@@ -135,6 +167,22 @@
         --retro-field-bg: #1f2730;
         --retro-field-text: #f5f7fa;
         --retro-field-placeholder: #9aa4b1;
+        --retro-game-bg: #0a0a0a;
+        --retro-game-bg-alt: #111118;
+        --retro-game-grid: #151515;
+        --retro-game-text: #dddddd;
+        --retro-game-text-dim: #888888;
+        --retro-game-panel: #333333;
+        --retro-game-panel-border-hi: #ffffff;
+        --retro-game-panel-border-lo: #222222;
+        --retro-game-success: #33ff33;
+        --retro-game-danger: #ff3333;
+        --retro-game-warning: #ffe000;
+        --retro-game-info: #00e5ff;
+        --retro-game-highlight: #3355aa;
+        --retro-game-glow: rgba(0, 229, 255, 0.3);
+        --retro-game-key-bg: #1a2a1a;
+        --retro-game-key-text: #33ff33;
     }
     .dark[data-retro-theme="mac-classic"] {
         --retro-app-bg: #2f4a5b;
@@ -152,6 +200,22 @@
         --retro-field-bg: #222a33;
         --retro-field-text: #f2f4f7;
         --retro-field-placeholder: #a0a9b4;
+        --retro-game-bg: #0e1218;
+        --retro-game-bg-alt: #151b22;
+        --retro-game-grid: #181e26;
+        --retro-game-text: #d0d4da;
+        --retro-game-text-dim: #707880;
+        --retro-game-panel: #2a3240;
+        --retro-game-panel-border-hi: #5a6a7a;
+        --retro-game-panel-border-lo: #141a22;
+        --retro-game-success: #5eead4;
+        --retro-game-danger: #fb7185;
+        --retro-game-warning: #fcd34d;
+        --retro-game-info: #67e8f9;
+        --retro-game-highlight: #7dd3fc;
+        --retro-game-glow: rgba(103, 232, 249, 0.2);
+        --retro-game-key-bg: #141e14;
+        --retro-game-key-text: #5eead4;
     }
 
     body {
