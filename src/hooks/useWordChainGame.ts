@@ -14,6 +14,8 @@ import wordChainDict from "../data/wordchain-dict.json";
 import { ClientFetchError, fetchWithClientTimeout } from "../lib/clientFetch";
 import { isTooSimilarWord, pickDiverseWord } from "../utils/wordDiversity";
 
+const RECENT_WORD_WINDOW = 8;
+
 // Re-export for component use
 export { getStartChars };
 
@@ -221,7 +223,7 @@ export function useWordChainGame() {
             }
 
             usedWordsRef.current.add(aiWord.toLowerCase());
-            recentWordsRef.current = [...recentWordsRef.current.slice(-5), aiWord];
+            recentWordsRef.current = [...recentWordsRef.current.slice(-(RECENT_WORD_WINDOW - 1)), aiWord];
             let aiDefinition: string | null = null;
             const validation = await validateWordWithKrdict(aiWord);
             if (validation?.exists) {
@@ -371,7 +373,7 @@ export function useWordChainGame() {
             }
 
             usedWordsRef.current.add(word.toLowerCase());
-            recentWordsRef.current = [...recentWordsRef.current.slice(-5), word];
+            recentWordsRef.current = [...recentWordsRef.current.slice(-(RECENT_WORD_WINDOW - 1)), word];
             addMessage(word, "player", true, definition);
             playSound("match");
             wordsTypedRef.current++;
@@ -443,7 +445,7 @@ export function useWordChainGame() {
                 return;
             }
             usedWordsRef.current.add(firstWord.toLowerCase());
-            recentWordsRef.current = [...recentWordsRef.current.slice(-5), firstWord];
+            recentWordsRef.current = [...recentWordsRef.current.slice(-(RECENT_WORD_WINDOW - 1)), firstWord];
             let firstDefinition: string | null = null;
             const validation = await validateWordWithKrdict(firstWord);
             if (validation?.exists) {

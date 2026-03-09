@@ -4,6 +4,8 @@ import wordsData from "../data/word.json";
 import { fetchWithClientTimeout } from "../lib/clientFetch";
 import { isTooSimilarWord, pickDiverseWord } from "../utils/wordDiversity";
 
+const RECENT_WORD_WINDOW = 8;
+
 export interface UseKoreanWordsOptions {
     /** 초기 요청 시 시작 글자 개수 (기본 15) */
     startCount?: number;
@@ -105,7 +107,7 @@ export function useKoreanWords(
         const picked = pickDiverseWord(finalPool, recent, lang);
 
         usedWordsRef.current.add(picked);
-        recentWordsRef.current = [...recentWordsRef.current.slice(-6), picked];
+        recentWordsRef.current = [...recentWordsRef.current.slice(-(RECENT_WORD_WINDOW - 1)), picked];
         return picked || "";
     }, []);
 

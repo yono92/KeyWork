@@ -1,4 +1,28 @@
 export type WordLanguage = "korean" | "english";
+const RECENT_PREFIX_MIN_LENGTH = 2;
+
+function hasAttachedPrefixPattern(candidate: string, previous: string, language: WordLanguage): boolean {
+    if (language !== "korean") return false;
+
+    const minLength = Math.min(candidate.length, previous.length);
+    if (minLength < RECENT_PREFIX_MIN_LENGTH) return false;
+
+    const candidateStartsWithPrevious =
+        candidate.length > previous.length && candidate.startsWith(previous);
+    const previousStartsWithCandidate =
+        previous.length > candidate.length && previous.startsWith(candidate);
+
+    return candidateStartsWithPrevious || previousStartsWithCandidate;
+}
+
+function hasMeaningfulContainment(candidate: string, previous: string, language: WordLanguage): boolean {
+    if (language !== "korean") return false;
+
+    const minLength = Math.min(candidate.length, previous.length);
+    if (minLength < 3) return false;
+
+    return candidate.includes(previous) || previous.includes(candidate);
+}
 
 export function getSharedPrefixLength(a: string, b: string): number {
     const max = Math.min(a.length, b.length);
@@ -19,6 +43,8 @@ export function isTooSimilarWord(
     for (let index = recentWords.length - 1; index >= 0; index -= 1) {
         const previous = recentWords[index];
         if (candidate === previous) return true;
+        if (hasAttachedPrefixPattern(candidate, previous, language)) return true;
+        if (hasMeaningfulContainment(candidate, previous, language)) return true;
 
         const sharedPrefix = getSharedPrefixLength(candidate, previous);
         const isImmediatePrevious = index === recentWords.length - 1;
@@ -50,6 +76,14 @@ function scoreWordDiversity(
         if (candidate === previous) {
             score -= 100 * recencyWeight;
             return;
+        }
+
+        if (hasAttachedPrefixPattern(candidate, previous, language)) {
+            score -= 80 * recencyWeight;
+        }
+
+        if (hasMeaningfulContainment(candidate, previous, language)) {
+            score -= 50 * recencyWeight;
         }
 
         if (language === "korean") {
