@@ -11,6 +11,8 @@ import {
     isKillerWord,
 } from "../utils/dueumUtils";
 import wordChainDict from "../data/wordchain-dict.json";
+import { ClientFetchError, fetchWithClientTimeout } from "../lib/clientFetch";
+import { isTooSimilarWord, pickDiverseWord } from "../utils/wordDiversity";
 
 // Re-export for component use
 export { getStartChars };
@@ -79,6 +81,7 @@ export function useWordChainGame() {
     const wordsTypedRef = useRef(0);
     const submitLockRef = useRef(false);
     const currentCharRef = useRef("");
+    const recentWordsRef = useRef<string[]>([]);
     const doAiTurnRef = useRef<(startChar: string) => void>(() => {});
     const localKoreanDict = useMemo(() => wordChainDict.korean ?? [], []);
     const localDictSetRef = useRef<Set<string>>(new Set(localKoreanDict.map((w) => w.toLowerCase())));
@@ -87,7 +90,9 @@ export function useWordChainGame() {
 
     const validateWordWithKrdict = useCallback(async (word: string): Promise<KrdictValidationResult | null> => {
         try {
-            const response = await fetch(`/api/krdict/validate?word=${encodeURIComponent(word)}`);
+            const response = await fetchWithClientTimeout(
+                `/api/krdict/validate?word=${encodeURIComponent(word)}`
+            );
             if (!response.ok) {
                 const localExists = localDictSetRef.current.has(word.toLowerCase());
                 setDictionarySource("local");
@@ -114,10 +119,14 @@ export function useWordChainGame() {
                 };
             }
             return null;
-        } catch {
+        } catch (error) {
             const localExists = localDictSetRef.current.has(word.toLowerCase());
             setDictionarySource("local");
-            setFallbackMessage("사전 연결 실패로 로컬 사전으로 검증합니다.");
+            setFallbackMessage(
+                error instanceof ClientFetchError && error.code === "TIMEOUT"
+                    ? "사전 응답 지연으로 로컬 사전으로 검증합니다."
+                    : "사전 연결 실패로 로컬 사전으로 검증합니다."
+            );
             return { exists: localExists, definition: null, source: "local" };
         }
     }, []);
@@ -126,7 +135,9 @@ export function useWordChainGame() {
         if (starts.length === 0) return [];
         try {
             const query = encodeURIComponent(starts.join(","));
-            const response = await fetch(`/api/krdict/candidates?starts=${query}&num=200`);
+            const response = await fetchWithClientTimeout(
+                `/api/krdict/candidates?starts=${query}&num=200`
+            );
             if (!response.ok) {
                 setDictionarySource("local");
                 setFallbackMessage("사전 연결이 불안정해 로컬 단어 후보로 진행합니다.");
@@ -147,7 +158,11 @@ export function useWordChainGame() {
         } catch (err) {
             console.error("[끝말잇기] candidates API 예외:", err);
             setDictionarySource("local");
-            setFallbackMessage("사전 연결 실패로 로컬 단어 후보로 진행합니다.");
+            setFallbackMessage(
+                err instanceof ClientFetchError && err.code === "TIMEOUT"
+                    ? "사전 응답 지연으로 로컬 단어 후보로 진행합니다."
+                    : "사전 연결 실패로 로컬 단어 후보로 진행합니다."
+            );
             return localKoreanDict.filter((w) => starts.includes(getFirstChar(w)));
         }
     }, [localKoreanDict]);
@@ -162,8 +177,11 @@ export function useWordChainGame() {
             });
             if (apiCandidates.length > 0) {
                 const safe = apiCandidates.filter((w) => !isKillerWord(w, usedWordsRef.current.size));
-                if (safe.length > 0) return safe[Math.floor(Math.random() * safe.length)];
-                return apiCandidates[Math.floor(Math.random() * apiCandidates.length)];
+                const diverseSafe = safe.filter(
+                    (word) => !isTooSimilarWord(word, recentWordsRef.current, "korean")
+                );
+                const pool = diverseSafe.length > 0 ? diverseSafe : safe.length > 0 ? safe : apiCandidates;
+                return pickDiverseWord(pool, recentWordsRef.current, "korean");
             }
         }
         return null;
@@ -203,6 +221,7 @@ export function useWordChainGame() {
             }
 
             usedWordsRef.current.add(aiWord.toLowerCase());
+            recentWordsRef.current = [...recentWordsRef.current.slice(-5), aiWord];
             let aiDefinition: string | null = null;
             const validation = await validateWordWithKrdict(aiWord);
             if (validation?.exists) {
@@ -352,6 +371,7 @@ export function useWordChainGame() {
             }
 
             usedWordsRef.current.add(word.toLowerCase());
+            recentWordsRef.current = [...recentWordsRef.current.slice(-5), word];
             addMessage(word, "player", true, definition);
             playSound("match");
             wordsTypedRef.current++;
@@ -389,6 +409,7 @@ export function useWordChainGame() {
         aiTurnPendingRef.current = false;
         setPlayerWon(false);
         usedWordsRef.current.clear();
+        recentWordsRef.current = [];
         gameStartTimeRef.current = Date.now();
         maxComboRef.current = 0;
         wordsTypedRef.current = 0;
@@ -402,7 +423,14 @@ export function useWordChainGame() {
             for (let i = 0; i < Math.min(3, shuffledPool.length); i++) {
                 const starters = await fetchKrdictCandidates([shuffledPool[i]]);
                 if (starters.length > 0) {
-                    firstWord = starters[Math.floor(Math.random() * starters.length)];
+                    const diverseStarters = starters.filter(
+                        (word) => !isTooSimilarWord(word, recentWordsRef.current, "korean")
+                    );
+                    firstWord = pickDiverseWord(
+                        diverseStarters.length > 0 ? diverseStarters : starters,
+                        recentWordsRef.current,
+                        "korean"
+                    );
                     break;
                 }
             }
@@ -415,6 +443,7 @@ export function useWordChainGame() {
                 return;
             }
             usedWordsRef.current.add(firstWord.toLowerCase());
+            recentWordsRef.current = [...recentWordsRef.current.slice(-5), firstWord];
             let firstDefinition: string | null = null;
             const validation = await validateWordWithKrdict(firstWord);
             if (validation?.exists) {

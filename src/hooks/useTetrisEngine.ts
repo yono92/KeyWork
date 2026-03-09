@@ -162,6 +162,7 @@ export function useTetrisEngine(callbacks: TetrisCallbacks, isMobile: boolean) {
     const callbacksRef = useRef(callbacks);
     callbacksRef.current = callbacks;
     const clearTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const softDropRef = useRef<() => void>(() => {});
 
     const level = Math.min(10, Math.floor(lines / 10) + 1);
     const dropIntervalMs = isMobile
@@ -268,6 +269,10 @@ export function useTetrisEngine(callbacks: TetrisCallbacks, isMobile: boolean) {
         lockPiece();
     }, [activePiece, board, clearing, gameOver, lockPiece, paused, running]);
 
+    useEffect(() => {
+        softDropRef.current = softDrop;
+    }, [softDrop]);
+
     const hardDrop = useCallback(() => {
         if (!running || paused || gameOver || clearing) return;
         let distance = 0;
@@ -330,14 +335,36 @@ export function useTetrisEngine(callbacks: TetrisCallbacks, isMobile: boolean) {
         setHoldUsedThisTurn(true);
     }, [activePiece, board, clearing, gameOver, heldPieceType, holdUsedThisTurn, paused, running, spawnFromQueue]);
 
-    // Gravity timer — clearing 중엔 일시정지
+    // Gravity loop — RAF 누적으로 비활성 탭 복귀/저사양 환경의 setInterval 오차를 줄임
     useEffect(() => {
         if (!running || paused || gameOver || clearing) return;
-        const id = window.setInterval(() => {
-            softDrop();
-        }, dropIntervalMs);
-        return () => window.clearInterval(id);
-    }, [clearing, dropIntervalMs, gameOver, paused, running, softDrop]);
+
+        let frameId = 0;
+        let lastTimestamp = 0;
+        let accumulated = 0;
+
+        const tick = (timestamp: number) => {
+            if (!lastTimestamp) {
+                lastTimestamp = timestamp;
+                frameId = window.requestAnimationFrame(tick);
+                return;
+            }
+
+            const delta = Math.min(timestamp - lastTimestamp, 250);
+            lastTimestamp = timestamp;
+            accumulated += delta;
+
+            while (accumulated >= dropIntervalMs) {
+                softDropRef.current();
+                accumulated -= dropIntervalMs;
+            }
+
+            frameId = window.requestAnimationFrame(tick);
+        };
+
+        frameId = window.requestAnimationFrame(tick);
+        return () => window.cancelAnimationFrame(frameId);
+    }, [clearing, dropIntervalMs, gameOver, paused, running]);
 
     // Keyboard input
     useEffect(() => {

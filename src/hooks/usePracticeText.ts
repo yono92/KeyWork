@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import useTypingStore from "../store/store";
 import { extractPracticePrompts, getRandomSentence, normalizePracticePrompt } from "../utils/sentenceUtils";
+import { ClientFetchError, fetchWithClientTimeout } from "../lib/clientFetch";
 
 /**
  * 타이핑 연습 텍스트 관리 — Wikipedia API + 속담 폴백 + promptQueue 로테이션
@@ -26,7 +27,9 @@ export function usePracticeText() {
     const fetchPracticeText = useCallback(async () => {
         const nextLanguageCode = language === "korean" ? "ko" : "en";
         try {
-            const response = await fetch(`/api/wikipedia?lang=${nextLanguageCode}`);
+            const response = await fetchWithClientTimeout(
+                `/api/wikipedia?lang=${nextLanguageCode}`
+            );
             if (!response.ok) {
                 promptQueueRef.current = [];
                 setText(getRandomProverb(language));
@@ -57,11 +60,15 @@ export function usePracticeText() {
             setText(getRandomProverb(language));
             setTextSource("proverb-fallback");
             setFallbackMessage("위키 문서를 가져오지 못해 속담으로 연습 중입니다.");
-        } catch {
+        } catch (error) {
             promptQueueRef.current = [];
             setText(getRandomProverb(language));
             setTextSource("proverb-fallback");
-            setFallbackMessage("네트워크 오류로 속담 연습 모드로 전환되었습니다.");
+            setFallbackMessage(
+                error instanceof ClientFetchError && error.code === "TIMEOUT"
+                    ? "응답 지연으로 속담 연습 모드로 전환되었습니다."
+                    : "네트워크 오류로 속담 연습 모드로 전환되었습니다."
+            );
         }
     }, [language, setText, getRandomProverb]);
 

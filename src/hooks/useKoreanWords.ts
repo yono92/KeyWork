@@ -1,6 +1,8 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { pickRandomStarts, HANGUL_WORD_REGEX } from "../utils/koreanConstants";
 import wordsData from "../data/word.json";
+import { fetchWithClientTimeout } from "../lib/clientFetch";
+import { isTooSimilarWord, pickDiverseWord } from "../utils/wordDiversity";
 
 export interface UseKoreanWordsOptions {
     /** 초기 요청 시 시작 글자 개수 (기본 15) */
@@ -33,7 +35,9 @@ export function useKoreanWords(
         if (language !== "korean") return;
         try {
             const starts = encodeURIComponent(pickRandomStarts(startCount).join(","));
-            const response = await fetch(`/api/krdict/candidates?starts=${starts}&num=300`);
+            const response = await fetchWithClientTimeout(
+                `/api/krdict/candidates?starts=${starts}&num=300`
+            );
             if (!response.ok) {
                 if (trackFallback) {
                     setWordSource("local");
@@ -84,35 +88,6 @@ export function useKoreanWords(
         recentWordsRef.current = [];
     }, [language]);
 
-    const getSharedPrefixLength = useCallback((a: string, b: string): number => {
-        const max = Math.min(a.length, b.length);
-        let i = 0;
-        while (i < max && a[i] === b[i]) i += 1;
-        return i;
-    }, []);
-
-    const isTooSimilarWord = useCallback(
-        (candidate: string, languageKey: "korean" | "english"): boolean => {
-            const recent = recentWordsRef.current;
-            for (let i = recent.length - 1; i >= 0; i -= 1) {
-                const prev = recent[i];
-                if (candidate === prev) return true;
-                const sharedPrefix = getSharedPrefixLength(candidate, prev);
-                const isImmediatePrevious = i === recent.length - 1;
-
-                if (languageKey === "korean") {
-                    if (sharedPrefix >= 2) return true;
-                    if (isImmediatePrevious && sharedPrefix >= 1) return true;
-                    continue;
-                }
-
-                if (sharedPrefix >= 3) return true;
-            }
-            return false;
-        },
-        [getSharedPrefixLength]
-    );
-
     const pickFromPool = useCallback((source: string[], lang: "korean" | "english"): string => {
         // 1차: 사용 안 한 단어 중에서 유사도도 낮은 것
         const unused = source.filter((w) => !usedWordsRef.current.has(w));
@@ -124,14 +99,15 @@ export function useKoreanWords(
             recentWordsRef.current = [];
         }
 
-        const diverse = base.filter((w) => !isTooSimilarWord(w, lang));
+        const recent = recentWordsRef.current;
+        const diverse = base.filter((w) => !isTooSimilarWord(w, recent, lang));
         const finalPool = diverse.length > 0 ? diverse : base;
-        const picked = finalPool[Math.floor(Math.random() * finalPool.length)];
+        const picked = pickDiverseWord(finalPool, recent, lang);
 
         usedWordsRef.current.add(picked);
         recentWordsRef.current = [...recentWordsRef.current.slice(-6), picked];
         return picked || "";
-    }, [isTooSimilarWord]);
+    }, []);
 
     const getRandomWord = useCallback((): string => {
         if (language === "korean") {
