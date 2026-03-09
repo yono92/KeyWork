@@ -11,6 +11,7 @@ interface AppFrameProps {
 
 export default function AppFrame({ children }: AppFrameProps) {
     const darkMode = useTypingStore((state) => state.darkMode);
+    const language = useTypingStore((state) => state.language);
     const retroTheme = useTypingStore((state) => state.retroTheme);
     const hydrate = useTypingStore((state) => state._hydrate);
 
@@ -23,6 +24,11 @@ export default function AppFrame({ children }: AppFrameProps) {
     useEffect(() => {
         document.documentElement.classList.toggle("dark", darkMode);
     }, [darkMode]);
+
+    // 언어에 따라 <html lang> 동기화
+    useEffect(() => {
+        document.documentElement.lang = language === "english" ? "en" : "ko";
+    }, [language]);
 
     useEffect(() => {
         document.documentElement.setAttribute("data-retro-theme", retroTheme);

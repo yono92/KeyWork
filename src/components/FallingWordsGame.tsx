@@ -503,7 +503,7 @@ const FallingWordsGame: React.FC = () => {
                 />
                 {/* 상단 스코어바 */}
                 <div className={`absolute top-0 left-0 right-0 flex justify-between items-center px-2.5 py-2 sm:px-5 sm:py-3 border-b-2 z-10 bg-[var(--retro-surface)] border-[var(--retro-border-mid)]`}>
-                    <div className="text-sm sm:text-lg lg:text-xl font-bold font-mono text-[var(--retro-text)]">
+                    <div className="text-sm sm:text-lg lg:text-xl font-bold font-mono text-[var(--retro-text)]" aria-live="polite" aria-atomic="true">
                         Score: <span className="tabular-nums">{score}</span>
                         {highScore > 0 && (
                             <span className="ml-1 sm:ml-2 text-xs sm:text-sm font-medium text-[var(--retro-text)]/70">
@@ -523,10 +523,10 @@ const FallingWordsGame: React.FC = () => {
                     }`}>
                         {difficulty === "easy" ? "Easy" : difficulty === "normal" ? "Normal" : "Hard"}
                     </span>
-                    <div className="text-sm sm:text-lg lg:text-xl font-bold font-mono text-[var(--retro-text)]">
+                    <div className="text-sm sm:text-lg lg:text-xl font-bold font-mono text-[var(--retro-text)]" aria-live="polite" aria-atomic="true">
                         Lv.<span className="tabular-nums">{level}</span>
                     </div>
-                    <div className="flex gap-0.5 text-base sm:text-lg lg:text-xl font-bold">
+                    <div className="flex gap-0.5 text-base sm:text-lg lg:text-xl font-bold" aria-label={`Lives: ${lives} / ${config.lives}`}>
                         {Array.from({ length: config.lives }, (_, i) => (
                             <span
                                 key={i}

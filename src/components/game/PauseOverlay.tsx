@@ -11,7 +11,7 @@ const PauseOverlay: React.FC<PauseOverlayProps> = ({ language }) => {
     const retroTheme = useTypingStore((s) => s.retroTheme);
 
     return (
-        <div className="absolute inset-0 flex items-center justify-center bg-black/45 z-30">
+        <div className="absolute inset-0 flex items-center justify-center bg-black/45 z-30" role="alert" aria-live="assertive">
             <Card className={`w-full max-w-xs sm:max-w-sm animate-panel-in ${retroTheme === "mac-classic" ? "rounded-xl" : "rounded-none"}`}>
                 <CardContent className="text-center px-8 py-7 sm:px-10 sm:py-8">
                     <Badge variant="secondary" className="mb-3">

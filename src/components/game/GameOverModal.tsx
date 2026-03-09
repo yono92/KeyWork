@@ -25,6 +25,9 @@ const GameOverModal: React.FC<GameOverModalProps> = ({
 
     return (
         <div className="absolute inset-0 flex items-center justify-center z-30"
+            role="alertdialog"
+            aria-labelledby="game-over-title"
+            aria-modal="true"
             style={{
                 background: "rgba(0,0,0,0.5)",
                 backdropFilter: "blur(8px)",
@@ -40,6 +43,7 @@ const GameOverModal: React.FC<GameOverModalProps> = ({
             >
                 <CardContent className="px-5 py-5 sm:px-10 sm:py-8">
                 <h2
+                    id="game-over-title"
                     className="text-xl sm:text-3xl font-bold mb-1 text-[var(--retro-text)]"
                 >
                     {title}

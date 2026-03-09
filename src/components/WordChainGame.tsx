@@ -25,7 +25,7 @@ const WordChainGame: React.FC = () => {
                 <div className={`flex justify-between items-center px-2.5 py-2 sm:px-5 sm:py-3 backdrop-blur-sm border-b z-10 ${
                     darkMode ? "bg-white/[0.04] border-white/[0.06]" : "bg-white/70 border-sky-100/50"
                 }`}>
-                    <div className={`text-xs sm:text-lg font-bold ${darkMode ? "text-white" : "text-slate-800"}`}>
+                    <div className={`text-xs sm:text-lg font-bold ${darkMode ? "text-white" : "text-slate-800"}`} aria-live="polite" aria-atomic="true">
                         Score: <span className="tabular-nums">{game.score}</span>
                         {game.combo > 0 && (
                             <span className="ml-1 sm:ml-2 text-[10px] sm:text-sm text-[var(--retro-game-info)]">
@@ -45,7 +45,7 @@ const WordChainGame: React.FC = () => {
                         >
                             ⏱ {game.timer}s
                         </div>
-                        <div className={`flex gap-0.5 text-sm sm:text-lg ${darkMode ? "text-white" : "text-slate-800"}`}>
+                        <div className={`flex gap-0.5 text-sm sm:text-lg ${darkMode ? "text-white" : "text-slate-800"}`} aria-label={`Lives: ${game.lives} / ${game.config.lives}`}>
                             {Array.from({ length: game.config.lives }, (_, i) => (
                                 <span
                                     key={i}

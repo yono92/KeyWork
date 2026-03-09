@@ -281,7 +281,7 @@ const TypingRunnerGame: React.FC = () => {
                                 {engine.speedRef.current.toFixed(1)}x
                             </span>
                         </div>
-                        <div className="flex gap-0.5 text-sm sm:text-lg font-bold">
+                        <div className="flex gap-0.5 text-sm sm:text-lg font-bold" aria-label={`Lives: ${engine.lives} / ${INITIAL_LIVES}`}>
                             {Array.from({ length: INITIAL_LIVES }, (_, i) => (
                                 <span
                                     key={i}

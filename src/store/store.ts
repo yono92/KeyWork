@@ -82,6 +82,7 @@ const useTypingStore = create<TypingState>((set) => ({
                 _hydrated: true,
                 darkMode: getStored("darkMode") === "true",
                 language: getStored("language") === "english" ? "english" : "korean",
+                isMuted: getStored("isMuted") === "true",
                 highScore: Number(getStored("highScore")) || 0,
                 difficulty: isValidDifficulty(raw) ? raw : "normal",
                 retroTheme: isValidRetroTheme(themeRaw) ? themeRaw : detectDefaultRetroTheme(),
@@ -106,7 +107,12 @@ const useTypingStore = create<TypingState>((set) => ({
         setStored("language", language);
         set({ language });
     },
-    toggleMute: () => set((state) => ({ isMuted: !state.isMuted })),
+    toggleMute: () =>
+        set((state) => {
+            const isMuted = !state.isMuted;
+            setStored("isMuted", String(isMuted));
+            return { isMuted };
+        }),
     setHighScore: (highScore: number) => {
         setStored("highScore", String(highScore));
         set({ highScore });
