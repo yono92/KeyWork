@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Gamepad2, Keyboard, Link2, CloudRain, Footprints } from "lucide-react";
 import AppFrame from "../src/components/AppFrame";
+import { AuthProvider } from "@/components/auth/AuthProvider";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -14,6 +15,7 @@ const MODES = [
 
 export default function HomePage() {
     return (
+        <AuthProvider>
         <AppFrame>
             <div className="mx-auto flex w-full max-w-[1200px] flex-1 flex-col gap-4 px-2 py-2 sm:px-4 sm:py-4 md:px-8 md:py-6">
                 <Card className="bg-[var(--retro-surface)]">
@@ -61,5 +63,6 @@ export default function HomePage() {
                 </div>
             </div>
         </AppFrame>
+        </AuthProvider>
     );
 }

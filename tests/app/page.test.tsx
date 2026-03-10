@@ -2,6 +2,11 @@ import React from "react";
 import { render, screen } from "@testing-library/react";
 import HomePage from "../../app/page";
 
+vi.mock("../../src/components/auth/AuthProvider", () => ({
+    useAuthContext: () => ({ user: null, profile: null, isLoggedIn: false, loading: false, signIn: vi.fn(), signUp: vi.fn(), signOut: vi.fn(), updateNickname: vi.fn() }),
+    AuthProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+}));
+
 describe("app/page", () => {
     it("renders mode selection landing page", () => {
         render(<HomePage />);

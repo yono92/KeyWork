@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { useAuthContext } from "./AuthProvider";
 import { Button } from "@/components/ui/button";
@@ -26,22 +27,38 @@ export default function UserMenu() {
         return () => document.removeEventListener("mousedown", handleClick);
     }, []);
 
+    const [menuPos, setMenuPos] = useState<{ top: number; right: number } | null>(null);
+    const btnRef = useRef<HTMLButtonElement>(null);
+
     if (!profile) return null;
 
+    const toggleMenu = () => {
+        if (!open && btnRef.current) {
+            const rect = btnRef.current.getBoundingClientRect();
+            setMenuPos({
+                top: rect.bottom + 4,
+                right: window.innerWidth - rect.right,
+            });
+        }
+        setOpen(!open);
+    };
+
     return (
-        <div className="relative" ref={ref}>
+        <div ref={ref}>
             <Button
+                ref={btnRef}
                 variant="ghost"
-                onClick={() => setOpen(!open)}
+                onClick={toggleMenu}
                 className={`h-8 gap-1.5 px-2 text-xs font-semibold border border-black/25 bg-white/25 text-current hover:bg-white/40 hover:text-current ${retroTheme === "mac-classic" ? "rounded-md" : "rounded-none"}`}
             >
                 <User className="h-3.5 w-3.5" />
                 <span className="max-w-[80px] truncate hidden sm:inline">{profile.nickname}</span>
             </Button>
 
-            {open && (
+            {open && menuPos && createPortal(
                 <div
-                    className={`absolute right-0 top-full mt-1 w-44 z-50 border-2 bg-[var(--retro-surface)] border-[var(--retro-border-light)] border-r-[var(--retro-border-dark)] border-b-[var(--retro-border-dark)] shadow-lg ${retroTheme === "mac-classic" ? "rounded-lg" : ""}`}
+                    className={`fixed w-44 z-[9999] border-2 bg-[var(--retro-surface)] border-[var(--retro-border-light)] border-r-[var(--retro-border-dark)] border-b-[var(--retro-border-dark)] shadow-lg ${retroTheme === "mac-classic" ? "rounded-lg" : ""}`}
+                    style={{ top: menuPos.top, right: menuPos.right }}
                 >
                     <div className="p-2 border-b border-[var(--retro-border-mid)]">
                         <p className="text-xs font-semibold text-[var(--retro-text)] truncate">
@@ -71,7 +88,8 @@ export default function UserMenu() {
                             {ko ? "로그아웃" : "Logout"}
                         </button>
                     </div>
-                </div>
+                </div>,
+                document.body,
             )}
         </div>
     );

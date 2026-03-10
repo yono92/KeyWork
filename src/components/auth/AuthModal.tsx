@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { createPortal } from "react-dom";
 import { useAuthContext } from "./AuthProvider";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -53,9 +54,9 @@ export default function AuthModal({ onClose }: AuthModalProps) {
         }
     };
 
-    return (
+    return createPortal(
         <div
-            className="fixed inset-0 z-50 flex items-center justify-center"
+            className="fixed inset-0 z-[9999] flex items-center justify-center"
             style={{
                 background: "rgba(0,0,0,0.5)",
                 backdropFilter: "blur(8px)",
@@ -159,6 +160,7 @@ export default function AuthModal({ onClose }: AuthModalProps) {
                     </div>
                 </CardContent>
             </Card>
-        </div>
+        </div>,
+        document.body,
     );
 }

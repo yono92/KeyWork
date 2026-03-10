@@ -4,6 +4,11 @@ import * as nav from "next/navigation";
 import SideNav from "../../src/components/SideNav";
 import useTypingStore from "../../src/store/store";
 
+vi.mock("../../src/components/auth/AuthProvider", () => ({
+    useAuthContext: () => ({ user: null, profile: null, isLoggedIn: false, loading: false, signIn: vi.fn(), signUp: vi.fn(), signOut: vi.fn(), updateNickname: vi.fn() }),
+    AuthProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+}));
+
 describe("SideNav", () => {
     beforeEach(() => {
         globalThis.__TEST_PATHNAME__ = "/practice";
