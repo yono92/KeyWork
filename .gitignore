@@ -25,6 +25,7 @@ dist-ssr
 *.sw?
 
 .vercel
+.claude/
 
 # Test artifacts
 test-results/

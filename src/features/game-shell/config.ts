@@ -48,8 +48,20 @@ export const NAV_ITEMS: readonly NavItem[] = [
 ];
 
 export const PAGE_TITLES: Record<AppLanguage, Record<string, string>> = {
-    korean: Object.fromEntries(NAV_ITEMS.map((item) => [`/${item.id}`, item.label.korean])),
-    english: Object.fromEntries(NAV_ITEMS.map((item) => [`/${item.id}`, item.label.english])),
+    korean: {
+        ...Object.fromEntries(NAV_ITEMS.map((item) => [`/${item.id}`, item.label.korean])),
+        "/leaderboard": "랭킹",
+        "/profile": "프로필",
+        "/tetris/battle": "테트리스 대전",
+        "/word-chain/battle": "끝말잇기 대전",
+    },
+    english: {
+        ...Object.fromEntries(NAV_ITEMS.map((item) => [`/${item.id}`, item.label.english])),
+        "/leaderboard": "Leaderboard",
+        "/profile": "Profile",
+        "/tetris/battle": "Tetris Battle",
+        "/word-chain/battle": "Word Chain Battle",
+    },
 };
 
 export const getPageTitle = (language: AppLanguage, pathname: string): string =>

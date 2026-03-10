@@ -10,7 +10,51 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import NavMenu from "./navigation/NavMenu";
 import ControlTray from "./navigation/ControlTray";
 import CoupangSidebarRail from "./affiliate/CoupangSidebarRail";
-import type { GameMode } from "@/features/game-shell/config";
+import type { GameMode, AppLanguage } from "@/features/game-shell/config";
+import { Trophy, User } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+
+function ExtraNavLinks({ language, pathname, onNavigate, variant = "full" }: {
+    language: AppLanguage; pathname: string; onNavigate: (path: string) => void; variant?: "full" | "compact";
+}) {
+    const ko = language === "korean";
+    const links = [
+        { path: "/leaderboard", icon: Trophy, label: ko ? "랭킹" : "Leaderboard" },
+        { path: "/profile", icon: User, label: ko ? "프로필" : "Profile" },
+    ];
+    return (
+        <div className="px-3 pb-2 space-y-1.5">
+            <p className="px-0 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--retro-text)]/50">
+                {ko ? "계정" : "Account"}
+            </p>
+            {links.map(({ path, icon: Icon, label }) => {
+                const active = pathname === path;
+                return (
+                    <Button
+                        key={path}
+                        type="button"
+                        variant="ghost"
+                        onClick={() => onNavigate(path)}
+                        aria-label={label}
+                        className={cn(
+                            "w-full h-auto gap-2.5 rounded-none px-3 py-1.5 text-xs font-semibold border-2",
+                            variant === "compact" ? "justify-center lg:justify-start" : "justify-start",
+                            active
+                                ? "border-[var(--retro-border-dark)] bg-[var(--retro-accent)] text-[var(--retro-text-inverse)] hover:text-[var(--retro-text-inverse)] hover:bg-[var(--retro-accent-2)]"
+                                : "border-[var(--retro-border-light)] border-r-[var(--retro-border-dark)] border-b-[var(--retro-border-dark)] border-l-[var(--retro-border-light)] bg-[var(--retro-surface)] text-[var(--retro-text)] hover:bg-[var(--retro-surface-alt)]"
+                        )}
+                    >
+                        <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
+                        <span className={cn("truncate", variant === "compact" ? "hidden lg:inline" : "inline")}>
+                            {label}
+                        </span>
+                    </Button>
+                );
+            })}
+        </div>
+    );
+}
 
 export default function SideNav() {
     const router = useRouter();
@@ -30,6 +74,15 @@ export default function SideNav() {
             return;
         }
         router.push(`/${mode}`);
+        setMobileMenuOpen(false);
+    };
+
+    const navigateToPath = (path: string) => {
+        if (pathname === path) {
+            setMobileMenuOpen(false);
+            return;
+        }
+        router.push(path);
         setMobileMenuOpen(false);
     };
 
@@ -59,6 +112,7 @@ export default function SideNav() {
                         Modes
                     </p>
                     <NavMenu language={language} pathname={pathname} onNavigate={navigateTo} />
+                    <ExtraNavLinks language={language} pathname={pathname} onNavigate={navigateToPath} />
 
                     <div className="mt-auto p-3 border-t-2 border-t-[var(--retro-border-mid)]">
                         <ControlTray />
@@ -98,6 +152,7 @@ export default function SideNav() {
                     onNavigate={navigateTo}
                     variant="compact"
                 />
+                <ExtraNavLinks language={language} pathname={pathname} onNavigate={navigateToPath} variant="compact" />
 
                 <div className="mt-auto p-3 border-t-2 border-t-[var(--retro-border-mid)]">
                     <CoupangSidebarRail />

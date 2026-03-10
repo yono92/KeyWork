@@ -11,6 +11,11 @@ import MuteToggle from "../../src/components/MuteToggle";
 import ProgressBar from "../../src/components/ProgressBar";
 import useTypingStore from "../../src/store/store";
 
+vi.mock("../../src/components/auth/AuthProvider", () => ({
+    useAuthContext: () => ({ user: null, profile: null, isLoggedIn: false, loading: false, signIn: vi.fn(), signUp: vi.fn(), signOut: vi.fn(), updateNickname: vi.fn() }),
+    AuthProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+}));
+
 describe("UI components", () => {
     beforeEach(() => {
         globalThis.__TEST_PATHNAME__ = "/practice";

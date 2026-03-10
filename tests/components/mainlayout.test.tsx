@@ -3,6 +3,11 @@ import { render, screen } from "@testing-library/react";
 import MainLayout from "../../src/components/MainLayout";
 import useTypingStore from "../../src/store/store";
 
+vi.mock("../../src/components/auth/AuthProvider", () => ({
+    useAuthContext: () => ({ user: null, profile: null, isLoggedIn: false, loading: false, signIn: vi.fn(), signUp: vi.fn(), signOut: vi.fn(), updateNickname: vi.fn() }),
+    AuthProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+}));
+
 vi.mock("next/dynamic", () => ({
     default: (loader: () => Promise<{ default: React.ComponentType }>) => {
         let Comp: React.ComponentType | null = null;
