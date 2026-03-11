@@ -49,11 +49,17 @@ export function useAuth() {
         const {
             data: { subscription },
         } = supabase.auth.onAuthStateChange(async (_event, session) => {
-            if (session?.user) {
-                const profile = await ensureProfile(session.user.id, session.user.email);
-                setState({ user: session.user, profile, loading: false });
-            } else {
-                setState({ user: null, profile: null, loading: false });
+            try {
+                if (session?.user) {
+                    const profile = await ensureProfile(session.user.id, session.user.email);
+                    setState({ user: session.user, profile, loading: false });
+                } else {
+                    setState({ user: null, profile: null, loading: false });
+                }
+            } catch (err) {
+                console.error("Auth state change error:", err);
+                // 에러가 나도 loading은 풀어야 UI가 보임
+                setState({ user: session?.user ?? null, profile: null, loading: false });
             }
         });
 

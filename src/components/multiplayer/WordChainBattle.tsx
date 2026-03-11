@@ -18,7 +18,7 @@ async function validateWordApi(word: string): Promise<boolean> {
         const res = await fetch(`/api/krdict/validate?word=${encodeURIComponent(word)}`);
         if (!res.ok) return true; // API 실패 시 로컬 검증만으로 통과
         const data = await res.json();
-        return data.isValid === true;
+        return data.exists === true;
     } catch {
         return true; // 네트워크 오류 시 관대하게 통과
     }

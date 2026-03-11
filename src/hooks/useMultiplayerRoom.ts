@@ -126,7 +126,10 @@ export function useMultiplayerRoom(gameMode: string) {
     const subscribeToRoom = useCallback((roomId: string): Promise<void> => {
         return new Promise((resolve) => {
             const channel = supabase.channel(`room:${roomId}`, {
-                config: { presence: { key: user?.id ?? "anon" } },
+                config: {
+                    presence: { key: user?.id ?? "anon" },
+                    broadcast: { self: true },
+                },
             });
 
             channel
