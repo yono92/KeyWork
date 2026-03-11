@@ -44,11 +44,24 @@ export default function AuthModal({ onClose }: AuthModalProps) {
             }
             onClose();
         } catch (err) {
-            setError(
-                err instanceof Error
-                    ? err.message
-                    : ko ? "오류가 발생했습니다" : "An error occurred",
-            );
+            const raw = err instanceof Error ? err.message : "";
+            let msg: string;
+            if (raw.includes("Invalid login")) {
+                msg = ko ? "이메일 또는 비밀번호가 올바르지 않습니다" : "Invalid email or password";
+            } else if (raw.includes("User already registered")) {
+                msg = ko ? "이미 가입된 이메일입니다" : "Email already registered";
+            } else if (raw.includes("duplicate key") || raw.includes("unique") || raw.includes("already exists")) {
+                msg = ko ? "이미 사용 중인 닉네임입니다" : "Nickname already taken";
+            } else if (raw.includes("Password should be at least")) {
+                msg = ko ? "비밀번호는 6자 이상이어야 합니다" : "Password must be at least 6 characters";
+            } else if (raw.includes("Unable to validate email")) {
+                msg = ko ? "올바른 이메일 주소를 입력해주세요" : "Please enter a valid email address";
+            } else if (raw) {
+                msg = raw;
+            } else {
+                msg = ko ? "오류가 발생했습니다" : "An error occurred";
+            }
+            setError(msg);
         } finally {
             setLoading(false);
         }

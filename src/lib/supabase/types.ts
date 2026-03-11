@@ -11,12 +11,25 @@ export type GameMode =
 
 export type RoomStatus = "waiting" | "playing" | "finished";
 
+// ── 아바타 커스터마이징 ──
+
+export interface AvatarConfig {
+  skin: number;      // 0-5 피부색 세트
+  hair: number;      // 0-9 헤어 스타일
+  hairColor: number; // 0-7 헤어 컬러 세트
+  eyes: number;      // 0-7 눈 스타일
+  mouth: number;     // 0-5 입 스타일
+  hat: number;       // -1(없음) ~ 7
+  accessory: number; // -1(없음) ~ 5
+}
+
 // ── 테이블 Row 타입 ──
 
 export interface Profile {
   id: string;
   nickname: string;
   avatar_url: string | null;
+  avatar_config: AvatarConfig | null;
   created_at: string;
 }
 
@@ -65,6 +78,7 @@ export interface LeaderboardEntry {
   user_id: string;
   nickname: string;
   avatar_url: string | null;
+  avatar_config: AvatarConfig | null;
   score: number;
   created_at: string;
 }
@@ -90,12 +104,14 @@ export interface Database {
           id: string;
           nickname: string;
           avatar_url?: string | null;
+          avatar_config?: AvatarConfig | null;
           created_at?: string;
         };
         Update: {
           id?: string;
           nickname?: string;
           avatar_url?: string | null;
+          avatar_config?: AvatarConfig | null;
           created_at?: string;
         };
         Relationships: GenericRelationship[];

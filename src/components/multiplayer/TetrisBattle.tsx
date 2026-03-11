@@ -8,17 +8,23 @@ import { useTetrisEngine, CELL_COLORS, BOARD_WIDTH } from "@/hooks/useTetrisEngi
 import { useMultiplayerTetris, deserializeBoard } from "@/hooks/useMultiplayerTetris";
 
 import { useScoreSubmit } from "@/hooks/useScoreSubmit";
+import { useAuthContext } from "@/components/auth/AuthProvider";
 import useTypingStore from "@/store/store";
+import type { AvatarConfig } from "@/lib/supabase/types";
+import PixelAvatar from "@/components/avatar/PixelAvatar";
 
 interface TetrisBattleProps {
     getChannel: () => RealtimeChannel | null;
     roomId: string;
     isHost: boolean;
+    opponentNickname: string;
+    opponentAvatarConfig: AvatarConfig | null;
     onFinish: () => void;
 }
 
-export default function TetrisBattle({ getChannel, onFinish }: TetrisBattleProps) {
+export default function TetrisBattle({ getChannel, opponentNickname, opponentAvatarConfig, onFinish }: TetrisBattleProps) {
     const { submitScore } = useScoreSubmit();
+    const { profile } = useAuthContext();
     const language = useTypingStore((s) => s.language);
     const ko = language === "korean";
     const { sectionRef, cellSize, isMobile } = useResponsiveTetrisSize();
@@ -67,6 +73,18 @@ export default function TetrisBattle({ getChannel, onFinish }: TetrisBattleProps
         if (diff > 0) mp.sendGarbage(diff);
         prevLinesRef.current = engine.lines;
     }, [engine.lines, mp]);
+
+    // 수신한 가비지 라인을 보드에 적용 (0.5초 딜레이)
+    useEffect(() => {
+        if (mp.pendingGarbage <= 0 || engine.gameOver || !engine.running) return;
+        const timer = setTimeout(() => {
+            const garbageLines = mp.consumeGarbage();
+            if (garbageLines) {
+                engine.applyGarbage(garbageLines);
+            }
+        }, 500);
+        return () => clearTimeout(timer);
+    }, [mp.pendingGarbage, mp, engine]);
 
     // 게임 오버 처리
     useEffect(() => {
@@ -137,11 +155,12 @@ export default function TetrisBattle({ getChannel, onFinish }: TetrisBattleProps
                 <div style={{ display: "flex", gap: 12, alignItems: "start" }}>
                     {/* 내 보드 (기존 TetrisGame 렌더링 간소화) */}
                     <div>
-                        <div style={{ textAlign: "center", marginBottom: 4 }}>
+                        <div style={{ textAlign: "center", marginBottom: 4, display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}>
+                            <PixelAvatar config={profile?.avatar_config ?? null} nickname={profile?.nickname ?? "?"} size="sm" />
                             <span style={{ fontSize: 11, fontWeight: 700, color: "var(--retro-game-info)" }}>
                                 {ko ? "나" : "YOU"}
                             </span>
-                            <span style={{ fontSize: 13, fontWeight: 900, marginLeft: 8, color: "var(--retro-game-warning)" }}>
+                            <span style={{ fontSize: 13, fontWeight: 900, marginLeft: 4, color: "var(--retro-game-warning)" }}>
                                 {engine.score.toLocaleString()}
                             </span>
                         </div>
@@ -193,11 +212,12 @@ export default function TetrisBattle({ getChannel, onFinish }: TetrisBattleProps
 
                     {/* 상대 미니맵 */}
                     <div>
-                        <div style={{ textAlign: "center", marginBottom: 4 }}>
+                        <div style={{ textAlign: "center", marginBottom: 4, display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}>
+                            <PixelAvatar config={opponentAvatarConfig} nickname={opponentNickname} size="sm" />
                             <span style={{ fontSize: 11, fontWeight: 700, color: "var(--retro-game-danger)" }}>
                                 {ko ? "상대" : "OPP"}
                             </span>
-                            <span style={{ fontSize: 13, fontWeight: 900, marginLeft: 8, color: "var(--retro-game-warning)" }}>
+                            <span style={{ fontSize: 13, fontWeight: 900, marginLeft: 4, color: "var(--retro-game-warning)" }}>
                                 {mp.opponent.score.toLocaleString()}
                             </span>
                         </div>

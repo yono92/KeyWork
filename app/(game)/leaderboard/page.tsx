@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import Header from "@/components/Header";
 import type { LeaderboardPeriod } from "@/lib/supabase/types";
 import { Trophy } from "lucide-react";
+import PixelAvatar from "@/components/avatar/PixelAvatar";
 
 const GAME_MODES = [
     { id: "practice", ko: "문장연습", en: "Practice" },
@@ -102,10 +103,15 @@ export default function LeaderboardPage() {
                                                     ? ["", "🥇", "🥈", "🥉"][entry.rank]
                                                     : entry.rank}
                                             </span>
-                                            <span className="flex-1 truncate font-medium text-[var(--retro-text)]">
+                                            <span className="flex-1 truncate font-medium text-[var(--retro-text)] flex items-center gap-1.5">
+                                                <PixelAvatar
+                                                    config={entry.avatar_config}
+                                                    nickname={entry.nickname}
+                                                    size="sm"
+                                                />
                                                 {entry.nickname}
                                                 {isMe && (
-                                                    <span className="ml-1 text-xs text-[var(--retro-accent)]">
+                                                    <span className="text-xs text-[var(--retro-accent)]">
                                                         ({ko ? "나" : "You"})
                                                     </span>
                                                 )}

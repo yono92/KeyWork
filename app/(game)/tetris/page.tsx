@@ -2,6 +2,7 @@
 
 import React, { useState, useCallback } from "react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
+import type { AvatarConfig } from "@/lib/supabase/types";
 import MainLayout from "../../../src/components/MainLayout";
 import Header from "@/components/Header";
 import MultiplayerLobby from "@/components/multiplayer/MultiplayerLobby";
@@ -11,7 +12,7 @@ import useTypingStore from "@/store/store";
 const TetrisBattle = dynamic(() => import("@/components/multiplayer/TetrisBattle"), { ssr: false });
 
 type PlayMode = "single" | "lobby" | "battle";
-type BattleInfo = { getChannel: () => RealtimeChannel | null; roomId: string; isHost: boolean };
+type BattleInfo = { getChannel: () => RealtimeChannel | null; roomId: string; isHost: boolean; opponentNickname: string; opponentAvatarConfig: AvatarConfig | null };
 
 export default function TetrisPage() {
     const [mode, setMode] = useState<PlayMode>("single");
@@ -20,8 +21,8 @@ export default function TetrisPage() {
     const ko = language === "korean";
 
     const handleGameStart = useCallback(
-        (getChannel: () => RealtimeChannel | null, roomId: string, isHost: boolean) => {
-            setBattleInfo({ getChannel, roomId, isHost });
+        (getChannel: () => RealtimeChannel | null, roomId: string, isHost: boolean, opponentNickname: string, opponentAvatarConfig: AvatarConfig | null) => {
+            setBattleInfo({ getChannel, roomId, isHost, opponentNickname, opponentAvatarConfig });
             setMode("battle");
         },
         [],
@@ -58,6 +59,8 @@ export default function TetrisPage() {
                         getChannel={battleInfo.getChannel}
                         roomId={battleInfo.roomId}
                         isHost={battleInfo.isHost}
+                        opponentNickname={battleInfo.opponentNickname}
+                        opponentAvatarConfig={battleInfo.opponentAvatarConfig}
                         onFinish={handleBack}
                     />
                 </div>

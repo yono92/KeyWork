@@ -7,16 +7,19 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import useTypingStore from "@/store/store";
+import PixelAvatar from "@/components/avatar/PixelAvatar";
+
+import type { AvatarConfig } from "@/lib/supabase/types";
 
 interface MultiplayerLobbyProps {
     gameMode: string;
     gameName: string;
-    onGameStart: (channel: ReturnType<typeof useMultiplayerRoom>["getChannel"], roomId: string, isHost: boolean) => void;
+    onGameStart: (channel: ReturnType<typeof useMultiplayerRoom>["getChannel"], roomId: string, isHost: boolean, opponentNickname: string, opponentAvatarConfig: AvatarConfig | null) => void;
     onBack: () => void;
 }
 
 export default function MultiplayerLobby({ gameMode, gameName, onGameStart, onBack }: MultiplayerLobbyProps) {
-    const { isLoggedIn } = useAuthContext();
+    const { isLoggedIn, loading } = useAuthContext();
     const language = useTypingStore((s) => s.language);
     const retroTheme = useTypingStore((s) => s.retroTheme);
     const ko = language === "korean";
@@ -31,9 +34,21 @@ export default function MultiplayerLobby({ gameMode, gameName, onGameStart, onBa
     // 게임 시작 감지
     React.useEffect(() => {
         if (room.phase === "playing") {
-            onGameStart(room.getChannel, room.roomId!, room.isHost);
+            onGameStart(room.getChannel, room.roomId!, room.isHost, room.opponentNickname ?? "Player", room.opponentAvatarConfig);
         }
-    }, [room.phase, room.getChannel, room.roomId, room.isHost, onGameStart]);
+    }, [room.phase, room.getChannel, room.roomId, room.isHost, room.opponentNickname, room.opponentAvatarConfig, onGameStart]);
+
+    if (loading) {
+        return (
+            <Card className={`max-w-sm mx-auto mt-8 ${retroTheme === "mac-classic" ? "rounded-xl" : "rounded-none"}`}>
+                <CardContent className="p-6 text-center">
+                    <p className="text-sm text-[var(--retro-text)]/60">
+                        {ko ? "로딩 중..." : "Loading..."}
+                    </p>
+                </CardContent>
+            </Card>
+        );
+    }
 
     if (!isLoggedIn) {
         return (
@@ -52,9 +67,12 @@ export default function MultiplayerLobby({ gameMode, gameName, onGameStart, onBa
         return (
             <div className="flex items-center justify-center h-64">
                 <div className="text-center">
-                    <p className="text-sm text-[var(--retro-text)]/60 mb-2">
-                        vs {room.opponentNickname}
-                    </p>
+                    <div className="flex items-center justify-center gap-2 mb-2">
+                        <PixelAvatar config={room.opponentAvatarConfig} nickname={room.opponentNickname ?? "?"} size="lg" />
+                        <p className="text-sm text-[var(--retro-text)]/60">
+                            vs {room.opponentNickname}
+                        </p>
+                    </div>
                     <p
                         className="text-6xl font-black text-[var(--retro-accent)] tabular-nums"
                         style={{ animation: "tetris-score-pop 0.3s ease-out" }}

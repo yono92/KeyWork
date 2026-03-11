@@ -8,17 +8,32 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import Header from "@/components/Header";
 import { User } from "lucide-react";
+import PixelAvatar from "@/components/avatar/PixelAvatar";
+import AvatarEditor from "@/components/avatar/AvatarEditor";
+import type { AvatarConfig } from "@/lib/supabase/types";
 
 export default function ProfilePage() {
-    const { profile, isLoggedIn, updateNickname } = useAuthContext();
+    const { profile, isLoggedIn, loading, updateNickname, updateAvatar } = useAuthContext();
     const language = useTypingStore((s) => s.language);
     const retroTheme = useTypingStore((s) => s.retroTheme);
     const ko = language === "korean";
 
     const [editing, setEditing] = useState(false);
+    const [editingAvatar, setEditingAvatar] = useState(false);
     const [newNickname, setNewNickname] = useState("");
     const [saving, setSaving] = useState(false);
     const [message, setMessage] = useState("");
+
+    if (loading) {
+        return (
+            <div className="flex flex-col h-full overflow-hidden">
+                <Header />
+                <div className="flex-1 flex items-center justify-center text-sm text-[var(--retro-text)]/60">
+                    {ko ? "로딩 중..." : "Loading..."}
+                </div>
+            </div>
+        );
+    }
 
     if (!isLoggedIn || !profile) {
         return (
@@ -48,6 +63,12 @@ export default function ProfilePage() {
         }
     };
 
+    const handleAvatarSave = async (config: AvatarConfig) => {
+        await updateAvatar(config);
+        setEditingAvatar(false);
+        setMessage(ko ? "아바타가 저장되었습니다" : "Avatar saved");
+    };
+
     return (
         <div className="flex flex-col h-full overflow-hidden">
             <Header />
@@ -60,10 +81,22 @@ export default function ProfilePage() {
                         </span>
                     </div>
                     <CardContent className="p-5 space-y-4">
-                        {/* 아바타 */}
+                        {/* 아바타 + 닉네임 */}
                         <div className="flex items-center gap-4">
-                            <div className="w-16 h-16 bg-[var(--retro-accent)] text-[var(--retro-text-inverse)] flex items-center justify-center text-2xl font-bold border-2 border-[var(--retro-border-dark)]">
-                                {profile.nickname.charAt(0).toUpperCase()}
+                            <div className="flex flex-col items-center gap-1">
+                                <PixelAvatar
+                                    config={profile.avatar_config}
+                                    nickname={profile.nickname}
+                                    size="xl"
+                                />
+                                {!editingAvatar && (
+                                    <button
+                                        onClick={() => setEditingAvatar(true)}
+                                        className="text-xs text-[var(--retro-accent)] hover:underline"
+                                    >
+                                        {ko ? "아바타 편집" : "Edit Avatar"}
+                                    </button>
+                                )}
                             </div>
                             <div>
                                 {editing ? (
@@ -108,6 +141,18 @@ export default function ProfilePage() {
                                 )}
                             </div>
                         </div>
+
+                        {/* 아바타 에디터 */}
+                        {editingAvatar && (
+                            <div className="border-t border-[var(--retro-border-mid)] pt-4">
+                                <AvatarEditor
+                                    initial={profile.avatar_config}
+                                    nickname={profile.nickname}
+                                    onSave={handleAvatarSave}
+                                    onCancel={() => setEditingAvatar(false)}
+                                />
+                            </div>
+                        )}
 
                         {message && (
                             <p className="text-xs text-green-600 bg-green-50 border border-green-200 p-2">

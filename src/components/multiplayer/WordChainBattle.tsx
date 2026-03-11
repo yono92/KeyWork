@@ -10,18 +10,33 @@ import GameInput from "@/components/game/GameInput";
 import { isChainValid, getLastChar } from "@/utils/dueumUtils";
 import { HANGUL_WORD_REGEX } from "@/utils/koreanConstants";
 import { Button } from "@/components/ui/button";
+import type { AvatarConfig } from "@/lib/supabase/types";
+import PixelAvatar from "@/components/avatar/PixelAvatar";
+
+async function validateWordApi(word: string): Promise<boolean> {
+    try {
+        const res = await fetch(`/api/krdict/validate?word=${encodeURIComponent(word)}`);
+        if (!res.ok) return true; // API 실패 시 로컬 검증만으로 통과
+        const data = await res.json();
+        return data.isValid === true;
+    } catch {
+        return true; // 네트워크 오류 시 관대하게 통과
+    }
+}
 
 interface WordChainBattleProps {
     getChannel: () => RealtimeChannel | null;
     roomId: string;
     isHost: boolean;
+    opponentNickname: string;
+    opponentAvatarConfig: AvatarConfig | null;
     onFinish: () => void;
 }
 
 const TIME_LIMIT = 15;
 
-export default function WordChainBattle({ getChannel, isHost, onFinish }: WordChainBattleProps) {
-    const { user } = useAuthContext();
+export default function WordChainBattle({ getChannel, isHost, opponentNickname, opponentAvatarConfig, onFinish }: WordChainBattleProps) {
+    const { user, profile } = useAuthContext();
     const { submitScore } = useScoreSubmit();
     const language = useTypingStore((s) => s.language);
     const ko = language === "korean";
@@ -35,6 +50,7 @@ export default function WordChainBattle({ getChannel, isHost, onFinish }: WordCh
     const [score, setScore] = useState(0);
     const [gameOver, setGameOver] = useState(false);
     const [winner, setWinner] = useState<"me" | "opponent" | null>(null);
+    const [validating, setValidating] = useState(false);
     const inputRef = useRef<HTMLInputElement>(null);
     const chatRef = useRef<HTMLDivElement>(null);
     const usedWordsRef = useRef<Set<string>>(new Set());
@@ -49,17 +65,25 @@ export default function WordChainBattle({ getChannel, isHost, onFinish }: WordCh
         }
     }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-    // 타이머
+    // 타이머 — mp의 개별 함수/값만 ref로 캡처하여 불필요한 재시작 방지
+    const isMyTurnRef = useRef(mp.isMyTurn);
+    const myLivesRef = useRef(mp.myLives);
+    isMyTurnRef.current = mp.isMyTurn;
+    myLivesRef.current = mp.myLives;
+
+    const setMyLivesStable = mp.setMyLives;
+    const broadcastLivesStable = mp.broadcastLives;
+
     useEffect(() => {
-        if (gameOver) return;
+        if (gameOver || validating) return;
         timerRef.current = setInterval(() => {
             setTimer((prev) => {
                 if (prev <= 1) {
                     // 타임아웃 → 목숨 감소
-                    if (mp.isMyTurn) {
-                        const newLives = mp.myLives - 1;
-                        mp.setMyLives(newLives);
-                        mp.broadcastLives(newLives);
+                    if (isMyTurnRef.current) {
+                        const newLives = myLivesRef.current - 1;
+                        setMyLivesStable(newLives);
+                        broadcastLivesStable(newLives);
                         if (newLives <= 0) {
                             setGameOver(true);
                             setWinner("opponent");
@@ -71,7 +95,7 @@ export default function WordChainBattle({ getChannel, isHost, onFinish }: WordCh
             });
         }, 1000);
         return () => { if (timerRef.current) clearInterval(timerRef.current); };
-    }, [gameOver, mp]);
+    }, [gameOver, validating, setMyLivesStable, broadcastLivesStable]);
 
     // 상대 목숨 0 → 내 승리
     useEffect(() => {
@@ -96,8 +120,8 @@ export default function WordChainBattle({ getChannel, isHost, onFinish }: WordCh
     }, [messages]);
 
     // 단어 제출
-    const handleSubmit = useCallback(() => {
-        if (!mp.isMyTurn || !input.trim() || gameOver) return;
+    const handleSubmit = useCallback(async () => {
+        if (!mp.isMyTurn || !input.trim() || gameOver || validating) return;
         const word = input.trim();
         setInput("");
 
@@ -116,6 +140,16 @@ export default function WordChainBattle({ getChannel, isHost, onFinish }: WordCh
             return;
         }
 
+        // API 검증 (검증 중 타이머 일시정지)
+        setValidating(true);
+        const isValid = await validateWordApi(word);
+        setValidating(false);
+
+        if (!isValid) {
+            setMessages((prev) => [...prev, { text: word, sender: "me", valid: false }]);
+            return;
+        }
+
         usedWordsRef.current.add(word.toLowerCase());
         setMessages((prev) => [...prev, { text: word, sender: "me", valid: true }]);
         setScore((prev) => prev + word.length * 10);
@@ -125,7 +159,7 @@ export default function WordChainBattle({ getChannel, isHost, onFinish }: WordCh
         mp.broadcastWord(word, nextChar);
         mp.setCurrentChar(nextChar);
         setTimer(TIME_LIMIT);
-    }, [mp, input, gameOver]);
+    }, [mp, input, gameOver, validating]);
 
     // 게임 종료 시 점수 제출
     useEffect(() => {
@@ -143,13 +177,15 @@ export default function WordChainBattle({ getChannel, isHost, onFinish }: WordCh
         <div className="relative w-full flex-1 min-h-[280px] overflow-hidden border border-sky-200/40 dark:border-sky-500/10 flex flex-col" style={{ background: "var(--retro-game-bg)" }}>
             {/* 상단 바 */}
             <div className="flex justify-between items-center px-3 py-2 border-b border-[var(--retro-game-panel-border-lo)]" style={{ background: "var(--retro-game-panel)" }}>
-                <div className="text-xs font-bold" style={{ color: "var(--retro-game-text)" }}>
-                    {ko ? "나" : "You"}: ❤️{mp.myLives} | {ko ? "점수" : "Score"}: {score}
+                <div className="text-xs font-bold flex items-center gap-1" style={{ color: "var(--retro-game-text)" }}>
+                    <PixelAvatar config={profile?.avatar_config ?? null} nickname={profile?.nickname ?? "?"} size="sm" />
+                    {ko ? "나" : "You"}: ❤️{mp.myLives} | {score}
                 </div>
                 <div className={`text-sm font-black tabular-nums ${timer <= 3 ? "text-red-500" : ""}`} style={{ color: timer <= 3 ? "var(--retro-game-danger)" : "var(--retro-game-warning)" }}>
                     {timer}s
                 </div>
-                <div className="text-xs font-bold" style={{ color: "var(--retro-game-text)" }}>
+                <div className="text-xs font-bold flex items-center gap-1" style={{ color: "var(--retro-game-text)" }}>
+                    <PixelAvatar config={opponentAvatarConfig} nickname={opponentNickname} size="sm" />
                     {ko ? "상대" : "Opp"}: ❤️{mp.opponentLives}
                 </div>
             </div>
@@ -193,8 +229,8 @@ export default function WordChainBattle({ getChannel, isHost, onFinish }: WordCh
                     value={input}
                     onChange={setInput}
                     onSubmit={handleSubmit}
-                    disabled={!mp.isMyTurn || gameOver}
-                    placeholder={mp.isMyTurn ? (ko ? "단어를 입력하세요" : "Type a word") : (ko ? "상대 차례..." : "Opponent's turn...")}
+                    disabled={!mp.isMyTurn || gameOver || validating}
+                    placeholder={validating ? (ko ? "단어 검증 중..." : "Validating...") : mp.isMyTurn ? (ko ? "단어를 입력하세요" : "Type a word") : (ko ? "상대 차례..." : "Opponent's turn...")}
                 />
             </div>
 

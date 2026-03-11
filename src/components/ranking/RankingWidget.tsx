@@ -5,6 +5,7 @@ import { useLeaderboard } from "@/hooks/useLeaderboard";
 import { useAuthContext } from "@/components/auth/AuthProvider";
 import useTypingStore from "@/store/store";
 import { Trophy } from "lucide-react";
+import PixelAvatar from "@/components/avatar/PixelAvatar";
 
 interface RankingWidgetProps {
     gameMode: string;
@@ -51,6 +52,12 @@ export default function RankingWidget({ gameMode }: RankingWidgetProps) {
                             <span className="w-5 text-right tabular-nums text-[var(--retro-text)]/60">
                                 {entry.rank}
                             </span>
+                            <PixelAvatar
+                                config={entry.avatar_config}
+                                nickname={entry.nickname}
+                                size="sm"
+                                className="shrink-0"
+                            />
                             <span className="flex-1 truncate text-[var(--retro-text)]">
                                 {entry.nickname}
                                 {isMe && <span className="text-[var(--retro-accent)]"> ★</span>}

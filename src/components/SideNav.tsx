@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useAuthContext } from "@/components/auth/AuthProvider";
 import AuthModal from "@/components/auth/AuthModal";
+import PixelAvatar from "@/components/avatar/PixelAvatar";
 
 function AccountSection({ language, pathname, onNavigate, variant = "full" }: {
     language: AppLanguage; pathname: string; onNavigate: (path: string) => void; variant?: "full" | "compact";
@@ -34,12 +35,19 @@ function AccountSection({ language, pathname, onNavigate, variant = "full" }: {
 
             {isLoggedIn ? (
                 <>
-                    {/* 닉네임 표시 */}
+                    {/* 아바타 + 닉네임 */}
                     <div className={cn(
-                        "px-3 py-1.5 text-xs font-bold text-[var(--retro-accent)] truncate",
-                        variant === "compact" ? "hidden lg:block" : "",
+                        "px-3 py-1.5 flex items-center gap-2",
+                        variant === "compact" ? "hidden lg:flex" : "",
                     )}>
-                        {profile?.nickname ?? "Player"}
+                        <PixelAvatar
+                            config={profile?.avatar_config ?? null}
+                            nickname={profile?.nickname ?? "?"}
+                            size="sm"
+                        />
+                        <span className="text-xs font-bold text-[var(--retro-accent)] truncate">
+                            {profile?.nickname ?? "Player"}
+                        </span>
                     </div>
 
                     {/* 프로필 */}

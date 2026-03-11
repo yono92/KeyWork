@@ -455,5 +455,17 @@ export function useTetrisEngine(callbacks: TetrisCallbacks, isMobile: boolean) {
         hardDrop,
         holdPiece,
         setPaused,
+        // 외부에서 가비지 라인을 보드에 적용할 때 사용
+        applyGarbage: useCallback((garbageLines: Cell[][]) => {
+            setBoard((prev) => {
+                const newBoard = [...prev.slice(garbageLines.length), ...garbageLines];
+                return newBoard;
+            });
+            // 가비지로 인해 활성 피스가 위로 밀림
+            setActivePiece((prev) => ({
+                ...prev,
+                y: Math.max(0, prev.y - garbageLines.length),
+            }));
+        }, []),
     };
 }

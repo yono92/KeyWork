@@ -3,6 +3,9 @@
 import { useCallback, useEffect, useState } from "react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 
+// 채널에 등록된 핸들러를 추적하기 위한 WeakSet
+const registeredChannels = new WeakSet<RealtimeChannel>();
+
 interface WordEvent {
     word: string;
     userId: string;
@@ -29,8 +32,10 @@ export function useMultiplayerWordChain(
     useEffect(() => {
         const channel = getChannel();
         if (!channel || !isPlaying) return;
+        if (registeredChannels.has(channel)) return;
+        registeredChannels.add(channel);
 
-        channel.on("broadcast", { event: "word_submit" }, ({ payload }) => {
+        channel.on("broadcast", { event: "word_submit" }, ({ payload }: { payload: unknown }) => {
             const data = payload as WordEvent;
             if (data.userId !== myUserId) {
                 setOpponentWord(data.word);
@@ -39,7 +44,7 @@ export function useMultiplayerWordChain(
             }
         });
 
-        channel.on("broadcast", { event: "word_result" }, ({ payload }) => {
+        channel.on("broadcast", { event: "word_result" }, ({ payload }: { payload: unknown }) => {
             const data = payload as { userId: string; lives: number };
             if (data.userId !== myUserId) {
                 setOpponentLives(data.lives);
@@ -48,7 +53,7 @@ export function useMultiplayerWordChain(
             }
         });
 
-        channel.on("broadcast", { event: "turn_change" }, ({ payload }) => {
+        channel.on("broadcast", { event: "turn_change" }, ({ payload }: { payload: unknown }) => {
             const data = payload as TurnEvent;
             setIsMyTurn(data.currentUserId === myUserId);
         });

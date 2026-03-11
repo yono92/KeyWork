@@ -7,11 +7,14 @@ import type { RealtimeChannel } from "@supabase/supabase-js";
 
 export type RoomPhase = "idle" | "creating" | "joining" | "waiting" | "countdown" | "playing" | "finished" | "disconnected";
 
+import type { AvatarConfig } from "@/lib/supabase/types";
+
 interface RoomState {
     roomId: string | null;
     phase: RoomPhase;
     isHost: boolean;
     opponentNickname: string | null;
+    opponentAvatarConfig: AvatarConfig | null;
     countdown: number;
     error: string | null;
 }
@@ -35,6 +38,7 @@ export function useMultiplayerRoom(gameMode: string) {
         phase: "idle",
         isHost: false,
         opponentNickname: null,
+        opponentAvatarConfig: null,
         countdown: 3,
         error: null,
     });
@@ -56,86 +60,92 @@ export function useMultiplayerRoom(gameMode: string) {
         sessionStorage.removeItem("mp_roomId");
     }, [supabase]);
 
-    // 채널 구독
-    const subscribeToRoom = useCallback((roomId: string) => {
-        const channel = supabase.channel(`room:${roomId}`, {
-            config: { presence: { key: user?.id ?? "anon" } },
-        });
-
-        channel
-            .on("presence", { event: "join" }, ({ newPresences }) => {
-                const opponent = newPresences.find(
-                    (p) => (p as Record<string, unknown>).user_id !== user?.id,
-                );
-                if (opponent) {
-                    // 재접속 시 disconnect 타이머 취소
-                    if (disconnectTimerRef.current) {
-                        clearTimeout(disconnectTimerRef.current);
-                        disconnectTimerRef.current = null;
-                    }
-                    setState((prev) => ({
-                        ...prev,
-                        opponentNickname: ((opponent as Record<string, unknown>).nickname as string) ?? "Player",
-                    }));
-                }
-            })
-            .on("presence", { event: "leave" }, ({ leftPresences }) => {
-                const opponentLeft = leftPresences.some(
-                    (p) => (p as Record<string, unknown>).user_id !== user?.id,
-                );
-                if (opponentLeft) {
-                    setState((prev) => {
-                        // playing 중 상대 이탈 → 5초 후 승리 처리
-                        if (prev.phase === "playing") {
-                            disconnectTimerRef.current = setTimeout(() => {
-                                setState((s) => ({
-                                    ...s,
-                                    phase: "finished",
-                                    error: "WIN",
-                                }));
-                                channelRef.current?.send({
-                                    type: "broadcast",
-                                    event: "game_over",
-                                    payload: { winner_id: user?.id, reason: "disconnect" },
-                                });
-                            }, DISCONNECT_TIMEOUT_MS);
-                        }
-                        return { ...prev, opponentNickname: null };
-                    });
-                }
-            })
-            .on("broadcast", { event: "game_start" }, () => {
-                setState((prev) => ({ ...prev, phase: "countdown", countdown: 3 }));
-                let count = 3;
-                countdownRef.current = setInterval(() => {
-                    count -= 1;
-                    if (count <= 0) {
-                        if (countdownRef.current) clearInterval(countdownRef.current);
-                        setState((prev) => ({ ...prev, phase: "playing", countdown: 0 }));
-                    } else {
-                        setState((prev) => ({ ...prev, countdown: count }));
-                    }
-                }, 1000);
-            })
-            .on("broadcast", { event: "game_over" }, ({ payload }) => {
-                setState((prev) => ({
-                    ...prev,
-                    phase: "finished",
-                    error: (payload as { winner_id?: string })?.winner_id === user?.id
-                        ? "WIN" : "LOSE",
-                }));
-            })
-            .subscribe(async (status) => {
-                if (status === "SUBSCRIBED") {
-                    await channel.track({
-                        user_id: user?.id,
-                        nickname: profile?.nickname ?? "Player",
-                        online_at: new Date().toISOString(),
-                    });
-                }
+    // 채널 구독 — 구독 완료 시 resolve되는 Promise 반환
+    const subscribeToRoom = useCallback((roomId: string): Promise<void> => {
+        return new Promise((resolve) => {
+            const channel = supabase.channel(`room:${roomId}`, {
+                config: { presence: { key: user?.id ?? "anon" } },
             });
 
-        channelRef.current = channel;
+            channel
+                .on("presence", { event: "join" }, ({ newPresences }) => {
+                    const opponent = newPresences.find(
+                        (p) => (p as Record<string, unknown>).user_id !== user?.id,
+                    );
+                    if (opponent) {
+                        // 재접속 시 disconnect 타이머 취소
+                        if (disconnectTimerRef.current) {
+                            clearTimeout(disconnectTimerRef.current);
+                            disconnectTimerRef.current = null;
+                        }
+                        const opp = opponent as Record<string, unknown>;
+                        setState((prev) => ({
+                            ...prev,
+                            opponentNickname: (opp.nickname as string) ?? "Player",
+                            opponentAvatarConfig: (opp.avatar_config as AvatarConfig) ?? null,
+                        }));
+                    }
+                })
+                .on("presence", { event: "leave" }, ({ leftPresences }) => {
+                    const opponentLeft = leftPresences.some(
+                        (p) => (p as Record<string, unknown>).user_id !== user?.id,
+                    );
+                    if (opponentLeft) {
+                        setState((prev) => {
+                            // playing 중 상대 이탈 → 5초 후 승리 처리
+                            if (prev.phase === "playing") {
+                                disconnectTimerRef.current = setTimeout(() => {
+                                    setState((s) => ({
+                                        ...s,
+                                        phase: "finished",
+                                        error: "WIN",
+                                    }));
+                                    channelRef.current?.send({
+                                        type: "broadcast",
+                                        event: "game_over",
+                                        payload: { winner_id: user?.id, reason: "disconnect" },
+                                    });
+                                }, DISCONNECT_TIMEOUT_MS);
+                            }
+                            return { ...prev, opponentNickname: null };
+                        });
+                    }
+                })
+                .on("broadcast", { event: "game_start" }, () => {
+                    setState((prev) => ({ ...prev, phase: "countdown", countdown: 3 }));
+                    let count = 3;
+                    countdownRef.current = setInterval(() => {
+                        count -= 1;
+                        if (count <= 0) {
+                            if (countdownRef.current) clearInterval(countdownRef.current);
+                            setState((prev) => ({ ...prev, phase: "playing", countdown: 0 }));
+                        } else {
+                            setState((prev) => ({ ...prev, countdown: count }));
+                        }
+                    }, 1000);
+                })
+                .on("broadcast", { event: "game_over" }, ({ payload }) => {
+                    setState((prev) => ({
+                        ...prev,
+                        phase: "finished",
+                        error: (payload as { winner_id?: string })?.winner_id === user?.id
+                            ? "WIN" : "LOSE",
+                    }));
+                })
+                .subscribe(async (status) => {
+                    if (status === "SUBSCRIBED") {
+                        await channel.track({
+                            user_id: user?.id,
+                            nickname: profile?.nickname ?? "Player",
+                            avatar_config: profile?.avatar_config ?? null,
+                            online_at: new Date().toISOString(),
+                        });
+                        resolve();
+                    }
+                });
+
+            channelRef.current = channel;
+        });
     }, [supabase, user, profile]);
 
     // 방 생성
@@ -163,7 +173,7 @@ export function useMultiplayerRoom(gameMode: string) {
             phase: "waiting",
             isHost: true,
         }));
-        subscribeToRoom(roomId);
+        await subscribeToRoom(roomId);
     }, [user, gameMode, supabase, subscribeToRoom]);
 
     // 방 참가
@@ -213,16 +223,14 @@ export function useMultiplayerRoom(gameMode: string) {
             phase: "waiting",
             isHost: false,
         }));
-        subscribeToRoom(code.toUpperCase());
+        // 구독 완료까지 대기 후 game_start 브로드캐스트
+        await subscribeToRoom(code.toUpperCase());
 
-        // 참가 후 게임 시작 브로드캐스트
-        setTimeout(() => {
-            channelRef.current?.send({
-                type: "broadcast",
-                event: "game_start",
-                payload: {},
-            });
-        }, 500);
+        channelRef.current?.send({
+            type: "broadcast",
+            event: "game_start",
+            payload: {},
+        });
     }, [user, supabase, subscribeToRoom]);
 
     // 빠른 매칭
@@ -266,6 +274,7 @@ export function useMultiplayerRoom(gameMode: string) {
             phase: "idle",
             isHost: false,
             opponentNickname: null,
+            opponentAvatarConfig: null,
             countdown: 3,
             error: null,
         });
@@ -276,7 +285,7 @@ export function useMultiplayerRoom(gameMode: string) {
         const savedRoomId = sessionStorage.getItem("mp_roomId");
         if (savedRoomId && user) {
             setState((prev) => ({ ...prev, roomId: savedRoomId }));
-            subscribeToRoom(savedRoomId);
+            void subscribeToRoom(savedRoomId);
         }
     }, [user, subscribeToRoom]);
 

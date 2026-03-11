@@ -4,7 +4,7 @@ import { NextResponse, type NextRequest } from "next/server";
 export async function updateSession(request: NextRequest) {
     let supabaseResponse = NextResponse.next({ request });
 
-    createServerClient(
+    const supabase = createServerClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co",
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder",
         {
@@ -24,6 +24,9 @@ export async function updateSession(request: NextRequest) {
             },
         },
     );
+
+    // getUser()를 호출해야 JWT 토큰이 만료 전 자동 갱신됨
+    await supabase.auth.getUser();
 
     return supabaseResponse;
 }

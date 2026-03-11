@@ -5,6 +5,9 @@ import type { RealtimeChannel } from "@supabase/supabase-js";
 import type { Cell } from "./useTetrisEngine";
 import { BOARD_WIDTH, BOARD_HEIGHT } from "./useTetrisEngine";
 
+// 채널에 등록된 핸들러를 추적하기 위한 WeakMap
+const registeredChannels = new WeakSet<RealtimeChannel>();
+
 export interface OpponentState {
     board: number[][];
     score: number;
@@ -67,25 +70,20 @@ export function useMultiplayerTetris(
     const [pendingGarbage, setPendingGarbage] = useState(0);
     const garbageTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-    // 상대 보드 수신
+    // 상대 보드 수신 — 채널당 1회만 핸들러 등록
     useEffect(() => {
         const channel = getChannel();
         if (!channel || !isPlaying) return;
+        if (registeredChannels.has(channel)) return;
+        registeredChannels.add(channel);
 
-        const handleBoardState = ({ payload }: { payload: OpponentState }) => {
+        channel.on("broadcast", { event: "board_state" }, ({ payload }: { payload: OpponentState }) => {
             setOpponent(payload);
-        };
+        });
 
-        const handleGarbage = ({ payload }: { payload: { lines: number } }) => {
+        channel.on("broadcast", { event: "garbage" }, ({ payload }: { payload: { lines: number } }) => {
             setPendingGarbage((prev) => prev + payload.lines);
-        };
-
-        channel.on("broadcast", { event: "board_state" }, handleBoardState);
-        channel.on("broadcast", { event: "garbage" }, handleGarbage);
-
-        return () => {
-            // Cleanup handled by channel removal
-        };
+        });
     }, [getChannel, isPlaying]);
 
     // 내 보드 브로드캐스트 (300ms 간격)
