@@ -129,9 +129,17 @@ export default function MultiplayerLobby({ gameMode, gameName, onGameStart, onBa
         );
     }
 
+    // 경과 시간 포맷
+    const formatElapsed = (dateStr: string) => {
+        const diff = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
+        if (diff < 60) return ko ? "방금 전" : "just now";
+        if (diff < 3600) return ko ? `${Math.floor(diff / 60)}분 전` : `${Math.floor(diff / 60)}m ago`;
+        return ko ? `${Math.floor(diff / 3600)}시간 전` : `${Math.floor(diff / 3600)}h ago`;
+    };
+
     // 로비 메인
     return (
-        <Card className={`max-w-sm mx-auto mt-8 ${retroTheme === "mac-classic" ? "rounded-xl" : "rounded-none"}`}>
+        <Card className={`max-w-md mx-auto mt-8 ${retroTheme === "mac-classic" ? "rounded-xl" : "rounded-none"}`}>
             <div className="retro-titlebar h-10 px-3 flex items-center justify-between border-b border-black/25">
                 <span className="text-sm font-semibold text-current">
                     {gameName} — {ko ? "온라인 대전" : "Online Battle"}
@@ -142,26 +150,75 @@ export default function MultiplayerLobby({ gameMode, gameName, onGameStart, onBa
                     <p className="text-xs text-red-600 bg-red-50 border border-red-200 p-2">{room.error}</p>
                 )}
 
-                <Button
-                    onClick={room.quickMatch}
-                    className={`w-full font-semibold ${retroTheme === "mac-classic" ? "rounded-lg" : "rounded-none"}`}
-                >
-                    {ko ? "빠른 매칭" : "Quick Match"}
-                </Button>
-
-                <div className="flex items-center gap-2 text-xs text-[var(--retro-text)]/40">
-                    <div className="flex-1 border-t border-[var(--retro-border-mid)]" />
-                    <span>{ko ? "또는" : "or"}</span>
-                    <div className="flex-1 border-t border-[var(--retro-border-mid)]" />
+                {/* 액션 버튼 */}
+                <div className="flex gap-2">
+                    <Button
+                        onClick={room.quickMatch}
+                        className={`flex-1 font-semibold ${retroTheme === "mac-classic" ? "rounded-lg" : "rounded-none"}`}
+                    >
+                        {ko ? "빠른 매칭" : "Quick Match"}
+                    </Button>
+                    <Button
+                        variant="outline"
+                        onClick={room.createRoom}
+                        className={`flex-1 ${retroTheme === "mac-classic" ? "rounded-md" : "rounded-none"}`}
+                    >
+                        {ko ? "방 만들기" : "Create Room"}
+                    </Button>
                 </div>
 
-                <Button
-                    variant="outline"
-                    onClick={room.createRoom}
-                    className={`w-full ${retroTheme === "mac-classic" ? "rounded-md" : "rounded-none"}`}
-                >
-                    {ko ? "방 만들기" : "Create Room"}
-                </Button>
+                {/* 대기 중인 방 목록 */}
+                <div>
+                    <div className="flex items-center justify-between mb-2">
+                        <p className="text-xs font-semibold text-[var(--retro-text)]/70">
+                            {ko ? "대기 중인 방" : "Waiting Rooms"}
+                            {room.waitingRooms.length > 0 && (
+                                <span className="ml-1 text-[var(--retro-accent)]">({room.waitingRooms.length})</span>
+                            )}
+                        </p>
+                    </div>
+                    <div className="border border-[var(--retro-border-mid)] bg-[var(--retro-bg)] min-h-[120px] max-h-[200px] overflow-y-auto">
+                        {room.waitingRooms.length === 0 ? (
+                            <div className="flex items-center justify-center h-[120px] text-xs text-[var(--retro-text)]/40">
+                                {ko ? "대기 중인 방이 없습니다" : "No rooms available"}
+                            </div>
+                        ) : (
+                            <ul className="divide-y divide-[var(--retro-border-mid)]">
+                                {room.waitingRooms.map((wr) => (
+                                    <li
+                                        key={wr.id}
+                                        className="flex items-center gap-3 px-3 py-2 hover:bg-[var(--retro-accent)]/10 cursor-pointer transition-colors"
+                                        onClick={() => room.joinRoom(wr.id)}
+                                    >
+                                        <PixelAvatar
+                                            config={wr.player1_avatar_config}
+                                            nickname={wr.player1_nickname}
+                                            size="sm"
+                                        />
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-sm font-medium text-[var(--retro-text)] truncate">
+                                                {wr.player1_nickname}
+                                            </p>
+                                            <p className="text-[10px] text-[var(--retro-text)]/40 font-mono">
+                                                {wr.id} · {formatElapsed(wr.created_at)}
+                                            </p>
+                                        </div>
+                                        <span className="text-xs text-[var(--retro-accent)] font-semibold shrink-0">
+                                            {ko ? "참가" : "Join"}
+                                        </span>
+                                    </li>
+                                ))}
+                            </ul>
+                        )}
+                    </div>
+                </div>
+
+                {/* 코드로 참가 */}
+                <div className="flex items-center gap-2 text-xs text-[var(--retro-text)]/40">
+                    <div className="flex-1 border-t border-[var(--retro-border-mid)]" />
+                    <span>{ko ? "코드로 참가" : "Join by code"}</span>
+                    <div className="flex-1 border-t border-[var(--retro-border-mid)]" />
+                </div>
 
                 <div className="flex gap-2">
                     <Input

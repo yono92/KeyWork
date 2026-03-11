@@ -9,6 +9,14 @@ export type RoomPhase = "idle" | "creating" | "joining" | "waiting" | "countdown
 
 import type { AvatarConfig } from "@/lib/supabase/types";
 
+export interface WaitingRoom {
+    id: string;
+    game_mode: string;
+    created_at: string;
+    player1_nickname: string;
+    player1_avatar_config: AvatarConfig | null;
+}
+
 interface RoomState {
     roomId: string | null;
     phase: RoomPhase;
@@ -26,12 +34,14 @@ const generateRoomCode = (): string => {
 
 const DISCONNECT_TIMEOUT_MS = 5000; // 5초 오프라인 시 상대 승리
 
+const supabase = createClient();
+
 export function useMultiplayerRoom(gameMode: string) {
     const { user, profile } = useAuthContext();
-    const supabase = createClient();
     const channelRef = useRef<RealtimeChannel | null>(null);
     const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const disconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const roomListChannelRef = useRef<RealtimeChannel | null>(null);
 
     const [state, setState] = useState<RoomState>({
         roomId: null,
@@ -42,6 +52,8 @@ export function useMultiplayerRoom(gameMode: string) {
         countdown: 3,
         error: null,
     });
+
+    const [waitingRooms, setWaitingRooms] = useState<WaitingRoom[]>([]);
 
     // 방 정리
     const cleanup = useCallback(() => {
@@ -58,7 +70,57 @@ export function useMultiplayerRoom(gameMode: string) {
             disconnectTimerRef.current = null;
         }
         sessionStorage.removeItem("mp_roomId");
-    }, [supabase]);
+    }, []);
+
+    // 대기 중인 방 목록 조회
+    const fetchWaitingRooms = useCallback(async () => {
+        if (!user) return;
+        const { data } = await supabase
+            .from("rooms")
+            .select("id, game_mode, created_at, player1_id, profiles!rooms_player1_id_fkey(nickname, avatar_config)")
+            .eq("status", "waiting")
+            .eq("game_mode", gameMode)
+            .neq("player1_id", user.id)
+            .is("player2_id", null)
+            .order("created_at", { ascending: false })
+            .limit(20);
+
+        if (data) {
+            setWaitingRooms(
+                data.map((r) => {
+                    const p = r.profiles as unknown as { nickname: string; avatar_config: AvatarConfig | null } | null;
+                    return {
+                        id: r.id,
+                        game_mode: r.game_mode,
+                        created_at: r.created_at,
+                        player1_nickname: p?.nickname ?? "Player",
+                        player1_avatar_config: p?.avatar_config ?? null,
+                    };
+                }),
+            );
+        }
+    }, [user, gameMode]);
+
+    // 방 목록 실시간 구독
+    useEffect(() => {
+        if (!user) return;
+        void fetchWaitingRooms();
+
+        const channel = supabase
+            .channel("room-list")
+            .on(
+                "postgres_changes",
+                { event: "*", schema: "public", table: "rooms", filter: `game_mode=eq.${gameMode}` },
+                () => { void fetchWaitingRooms(); },
+            )
+            .subscribe();
+
+        roomListChannelRef.current = channel;
+        return () => {
+            supabase.removeChannel(channel);
+            roomListChannelRef.current = null;
+        };
+    }, [user, gameMode, fetchWaitingRooms]);
 
     // 채널 구독 — 구독 완료 시 resolve되는 Promise 반환
     const subscribeToRoom = useCallback((roomId: string): Promise<void> => {
@@ -197,6 +259,16 @@ export function useMultiplayerRoom(gameMode: string) {
             return;
         }
 
+        // 게임 모드 불일치 검증
+        if (room.game_mode !== gameMode) {
+            setState((prev) => ({
+                ...prev,
+                phase: "idle",
+                error: `이 방은 다른 게임 모드입니다 (${room.game_mode})`,
+            }));
+            return;
+        }
+
         // Race condition 방지: player2_id가 null인 경우만 업데이트
         const { data: updated, error: updateError } = await supabase
             .from("rooms")
@@ -294,11 +366,13 @@ export function useMultiplayerRoom(gameMode: string) {
 
     return {
         ...state,
+        waitingRooms,
         createRoom,
         joinRoom,
         quickMatch,
         leaveRoom,
         broadcastGameOver,
         getChannel,
+        refreshRooms: fetchWaitingRooms,
     };
 }
