@@ -52,7 +52,8 @@ export function useWordChainGame() {
 
     const { playSound } = useGameAudio();
 
-    const config = DIFFICULTY_CONFIG.normal;
+    const difficulty = useTypingStore((s) => s.difficulty);
+    const config = DIFFICULTY_CONFIG[difficulty];
 
     const [gameStarted, setGameStarted] = useState(true);
     const [gameOver, setGameOver] = useState(false);

@@ -85,9 +85,14 @@ const FallingWordsGame: React.FC = () => {
 
     const { slowMotion, shield, activeEffects, applyEffect, resetEffects } = usePowerUpSystem();
 
-    const spawnInterval =
-        Math.max(2000 - level * 100, 300) * (slowMotion ? 1.5 : 1) * config.spawnMul;
-    const fallSeconds = Math.max(7 / (1 + level * 0.5), 1) * (slowMotion ? 2 : 1) / config.speedMul;
+    // 항상 1개씩 스폰, 레벨이 오르면 스폰 간격이 줄고 낙하 속도가 빨라짐
+    // 화면 동시 단어 수 ≈ fallSeconds / (spawnInterval/1000)
+    // Lv1: 7.5s / 2.8s ≈ 2.7개, Lv5: 4.5s / 1.6s ≈ 2.8개, Lv10: 2.5s / 0.85s ≈ 2.9개
+    const baseSpawn = Math.max(2800 - (level - 1) * 200, 600); // Lv1: 2800ms → Lv12: 600ms (floor)
+    const spawnInterval = baseSpawn * (slowMotion ? 1.5 : 1) * config.spawnMul;
+
+    const baseFall = Math.max(7.5 - (level - 1) * 0.5, 2.0); // Lv1: 7.5s → Lv12: 2.0s (floor)
+    const fallSeconds = baseFall * (slowMotion ? 2 : 1) / config.speedMul;
 
     const lifeLostRef = useRef(false);
 
@@ -122,7 +127,8 @@ const FallingWordsGame: React.FC = () => {
         const gameArea = gameAreaRef.current;
         const maxLeft = gameArea ? gameArea.offsetWidth - 120 : 0;
 
-        const numWords = Math.min(1 + Math.floor(level / 2), 5);
+        // 항상 1개씩 스폰 — 난이도는 스폰 간격 + 낙하 속도로 조절
+        const numWords = 1;
         for (let i = 0; i < numWords; i++) {
             const wordText = getRandomWord();
             if (!wordText) continue;
