@@ -11,6 +11,7 @@
         "build:prod": "NODE_ENV=production next build",
         "start": "next start",
         "lint": "eslint .",
+        "sync:practice-corpus": "node scripts/sync-practice-corpus.mjs",
         "preview": "next start",
         "test": "vitest",
         "test:run": "vitest run",

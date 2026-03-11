@@ -2,7 +2,6 @@ import React, { useEffect, useRef, useState, useMemo } from "react";
 import useTypingStore from "../store/store";
 import Keyboard from "./Keyboard";
 import ProgressBar from "./ProgressBar";
-import FallbackNotice from "./game/FallbackNotice";
 import { useScreenSize } from "../hooks/useScreenSize";
 import { useKeyboardState } from "../hooks/useKeyboardState";
 import { usePracticeText } from "../hooks/usePracticeText";
@@ -20,7 +19,7 @@ const TypingInput: React.FC = () => {
     const [platform, setPlatform] = useState<"mac" | "windows">("windows");
 
     const { pressedKeys } = useKeyboardState();
-    const { textSource, fallbackMessage, fetchPracticeText, advanceToNextPrompt } = usePracticeText();
+    const { advanceToNextPrompt } = usePracticeText();
     const {
         input,
         setInput,
@@ -139,19 +138,6 @@ const TypingInput: React.FC = () => {
                 <div className={`text-center ${lg ? "text-4xl leading-relaxed mb-8" : "text-2xl md:text-3xl leading-loose mb-6"} font-semibold tracking-wide`}>
                     {renderedText}
                 </div>
-                {fallbackMessage && (
-                    <FallbackNotice
-                        className="mb-4"
-                        darkMode={darkMode}
-                        message={fallbackMessage}
-                        sourceLabel={
-                            textSource === "wikipedia" ? "wikipedia" : "local proverbs.json"
-                        }
-                        onRetry={() => {
-                            void fetchPracticeText();
-                        }}
-                    />
-                )}
                 <ProgressBar trackWidth={progressBarWidth} className={lg ? "mb-7" : "mb-5"} />
                 <textarea
                     ref={inputRef}

@@ -23,16 +23,9 @@ describe("fallback mode UI", () => {
         });
     });
 
-    it("shows practice fallback notice when wikipedia request fails", async () => {
-        vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("network")));
-
+    it("does not show practice fallback notice in local corpus mode", () => {
         render(<TypingInput />);
-
-        await waitFor(() => {
-            expect(
-                screen.getByText(/속담 연습 모드로 전환되었습니다/)
-            ).toBeInTheDocument();
-        });
+        expect(screen.queryByText(/속담 연습 모드로 전환되었습니다/)).not.toBeInTheDocument();
     });
 
     it("shows falling words fallback notice when krdict request fails", async () => {
