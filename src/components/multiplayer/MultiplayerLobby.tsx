@@ -105,8 +105,12 @@ export default function MultiplayerLobby({ gameName, room, onBack }: Multiplayer
                                 {room.waitingRooms.map((waitingRoom) => (
                                     <li
                                         key={waitingRoom.id}
-                                        className="flex items-center gap-3 px-3 py-2 hover:bg-[var(--retro-accent)]/10 cursor-pointer transition-colors"
+                                        role="button"
+                                        tabIndex={0}
+                                        aria-label={`${ko ? "입장" : "Join"}: ${waitingRoom.player1_nickname}`}
+                                        className="flex items-center gap-3 px-3 py-2 hover:bg-[var(--retro-accent)]/10 focus-visible:bg-[var(--retro-accent)]/10 focus-visible:outline-2 focus-visible:outline-[var(--retro-accent)] cursor-pointer transition-colors"
                                         onClick={() => room.joinRoom(waitingRoom.id)}
+                                        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); room.joinRoom(waitingRoom.id); } }}
                                     >
                                         <PixelAvatar
                                             config={waitingRoom.player1_avatar_config}

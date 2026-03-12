@@ -284,6 +284,18 @@ export function useMultiplayerRoom(gameMode: string) {
                         error: (payload as GameOverPayload)?.winner_id === user.id ? "WIN" : "LOSE",
                     }));
                 })
+                .on("broadcast", { event: "rematch_request" }, ({ payload }) => {
+                    const data = payload as { senderId: string };
+                    if (data.senderId === user.id) return;
+                    // 상대가 리매치 요청 → 상대 ready 처리 + waiting 복귀
+                    setState((prev) => ({
+                        ...prev,
+                        phase: "waiting",
+                        error: null,
+                        opponentReady: true,
+                    }));
+                    matchStartingRef.current = false;
+                })
                 .subscribe(async (status) => {
                     if (status !== "SUBSCRIBED") return;
 
@@ -440,6 +452,36 @@ export function useMultiplayerRoom(gameMode: string) {
 
     const getChannel = useCallback(() => channelRef.current, []);
 
+    const requestRematch = useCallback(async () => {
+        if (!user || !state.roomId) return;
+
+        // DB 상태를 waiting으로 복원
+        await supabase
+            .from("rooms")
+            .update({ status: "waiting", winner_id: null })
+            .eq("id", state.roomId);
+
+        // 로컬 상태: waiting + 내 ready=true
+        myReadyRef.current = true;
+        matchStartingRef.current = false;
+        setState((prev) => ({
+            ...prev,
+            phase: "waiting",
+            error: null,
+            myReady: true,
+        }));
+
+        // 상대에게 리매치 요청 브로드캐스트
+        channelRef.current?.send({
+            type: "broadcast",
+            event: "rematch_request",
+            payload: { senderId: user.id },
+        });
+
+        // ready 상태도 전파
+        publishReadyState(true);
+    }, [publishReadyState, state.roomId, user]);
+
     const leaveRoom = useCallback(async () => {
         if (user && state.roomId) {
             if (state.isHost || state.phase === "finished") {
@@ -529,5 +571,6 @@ export function useMultiplayerRoom(gameMode: string) {
         getChannel,
         refreshRooms: fetchWaitingRooms,
         setReady,
+        requestRematch,
     };
 }

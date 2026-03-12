@@ -82,7 +82,8 @@ export function useAuth() {
         } catch (err) {
             console.error("Auth state change error:", err);
             if (!mountedRef.current || requestId !== requestIdRef.current) return;
-            setState({ user: session.user, profile: null, loading: false });
+            // 프로필 복원 실패 시 user/profile 불일치 방지 — 완전 로그아웃 처리
+            clearAuthState();
         }
     }, [clearAuthState, ensureProfile]);
 

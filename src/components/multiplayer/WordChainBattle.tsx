@@ -337,7 +337,7 @@ export default function WordChainBattle({ room, onFinish }: WordChainBattleProps
                     display: "flex", alignItems: "center", justifyContent: "center",
                     background: "rgba(0,0,0,0.65)", backdropFilter: "blur(4px)",
                 }}>
-                    <div style={{ textAlign: "center" }}>
+                    <div style={{ textAlign: "center" }} role="status" aria-live="assertive">
                         <p style={{ color: "var(--retro-game-text)", fontSize: 14, marginBottom: 10 }}>
                             {ko ? "공식 대전을 시작합니다" : "Official match starts now"}
                         </p>
@@ -352,25 +352,40 @@ export default function WordChainBattle({ room, onFinish }: WordChainBattleProps
             )}
 
             {gameOver && room.phase === "finished" && (
-                <div style={{
-                    position: "absolute", inset: 0, zIndex: 40,
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    background: "rgba(0,0,0,0.7)", backdropFilter: "blur(4px)",
-                }}>
+                <div
+                    role="dialog"
+                    aria-labelledby="wordchain-result-title"
+                    aria-modal="true"
+                    style={{
+                        position: "absolute", inset: 0, zIndex: 40,
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        background: "rgba(0,0,0,0.7)", backdropFilter: "blur(4px)",
+                    }}
+                >
                     <div style={{ textAlign: "center" }}>
-                        <p style={{
-                            fontSize: 32, fontWeight: 900, letterSpacing: 4,
-                            color: winner === "me" ? "var(--retro-game-success)" : "var(--retro-game-danger)",
-                            textShadow: "2px 2px 0 #000",
-                        }}>
+                        <p
+                            id="wordchain-result-title"
+                            style={{
+                                fontSize: 32, fontWeight: 900, letterSpacing: 4,
+                                color: winner === "me" ? "var(--retro-game-success)" : "var(--retro-game-danger)",
+                                textShadow: "2px 2px 0 #000",
+                            }}
+                        >
                             {winner === "me" ? (ko ? "승리!" : "WIN!") : (ko ? "패배" : "LOSE")}
                         </p>
                         <p style={{ color: "var(--retro-game-text)", fontSize: 14, marginTop: 8 }}>
                             {ko ? "점수" : "Score"}: {score}
                         </p>
-                        <Button onClick={onFinish} className="mt-4">
-                            {ko ? "로비로" : "LOBBY"}
-                        </Button>
+                        <div className="flex gap-2 justify-center mt-4">
+                            {room.opponentUserId && (
+                                <Button onClick={() => void room.requestRematch()} aria-label={ko ? "재도전" : "Rematch"}>
+                                    {ko ? "재도전" : "REMATCH"}
+                                </Button>
+                            )}
+                            <Button onClick={onFinish} variant="ghost" aria-label={ko ? "로비로 돌아가기" : "Back to lobby"}>
+                                {ko ? "로비로" : "LOBBY"}
+                            </Button>
+                        </div>
                     </div>
                 </div>
             )}

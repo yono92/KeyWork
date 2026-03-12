@@ -256,7 +256,8 @@ describe("useAuth", () => {
 
         await waitFor(() => expect(result.current.loading).toBe(false));
 
-        expect(result.current.user?.id).toBe(user.id);
+        // 프로필 복원 실패 시 완전 로그아웃 — user/profile 불일치 방지
+        expect(result.current.user).toBeNull();
         expect(result.current.profile).toBeNull();
         expect(result.current.isLoggedIn).toBe(false);
     });
