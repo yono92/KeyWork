@@ -151,6 +151,31 @@ describe("useAuth", () => {
         expect(result.current.loading).toBe(false);
     });
 
+    it("hydrates from INITIAL_SESSION even if getSession is still pending", async () => {
+        const user = createUser();
+        const profile = createProfile();
+        const deferredSession = createDeferred<{ data: { session: null }; error: null }>();
+
+        mocks.getSession.mockReturnValue(deferredSession.promise);
+        mocks.single.mockResolvedValue({ data: profile });
+
+        const { result } = renderHook(() => useAuth());
+
+        await act(async () => {
+            await mocks.triggerAuth("INITIAL_SESSION", { user });
+        });
+
+        await waitFor(() => expect(result.current.loading).toBe(false));
+
+        expect(result.current.user?.id).toBe(user.id);
+        expect(result.current.profile).toEqual(profile);
+
+        deferredSession.resolve({ data: { session: null }, error: null });
+        await act(async () => {
+            await deferredSession.promise;
+        });
+    });
+
     it("keeps logout state even when an earlier session restore resolves later", async () => {
         const user = createUser();
         const profile = createProfile();

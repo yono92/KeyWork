@@ -85,7 +85,7 @@ export function useAuth() {
         const {
             data: { subscription },
         } = supabase.auth.onAuthStateChange((event, session) => {
-            if (event === "INITIAL_SESSION") return;
+            // INITIAL_SESSION도 받아야 getSession 지연 시 loading이 풀리지 않는 상황을 피할 수 있다.
             void syncSessionState(session);
         });
 

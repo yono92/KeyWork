@@ -16,6 +16,7 @@
 ### 반영 내용
 1. `src/hooks/useAuth.ts`
 - 마운트 시 `supabase.auth.getSession()`을 호출해 초기 세션을 복원하도록 변경
+- `INITIAL_SESSION` 이벤트도 처리해 `getSession()` 지연 시 로그인 버튼이 숨겨진 채 남지 않도록 보강
 - 세션 동기화 요청 순번과 마운트 여부를 추적해 오래된 비동기 결과를 무시하도록 보강
 - `signOut()` 성공 직후 `user/profile/loading` 상태를 즉시 정리
 
