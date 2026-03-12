@@ -25,15 +25,31 @@ function AccountSection({ language, pathname, onNavigate, variant = "full" }: {
     const { isLoggedIn, loading, profile, signOut } = useAuthContext();
     const [showAuth, setShowAuth] = useState(false);
 
-    if (loading) return null;
-
     return (
         <div className="px-3 pb-2 space-y-1.5">
             <p className="px-0 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--retro-text)]/50">
                 {ko ? "계정" : "Account"}
             </p>
 
-            {isLoggedIn ? (
+            {loading ? (
+                <>
+                    <NavButton
+                        icon={LogIn}
+                        label={ko ? "계정 확인 중..." : "Checking account..."}
+                        active={false}
+                        onClick={() => {}}
+                        variant={variant}
+                        disabled
+                    />
+                    <NavButton
+                        icon={Trophy}
+                        label={ko ? "랭킹" : "Leaderboard"}
+                        active={pathname === "/leaderboard"}
+                        onClick={() => onNavigate("/leaderboard")}
+                        variant={variant}
+                    />
+                </>
+            ) : isLoggedIn ? (
                 <>
                     {/* 아바타 + 닉네임 */}
                     <div className={cn(
@@ -101,19 +117,21 @@ function AccountSection({ language, pathname, onNavigate, variant = "full" }: {
     );
 }
 
-function NavButton({ icon: Icon, label, active, onClick, variant = "full", danger = false }: {
+function NavButton({ icon: Icon, label, active, onClick, variant = "full", danger = false, disabled = false }: {
     icon: React.ComponentType<{ className?: string }>;
     label: string;
     active: boolean;
     onClick: () => void;
     variant?: "full" | "compact";
     danger?: boolean;
+    disabled?: boolean;
 }) {
     return (
         <Button
             type="button"
             variant="ghost"
             onClick={onClick}
+            disabled={disabled}
             aria-label={label}
             className={cn(
                 "w-full h-auto gap-2.5 rounded-none px-3 py-1.5 text-xs font-semibold border-2",
@@ -123,6 +141,7 @@ function NavButton({ icon: Icon, label, active, onClick, variant = "full", dange
                     : danger
                         ? "border-[var(--retro-border-light)] border-r-[var(--retro-border-dark)] border-b-[var(--retro-border-dark)] border-l-[var(--retro-border-light)] bg-[var(--retro-surface)] text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30"
                         : "border-[var(--retro-border-light)] border-r-[var(--retro-border-dark)] border-b-[var(--retro-border-dark)] border-l-[var(--retro-border-light)] bg-[var(--retro-surface)] text-[var(--retro-text)] hover:bg-[var(--retro-surface-alt)]",
+                disabled && "cursor-default opacity-60 hover:bg-[var(--retro-surface)]",
             )}
         >
             <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />

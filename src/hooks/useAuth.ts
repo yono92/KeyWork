@@ -23,6 +23,11 @@ export function useAuth() {
     const requestIdRef = useRef(0);
     const mountedRef = useRef(false);
 
+    const clearAuthState = useCallback(() => {
+        if (!mountedRef.current) return;
+        setState({ user: null, profile: null, loading: false });
+    }, []);
+
     // 프로필 조회
     const fetchProfile = useCallback(async (userId: string) => {
         const { data } = await supabase
@@ -51,20 +56,30 @@ export function useAuth() {
 
         if (!session?.user) {
             if (!mountedRef.current || requestId !== requestIdRef.current) return;
-            setState({ user: null, profile: null, loading: false });
+            clearAuthState();
             return;
         }
 
         try {
-            const profile = await ensureProfile(session.user.id, session.user.email);
+            const { data, error } = await supabase.auth.getUser();
+            if (error || !data.user) {
+                console.warn("Discarding stale auth session", error);
+                await supabase.auth.signOut({ scope: "local" });
+                if (!mountedRef.current || requestId !== requestIdRef.current) return;
+                clearAuthState();
+                return;
+            }
+
+            const activeUser = data.user;
+            const profile = await ensureProfile(activeUser.id, activeUser.email ?? session.user.email);
             if (!mountedRef.current || requestId !== requestIdRef.current) return;
-            setState({ user: session.user, profile, loading: false });
+            setState({ user: activeUser, profile, loading: false });
         } catch (err) {
             console.error("Auth state change error:", err);
             if (!mountedRef.current || requestId !== requestIdRef.current) return;
             setState({ user: session.user, profile: null, loading: false });
         }
-    }, [ensureProfile]);
+    }, [clearAuthState, ensureProfile]);
 
     // 초기 세션 + 인증 상태 변경 리스너
     useEffect(() => {
@@ -77,8 +92,7 @@ export function useAuth() {
                 await syncSessionState(data.session ?? null);
             } catch (err) {
                 console.error("Auth session init error:", err);
-                if (!mountedRef.current) return;
-                setState({ user: null, profile: null, loading: false });
+                clearAuthState();
             }
         };
 
@@ -96,7 +110,7 @@ export function useAuth() {
             requestIdRef.current += 1;
             subscription.unsubscribe();
         };
-    }, [syncSessionState]);
+    }, [clearAuthState, syncSessionState]);
 
     // 회원가입
     const signUp = async (email: string, password: string, nickname: string) => {
@@ -126,9 +140,7 @@ export function useAuth() {
         const { error } = await supabase.auth.signOut();
         if (error) throw error;
         requestIdRef.current += 1;
-        if (mountedRef.current) {
-            setState({ user: null, profile: null, loading: false });
-        }
+        clearAuthState();
     };
 
     // 닉네임 변경

@@ -16,6 +16,7 @@ const mocks = vi.hoisted(() => {
     const from = vi.fn(() => ({ select, upsert, insert, update }));
 
     const getSession = vi.fn();
+    const getUser = vi.fn();
     const signOut = vi.fn();
     const signInWithPassword = vi.fn();
     const signUp = vi.fn();
@@ -28,6 +29,7 @@ const mocks = vi.hoisted(() => {
     const mockSupabase = {
         auth: {
             getSession,
+            getUser,
             onAuthStateChange,
             signOut,
             signInWithPassword,
@@ -40,6 +42,7 @@ const mocks = vi.hoisted(() => {
         eq,
         from,
         getSession,
+        getUser,
         mockSupabase,
         onAuthStateChange,
         select,
@@ -98,7 +101,9 @@ const createProfile = () => ({
 describe("useAuth", () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        vi.spyOn(console, "warn").mockImplementation(() => {});
         mocks.getSession.mockResolvedValue({ data: { session: null }, error: null });
+        mocks.getUser.mockResolvedValue({ data: { user: null }, error: null });
         mocks.signOut.mockResolvedValue({ error: null });
         mocks.single.mockResolvedValue({ data: null });
         mocks.upsert.mockResolvedValue({ error: null });
@@ -116,6 +121,7 @@ describe("useAuth", () => {
             data: { session: { user } },
             error: null,
         });
+        mocks.getUser.mockResolvedValue({ data: { user }, error: null });
         mocks.single.mockResolvedValue({ data: profile });
 
         const { result } = renderHook(() => useAuth());
@@ -136,6 +142,7 @@ describe("useAuth", () => {
             data: { session: { user } },
             error: null,
         });
+        mocks.getUser.mockResolvedValue({ data: { user }, error: null });
         mocks.single.mockResolvedValue({ data: profile });
 
         const { result } = renderHook(() => useAuth());
@@ -157,6 +164,7 @@ describe("useAuth", () => {
         const deferredSession = createDeferred<{ data: { session: null }; error: null }>();
 
         mocks.getSession.mockReturnValue(deferredSession.promise);
+        mocks.getUser.mockResolvedValue({ data: { user }, error: null });
         mocks.single.mockResolvedValue({ data: profile });
 
         const { result } = renderHook(() => useAuth());
@@ -185,6 +193,7 @@ describe("useAuth", () => {
             data: { session: { user } },
             error: null,
         });
+        mocks.getUser.mockResolvedValue({ data: { user }, error: null });
         mocks.single.mockReturnValueOnce(deferredProfile.promise);
 
         const { result } = renderHook(() => useAuth());
@@ -206,5 +215,26 @@ describe("useAuth", () => {
 
         expect(result.current.user).toBeNull();
         expect(result.current.profile).toBeNull();
+    });
+
+    it("clears a stale cached session when getUser cannot verify it", async () => {
+        const user = createUser();
+
+        mocks.getSession.mockResolvedValue({
+            data: { session: { user } },
+            error: null,
+        });
+        mocks.getUser.mockResolvedValue({
+            data: { user: null },
+            error: new Error("Auth session missing"),
+        });
+
+        const { result } = renderHook(() => useAuth());
+
+        await waitFor(() => expect(result.current.loading).toBe(false));
+
+        expect(result.current.user).toBeNull();
+        expect(result.current.profile).toBeNull();
+        expect(mocks.signOut).toHaveBeenCalledWith({ scope: "local" });
     });
 });
