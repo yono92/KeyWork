@@ -38,6 +38,14 @@ export function useMultiplayerWordChain(
     const [opponentLives, setOpponentLives] = useState(3);
     const [myLives, setMyLives] = useState(3);
 
+    const resetState = useCallback(() => {
+        setIsMyTurn(false);
+        setOpponentWord(null);
+        setCurrentChar("");
+        setOpponentLives(3);
+        setMyLives(3);
+    }, []);
+
     useEffect(() => {
         const channel = getChannel();
         if (!channel || !isPlaying) return;
@@ -109,5 +117,6 @@ export function useMultiplayerWordChain(
         broadcastWord,
         broadcastLives,
         broadcastTurn,
+        resetState,
     };
 }

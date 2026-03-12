@@ -81,6 +81,17 @@ export function useMultiplayerTetris(
     const [pendingGarbage, setPendingGarbage] = useState(0);
     const garbageTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+    const resetState = useCallback(() => {
+        setOpponent({
+            board: Array.from({ length: BOARD_HEIGHT }, () => Array(BOARD_WIDTH).fill(0)),
+            score: 0,
+            lines: 0,
+            level: 1,
+            gameOver: false,
+        });
+        setPendingGarbage(0);
+    }, []);
+
     // 상대 보드 수신 — 채널당 1회만 핸들러 등록
     useEffect(() => {
         const channel = getChannel();
@@ -157,5 +168,6 @@ export function useMultiplayerTetris(
         broadcastBoard,
         sendGarbage,
         consumeGarbage,
+        resetState,
     };
 }

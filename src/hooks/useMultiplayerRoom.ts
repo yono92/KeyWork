@@ -5,9 +5,19 @@ import { createClient } from "@/lib/supabase/client";
 import { useAuthContext } from "@/components/auth/AuthProvider";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import type { AvatarConfig } from "@/lib/supabase/types";
-import { getRoomCutoffIso } from "@/lib/multiplayerRealtime";
+import { canAutoStartMatch, getRoomCutoffIso } from "@/lib/multiplayerRealtime";
 
 export type RoomPhase = "idle" | "creating" | "joining" | "waiting" | "countdown" | "playing" | "finished" | "disconnected";
+
+interface ReadyPayload {
+    userId: string;
+    ready: boolean;
+    senderId: string;
+}
+
+interface GameOverPayload {
+    winner_id?: string;
+}
 
 export interface WaitingRoom {
     id: string;
@@ -26,6 +36,8 @@ interface RoomState {
     opponentAvatarConfig: AvatarConfig | null;
     countdown: number;
     error: string | null;
+    myReady: boolean;
+    opponentReady: boolean;
 }
 
 const INITIAL_ROOM_STATE: RoomState = {
@@ -37,6 +49,8 @@ const INITIAL_ROOM_STATE: RoomState = {
     opponentAvatarConfig: null,
     countdown: 3,
     error: null,
+    myReady: false,
+    opponentReady: false,
 };
 
 const DISCONNECT_TIMEOUT_MS = 5000;
@@ -53,6 +67,8 @@ export function useMultiplayerRoom(gameMode: string) {
     const channelRef = useRef<RealtimeChannel | null>(null);
     const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const disconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const matchStartingRef = useRef(false);
+    const myReadyRef = useRef(false);
 
     const [state, setState] = useState<RoomState>(INITIAL_ROOM_STATE);
     const [waitingRooms, setWaitingRooms] = useState<WaitingRoom[]>([]);
@@ -70,6 +86,8 @@ export function useMultiplayerRoom(gameMode: string) {
             clearTimeout(disconnectTimerRef.current);
             disconnectTimerRef.current = null;
         }
+        matchStartingRef.current = false;
+        myReadyRef.current = false;
         sessionStorage.removeItem("mp_roomId");
     }, []);
 
@@ -81,8 +99,19 @@ export function useMultiplayerRoom(gameMode: string) {
         if (countdownRef.current) {
             clearInterval(countdownRef.current);
         }
-        setState((prev) => ({ ...prev, phase: "countdown", countdown: 3 }));
+
+        setState((prev) => ({
+            ...prev,
+            phase: "countdown",
+            countdown: 3,
+            error: null,
+            myReady: false,
+            opponentReady: false,
+        }));
+
+        myReadyRef.current = false;
         let count = 3;
+
         countdownRef.current = setInterval(() => {
             count -= 1;
             if (count <= 0) {
@@ -93,9 +122,29 @@ export function useMultiplayerRoom(gameMode: string) {
                 setState((prev) => ({ ...prev, phase: "playing", countdown: 0 }));
                 return;
             }
+
             setState((prev) => ({ ...prev, countdown: count }));
         }, 1000);
     }, []);
+
+    const publishReadyState = useCallback((ready: boolean) => {
+        if (!user || !channelRef.current) return;
+        channelRef.current.send({
+            type: "broadcast",
+            event: "ready_state",
+            payload: {
+                userId: user.id,
+                ready,
+                senderId: user.id,
+            },
+        });
+    }, [user]);
+
+    const setReady = useCallback((ready: boolean) => {
+        myReadyRef.current = ready;
+        setState((prev) => ({ ...prev, myReady: ready }));
+        publishReadyState(ready);
+    }, [publishReadyState]);
 
     const fetchWaitingRooms = useCallback(async () => {
         if (!user || !profile) return;
@@ -179,6 +228,8 @@ export function useMultiplayerRoom(gameMode: string) {
                         opponentNickname: (remote.nickname as string) ?? "Player",
                         opponentAvatarConfig: (remote.avatar_config as AvatarConfig) ?? null,
                     }));
+
+                    publishReadyState(myReadyRef.current);
                 })
                 .on("presence", { event: "leave" }, ({ leftPresences }) => {
                     const opponentLeft = leftPresences.some((presence) => (presence as Record<string, unknown>).user_id !== user.id);
@@ -205,10 +256,20 @@ export function useMultiplayerRoom(gameMode: string) {
                             opponentUserId: null,
                             opponentNickname: null,
                             opponentAvatarConfig: null,
+                            opponentReady: false,
                         };
                     });
                 })
+                .on("broadcast", { event: "ready_state" }, ({ payload }) => {
+                    const data = payload as ReadyPayload;
+                    if (data.userId === user.id) return;
+                    setState((prev) => ({
+                        ...prev,
+                        opponentReady: data.ready,
+                    }));
+                })
                 .on("broadcast", { event: "game_start" }, () => {
+                    matchStartingRef.current = false;
                     startCountdown();
                 })
                 .on("broadcast", { event: "game_over" }, ({ payload }) => {
@@ -216,10 +277,11 @@ export function useMultiplayerRoom(gameMode: string) {
                         clearInterval(countdownRef.current);
                         countdownRef.current = null;
                     }
+                    matchStartingRef.current = false;
                     setState((prev) => ({
                         ...prev,
                         phase: "finished",
-                        error: (payload as { winner_id?: string })?.winner_id === user.id ? "WIN" : "LOSE",
+                        error: (payload as GameOverPayload)?.winner_id === user.id ? "WIN" : "LOSE",
                     }));
                 })
                 .subscribe(async (status) => {
@@ -231,12 +293,14 @@ export function useMultiplayerRoom(gameMode: string) {
                         avatar_config: profile.avatar_config ?? null,
                         online_at: new Date().toISOString(),
                     });
+
+                    publishReadyState(myReadyRef.current);
                     resolve();
                 });
 
             channelRef.current = channel;
         });
-    }, [profile, startCountdown, user]);
+    }, [profile, publishReadyState, startCountdown, user]);
 
     const createRoom = useCallback(async () => {
         if (!user || !profile) return;
@@ -263,7 +327,10 @@ export function useMultiplayerRoom(gameMode: string) {
             phase: "waiting",
             isHost: true,
             error: null,
+            myReady: false,
+            opponentReady: false,
         }));
+        myReadyRef.current = false;
         await subscribeToRoom(roomId);
     }, [gameMode, profile, subscribeToRoom, user]);
 
@@ -301,7 +368,7 @@ export function useMultiplayerRoom(gameMode: string) {
 
         const { data: updated, error: updateError } = await supabase
             .from("rooms")
-            .update({ player2_id: user.id, status: "playing" })
+            .update({ player2_id: user.id, status: "waiting" })
             .eq("id", code.toUpperCase())
             .eq("status", "waiting")
             .is("player2_id", null)
@@ -324,16 +391,13 @@ export function useMultiplayerRoom(gameMode: string) {
             phase: "waiting",
             isHost: false,
             error: null,
+            myReady: false,
+            opponentReady: false,
         }));
+        myReadyRef.current = false;
 
         await subscribeToRoom(code.toUpperCase());
-        startCountdown();
-        channelRef.current?.send({
-            type: "broadcast",
-            event: "game_start",
-            payload: {},
-        });
-    }, [gameMode, profile, startCountdown, subscribeToRoom, user]);
+    }, [gameMode, profile, subscribeToRoom, user]);
 
     const quickMatch = useCallback(async () => {
         if (!user || !profile) return;
@@ -359,13 +423,20 @@ export function useMultiplayerRoom(gameMode: string) {
         await createRoom();
     }, [createRoom, gameMode, joinRoom, profile, user]);
 
-    const broadcastGameOver = useCallback((winnerId: string) => {
+    const broadcastGameOver = useCallback(async (winnerId: string) => {
+        if (!state.roomId) return;
+
+        await supabase
+            .from("rooms")
+            .update({ status: "finished", winner_id: winnerId })
+            .eq("id", state.roomId);
+
         channelRef.current?.send({
             type: "broadcast",
             event: "game_over",
             payload: { winner_id: winnerId },
         });
-    }, []);
+    }, [state.roomId]);
 
     const getChannel = useCallback(() => channelRef.current, []);
 
@@ -387,11 +458,62 @@ export function useMultiplayerRoom(gameMode: string) {
     }, [cleanup, resetRoomState, state.isHost, state.phase, state.roomId, user]);
 
     useEffect(() => {
+        if (!state.roomId || !user || !state.isHost) return;
+        if (!canAutoStartMatch({
+            isHost: state.isHost,
+            myReady: state.myReady,
+            opponentReady: state.opponentReady,
+            opponentUserId: state.opponentUserId,
+            phase: state.phase,
+        })) {
+            matchStartingRef.current = false;
+            return;
+        }
+        if (matchStartingRef.current) return;
+
+        matchStartingRef.current = true;
+
+        void (async () => {
+            await supabase
+                .from("rooms")
+                .update({ status: "playing", winner_id: null })
+                .eq("id", state.roomId)
+                .eq("player1_id", user.id);
+
+            startCountdown();
+            channelRef.current?.send({
+                type: "broadcast",
+                event: "game_start",
+                payload: {},
+            });
+        })();
+    }, [startCountdown, state.isHost, state.myReady, state.opponentReady, state.opponentUserId, state.phase, state.roomId, user]);
+
+    useEffect(() => {
         const savedRoomId = sessionStorage.getItem("mp_roomId");
         if (!savedRoomId || !user || !profile) return;
 
-        setState((prev) => ({ ...prev, roomId: savedRoomId }));
-        void subscribeToRoom(savedRoomId);
+        void (async () => {
+            const { data: room } = await supabase
+                .from("rooms")
+                .select("id, status, player1_id")
+                .eq("id", savedRoomId)
+                .maybeSingle();
+
+            if (!room) {
+                sessionStorage.removeItem("mp_roomId");
+                return;
+            }
+
+            setState((prev) => ({
+                ...prev,
+                roomId: savedRoomId,
+                isHost: room.player1_id === user.id,
+                phase: room.status === "playing" ? "playing" : "waiting",
+            }));
+
+            await subscribeToRoom(savedRoomId);
+        })();
     }, [profile, subscribeToRoom, user]);
 
     useEffect(() => () => cleanup(), [cleanup]);
@@ -406,5 +528,6 @@ export function useMultiplayerRoom(gameMode: string) {
         broadcastGameOver,
         getChannel,
         refreshRooms: fetchWaitingRooms,
+        setReady,
     };
 }

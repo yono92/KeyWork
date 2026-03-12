@@ -11,6 +11,8 @@ import {
     isOwnBroadcast,
     isRoomExpired,
     pickStartingTurnUserId,
+    canAutoStartMatch,
+    shouldResetForMatchStart,
 } from "@/lib/multiplayerRealtime";
 import { BOARD_WIDTH, BOARD_HEIGHT } from "@/hooks/useTetrisEngine";
 import type { Cell } from "@/hooks/useTetrisEngine";
@@ -119,5 +121,28 @@ describe("multiplayer realtime helpers", () => {
         expect(isRoomExpired(freshRoom, now)).toBe(false);
         expect(isRoomExpired(staleRoom, now)).toBe(true);
         expect(getRoomCutoffIso(now)).toBe("2026-03-11T23:00:00.000Z");
+    });
+
+    it("starts only when both players are ready in the waiting phase", () => {
+        expect(canAutoStartMatch({
+            isHost: true,
+            myReady: true,
+            opponentReady: true,
+            opponentUserId: "guest-1",
+            phase: "waiting",
+        })).toBe(true);
+
+        expect(canAutoStartMatch({
+            isHost: false,
+            myReady: true,
+            opponentReady: true,
+            opponentUserId: "host-1",
+            phase: "waiting",
+        })).toBe(false);
+    });
+
+    it("resets the match state only when countdown newly starts", () => {
+        expect(shouldResetForMatchStart("waiting", "countdown")).toBe(true);
+        expect(shouldResetForMatchStart("countdown", "countdown")).toBe(false);
     });
 });

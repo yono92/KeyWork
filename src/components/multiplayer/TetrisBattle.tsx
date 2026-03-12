@@ -1,28 +1,24 @@
 "use client";
 
 import React, { useCallback, useEffect, useRef } from "react";
-import type { RealtimeChannel } from "@supabase/supabase-js";
 import { useResponsiveTetrisSize } from "@/hooks/useResponsiveTetrisSize";
 import { useTetrisAnimations } from "@/hooks/useTetrisAnimations";
 import { useTetrisEngine, CELL_COLORS, BOARD_WIDTH } from "@/hooks/useTetrisEngine";
 import { useMultiplayerTetris, deserializeBoard } from "@/hooks/useMultiplayerTetris";
-
 import { useScoreSubmit } from "@/hooks/useScoreSubmit";
 import { useAuthContext } from "@/components/auth/AuthProvider";
+import type { useMultiplayerRoom } from "@/hooks/useMultiplayerRoom";
 import useTypingStore from "@/store/store";
-import type { AvatarConfig } from "@/lib/supabase/types";
 import PixelAvatar from "@/components/avatar/PixelAvatar";
+import RoomReadyPanel from "@/components/multiplayer/RoomReadyPanel";
+import { shouldResetForMatchStart } from "@/lib/multiplayerRealtime";
 
 interface TetrisBattleProps {
-    getChannel: () => RealtimeChannel | null;
-    roomId: string;
-    isHost: boolean;
-    opponentNickname: string;
-    opponentAvatarConfig: AvatarConfig | null;
+    room: ReturnType<typeof useMultiplayerRoom>;
     onFinish: () => void;
 }
 
-export default function TetrisBattle({ getChannel, opponentNickname, opponentAvatarConfig, onFinish }: TetrisBattleProps) {
+export default function TetrisBattle({ room, onFinish }: TetrisBattleProps) {
     const { submitScore } = useScoreSubmit();
     const { user, profile } = useAuthContext();
     const language = useTypingStore((s) => s.language);
@@ -30,96 +26,105 @@ export default function TetrisBattle({ getChannel, opponentNickname, opponentAva
     const { sectionRef, cellSize, isMobile } = useResponsiveTetrisSize();
     const anim = useTetrisAnimations(true);
     const broadcastIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-    const gameEndedRef = useRef(false);
+    const prevPhaseRef = useRef<string | null>(null);
+    const scoreSubmittedRef = useRef(false);
+    const liveMatchRef = useRef(false);
 
     const onLinesCleared = useCallback((_rows: number[], _removed: number, totalGain: number, newCombo: number) => {
         anim.triggerScorePop();
         anim.addFloatingText(`+${totalGain}`, "var(--retro-game-warning)");
         if (newCombo >= 2) anim.addFloatingText(`COMBO x${newCombo}`, "var(--retro-game-info)");
-        // 가비지 전송은 아래 effect에서 처리
     }, [anim]);
 
     const onHardDrop = useCallback((distance: number) => {
         if (distance > 2) anim.triggerShake();
     }, [anim]);
 
-    const onGameOver = useCallback(() => {
-        // 게임 오버 처리는 아래 effect에서
-    }, []);
+    const engine = useTetrisEngine({ onLinesCleared, onHardDrop, onGameOver: () => {} }, isMobile);
+    const mp = useMultiplayerTetris(room.getChannel, true, user?.id ?? "");
+    const prevLinesRef = useRef(0);
 
-    const engine = useTetrisEngine({ onLinesCleared, onHardDrop, onGameOver }, isMobile);
-    const mp = useMultiplayerTetris(getChannel, engine.running, user?.id ?? "");
-
-    // 자동 시작
     useEffect(() => {
         engine.resetGame();
     }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-    // 300ms마다 보드 브로드캐스트
     useEffect(() => {
-        if (!engine.running) return;
+        if (!shouldResetForMatchStart(prevPhaseRef.current, room.phase)) {
+            prevPhaseRef.current = room.phase;
+            return;
+        }
+
+        mp.resetState();
+        engine.resetGame();
+        prevLinesRef.current = 0;
+        scoreSubmittedRef.current = false;
+        liveMatchRef.current = true;
+        prevPhaseRef.current = room.phase;
+    }, [engine, mp, room.phase]);
+
+    useEffect(() => {
+        if (prevPhaseRef.current !== room.phase) {
+            prevPhaseRef.current = room.phase;
+        }
+    }, [room.phase]);
+
+    useEffect(() => {
+        if (room.phase !== "playing") return;
+
         broadcastIntervalRef.current = setInterval(() => {
             mp.broadcastBoard(engine.board, engine.score, engine.lines, engine.level, engine.gameOver);
         }, 300);
+
         return () => {
             if (broadcastIntervalRef.current) clearInterval(broadcastIntervalRef.current);
         };
-    }, [engine.running, engine.board, engine.score, engine.lines, engine.level, engine.gameOver, mp]);
+    }, [engine.board, engine.gameOver, engine.level, engine.lines, engine.score, mp, room.phase]);
 
-    // 라인 클리어 시 가비지 전송
-    const prevLinesRef = useRef(engine.lines);
     useEffect(() => {
+        if (room.phase !== "playing") return;
+
         const diff = engine.lines - prevLinesRef.current;
         if (diff > 0) mp.sendGarbage(diff);
         prevLinesRef.current = engine.lines;
-    }, [engine.lines, mp]);
+    }, [engine.lines, mp, room.phase]);
 
-    // 수신한 가비지 라인을 보드에 적용 (0.5초 딜레이)
     useEffect(() => {
-        if (mp.pendingGarbage <= 0 || engine.gameOver || !engine.running) return;
+        if (room.phase !== "playing" || mp.pendingGarbage <= 0 || engine.gameOver || !engine.running) return;
+
         const timer = setTimeout(() => {
             const garbageLines = mp.consumeGarbage();
             if (garbageLines) {
                 engine.applyGarbage(garbageLines);
             }
         }, 500);
+
         return () => clearTimeout(timer);
-    }, [mp.pendingGarbage, mp, engine]);
+    }, [engine, mp, room.phase]);
 
-    // 게임 오버 처리
     useEffect(() => {
-        if (engine.gameOver && !gameEndedRef.current) {
-            gameEndedRef.current = true;
-            mp.broadcastBoard(engine.board, engine.score, engine.lines, engine.level, true);
+        if (room.phase !== "playing" || !liveMatchRef.current || !engine.gameOver || !room.opponentUserId) return;
+        liveMatchRef.current = false;
+        void room.broadcastGameOver(room.opponentUserId);
+    }, [engine.gameOver, room]);
 
-            // 점수 제출
-            submitScore({
-                game_mode: "tetris",
-                score: engine.score,
-                lines: engine.lines,
-                is_multiplayer: true,
-                is_win: false,
-            });
-        }
-    }, [engine.gameOver, engine.board, engine.score, engine.lines, engine.level, mp, submitScore]);
-
-    // 상대 게임 오버 감지 (내가 승리)
     useEffect(() => {
-        if (mp.opponent.gameOver && !engine.gameOver && !gameEndedRef.current) {
-            gameEndedRef.current = true;
-            submitScore({
-                game_mode: "tetris",
-                score: engine.score,
-                lines: engine.lines,
-                is_multiplayer: true,
-                is_win: true,
-            });
-        }
-    }, [mp.opponent.gameOver, engine.gameOver, engine.score, engine.lines, submitScore]);
+        if (room.phase !== "finished" || !room.error || scoreSubmittedRef.current) return;
+
+        scoreSubmittedRef.current = true;
+        void submitScore({
+            game_mode: "tetris",
+            score: engine.score,
+            lines: engine.lines,
+            is_multiplayer: true,
+            is_win: room.error === "WIN",
+        });
+    }, [engine.lines, engine.score, room.error, room.phase, submitScore]);
 
     const miniCellSize = Math.max(4, Math.floor(cellSize * 0.35));
-    const isFinished = engine.gameOver || mp.opponent.gameOver;
-    const iWon = mp.opponent.gameOver && !engine.gameOver;
+    const showCountdown = room.phase === "countdown";
+    const showRoomPanel = room.phase === "waiting";
+    const showResult = room.phase === "finished";
+    const iWon = room.error === "WIN";
 
     const renderMiniBoard = () => {
         const board = deserializeBoard(mp.opponent.board);
@@ -150,10 +155,22 @@ export default function TetrisBattle({ getChannel, opponentNickname, opponentAva
     };
 
     return (
-        <section ref={sectionRef} className="w-full mx-auto h-full min-h-0 overflow-hidden flex flex-col gap-2" style={{ color: "var(--retro-game-text)" }}>
+        <section ref={sectionRef} className="relative w-full mx-auto h-full min-h-0 overflow-hidden flex flex-col gap-2" style={{ color: "var(--retro-game-text)" }}>
+            {showRoomPanel && (
+                <RoomReadyPanel
+                    room={room}
+                    onLeave={onFinish}
+                    title={ko ? "테트리스 룸" : "Tetris Room"}
+                    description={
+                        room.opponentUserId
+                            ? ko ? "혼자 연습하다가 Ready를 누르세요. 두 플레이어가 모두 준비되면 새 판으로 시작합니다." : "Practice solo, then hit Ready. The match starts on a fresh board when both players are ready."
+                            : ko ? "상대를 기다리는 동안 혼자 보드를 연습할 수 있습니다." : "You can practice solo while waiting for another player."
+                    }
+                />
+            )}
+
             <div className="mx-auto w-fit max-w-full min-h-0 flex-1">
                 <div style={{ display: "flex", gap: 12, alignItems: "start" }}>
-                    {/* 내 보드 (기존 TetrisGame 렌더링 간소화) */}
                     <div>
                         <div style={{ textAlign: "center", marginBottom: 4, display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}>
                             <PixelAvatar config={profile?.avatar_config ?? null} nickname={profile?.nickname ?? "?"} size="sm" />
@@ -178,20 +195,26 @@ export default function TetrisBattle({ getChannel, opponentNickname, opponentAva
                                 row.map((cell, ci) => {
                                     const key = `${ri}-${ci}`;
                                     if (cell) {
-                                        const c = CELL_COLORS[cell];
+                                        const color = CELL_COLORS[cell];
                                         return (
                                             <div key={key} style={{
-                                                width: cellSize, height: cellSize,
-                                                background: c.face,
-                                                borderStyle: "solid", borderWidth: "2px",
-                                                borderTopColor: c.hi, borderLeftColor: c.hi,
-                                                borderBottomColor: c.lo, borderRightColor: c.lo,
+                                                width: cellSize,
+                                                height: cellSize,
+                                                background: color.face,
+                                                borderStyle: "solid",
+                                                borderWidth: "2px",
+                                                borderTopColor: color.hi,
+                                                borderLeftColor: color.hi,
+                                                borderBottomColor: color.lo,
+                                                borderRightColor: color.lo,
                                             }} />
                                         );
                                     }
+
                                     return (
                                         <div key={key} style={{
-                                            width: cellSize, height: cellSize,
+                                            width: cellSize,
+                                            height: cellSize,
                                             background: "var(--retro-game-bg)",
                                             borderRight: "1px solid var(--retro-game-grid)",
                                             borderBottom: "1px solid var(--retro-game-grid)",
@@ -199,9 +222,12 @@ export default function TetrisBattle({ getChannel, opponentNickname, opponentAva
                                     );
                                 }),
                             )}
-                            {mp.pendingGarbage > 0 && (
+                            {room.phase === "playing" && mp.pendingGarbage > 0 && (
                                 <div style={{
-                                    position: "absolute", bottom: 0, left: 0, width: 4,
+                                    position: "absolute",
+                                    bottom: 0,
+                                    left: 0,
+                                    width: 4,
                                     height: mp.pendingGarbage * cellSize,
                                     background: "var(--retro-game-danger)",
                                     animation: "tetris-blink 0.5s step-end infinite",
@@ -210,10 +236,9 @@ export default function TetrisBattle({ getChannel, opponentNickname, opponentAva
                         </div>
                     </div>
 
-                    {/* 상대 미니맵 */}
                     <div>
                         <div style={{ textAlign: "center", marginBottom: 4, display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}>
-                            <PixelAvatar config={opponentAvatarConfig} nickname={opponentNickname} size="sm" />
+                            <PixelAvatar config={room.opponentAvatarConfig} nickname={room.opponentNickname ?? "?"} size="sm" />
                             <span style={{ fontSize: 11, fontWeight: 700, color: "var(--retro-game-danger)" }}>
                                 {ko ? "상대" : "OPP"}
                             </span>
@@ -224,49 +249,68 @@ export default function TetrisBattle({ getChannel, opponentNickname, opponentAva
                         {renderMiniBoard()}
                         <div style={{ textAlign: "center", marginTop: 4 }}>
                             <span style={{ fontSize: 10, color: "var(--retro-game-text-dim)" }}>
-                                LV.{mp.opponent.level} | L:{mp.opponent.lines}
+                                {room.opponentUserId ? `LV.${mp.opponent.level} | L:${mp.opponent.lines}` : ko ? "상대 입장 전" : "Waiting for opponent"}
                             </span>
                         </div>
                     </div>
                 </div>
-
-                {/* 결과 오버레이 */}
-                {isFinished && (
-                    <div style={{
-                        position: "fixed", inset: 0, zIndex: 50,
-                        display: "flex", alignItems: "center", justifyContent: "center",
-                        background: "rgba(0,0,0,0.7)", backdropFilter: "blur(4px)",
-                    }}>
-                        <div style={{ textAlign: "center" }}>
-                            <p style={{
-                                fontSize: 36, fontWeight: 900, letterSpacing: 6,
-                                color: iWon ? "var(--retro-game-success)" : "var(--retro-game-danger)",
-                                textShadow: "2px 2px 0 #000",
-                            }}>
-                                {iWon ? (ko ? "승리!" : "WIN!") : (ko ? "패배" : "LOSE")}
-                            </p>
-                            <p style={{ color: "var(--retro-game-text)", fontSize: 14, marginTop: 8 }}>
-                                {ko ? "점수" : "Score"}: {engine.score.toLocaleString()}
-                            </p>
-                            <button
-                                onClick={onFinish}
-                                style={{
-                                    marginTop: 16, padding: "8px 24px",
-                                    background: "var(--retro-game-panel)", color: "var(--retro-game-text)",
-                                    fontWeight: 900, fontSize: 14, letterSpacing: 2, cursor: "pointer",
-                                    borderStyle: "solid", borderWidth: "3px",
-                                    borderTopColor: "var(--retro-game-panel-border-hi)",
-                                    borderLeftColor: "var(--retro-game-panel-border-hi)",
-                                    borderBottomColor: "var(--retro-game-panel-border-lo)",
-                                    borderRightColor: "var(--retro-game-panel-border-lo)",
-                                }}
-                            >
-                                {ko ? "로비로" : "LOBBY"}
-                            </button>
-                        </div>
-                    </div>
-                )}
             </div>
+
+            {showCountdown && (
+                <div style={{
+                    position: "fixed", inset: 0, zIndex: 40,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    background: "rgba(0,0,0,0.45)", backdropFilter: "blur(4px)",
+                }}>
+                    <div style={{ textAlign: "center" }}>
+                        <p style={{ fontSize: 14, fontWeight: 700, color: "var(--retro-game-text)", marginBottom: 12 }}>
+                            {ko ? "새 판으로 시작합니다" : "Starting fresh board"}
+                        </p>
+                        <p style={{
+                            fontSize: 56, fontWeight: 900, letterSpacing: 4,
+                            color: "var(--retro-game-warning)", textShadow: "2px 2px 0 #000",
+                        }}>
+                            {room.countdown}
+                        </p>
+                    </div>
+                </div>
+            )}
+
+            {showResult && (
+                <div style={{
+                    position: "fixed", inset: 0, zIndex: 50,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    background: "rgba(0,0,0,0.7)", backdropFilter: "blur(4px)",
+                }}>
+                    <div style={{ textAlign: "center" }}>
+                        <p style={{
+                            fontSize: 36, fontWeight: 900, letterSpacing: 6,
+                            color: iWon ? "var(--retro-game-success)" : "var(--retro-game-danger)",
+                            textShadow: "2px 2px 0 #000",
+                        }}>
+                            {iWon ? (ko ? "승리!" : "WIN!") : (ko ? "패배" : "LOSE")}
+                        </p>
+                        <p style={{ color: "var(--retro-game-text)", fontSize: 14, marginTop: 8 }}>
+                            {ko ? "점수" : "Score"}: {engine.score.toLocaleString()}
+                        </p>
+                        <button
+                            onClick={onFinish}
+                            style={{
+                                marginTop: 16, padding: "8px 24px",
+                                background: "var(--retro-game-panel)", color: "var(--retro-game-text)",
+                                fontWeight: 900, fontSize: 14, letterSpacing: 2, cursor: "pointer",
+                                borderStyle: "solid", borderWidth: "3px",
+                                borderTopColor: "var(--retro-game-panel-border-hi)",
+                                borderLeftColor: "var(--retro-game-panel-border-hi)",
+                                borderBottomColor: "var(--retro-game-panel-border-lo)",
+                                borderRightColor: "var(--retro-game-panel-border-lo)",
+                            }}
+                        >
+                            {ko ? "로비로" : "LOBBY"}
+                        </button>
+                    </div>
+                </div>
+            )}
         </section>
     );
 }
