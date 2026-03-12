@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import type { User } from "@supabase/supabase-js";
+import type { Session, User } from "@supabase/supabase-js";
 import type { AvatarConfig, Profile } from "@/lib/supabase/types";
 
 interface AuthState {
@@ -20,6 +20,8 @@ export function useAuth() {
         profile: null,
         loading: true,
     });
+    const requestIdRef = useRef(0);
+    const mountedRef = useRef(false);
 
     // 프로필 조회
     const fetchProfile = useCallback(async (userId: string) => {
@@ -44,27 +46,57 @@ export function useAuth() {
         return profile;
     }, [fetchProfile]);
 
+    const syncSessionState = useCallback(async (session: Session | null) => {
+        const requestId = ++requestIdRef.current;
+
+        if (!session?.user) {
+            if (!mountedRef.current || requestId !== requestIdRef.current) return;
+            setState({ user: null, profile: null, loading: false });
+            return;
+        }
+
+        try {
+            const profile = await ensureProfile(session.user.id, session.user.email);
+            if (!mountedRef.current || requestId !== requestIdRef.current) return;
+            setState({ user: session.user, profile, loading: false });
+        } catch (err) {
+            console.error("Auth state change error:", err);
+            if (!mountedRef.current || requestId !== requestIdRef.current) return;
+            setState({ user: session.user, profile: null, loading: false });
+        }
+    }, [ensureProfile]);
+
     // 초기 세션 + 인증 상태 변경 리스너
     useEffect(() => {
+        mountedRef.current = true;
+
+        const initializeSession = async () => {
+            try {
+                const { data, error } = await supabase.auth.getSession();
+                if (error) throw error;
+                await syncSessionState(data.session ?? null);
+            } catch (err) {
+                console.error("Auth session init error:", err);
+                if (!mountedRef.current) return;
+                setState({ user: null, profile: null, loading: false });
+            }
+        };
+
         const {
             data: { subscription },
-        } = supabase.auth.onAuthStateChange(async (_event, session) => {
-            try {
-                if (session?.user) {
-                    const profile = await ensureProfile(session.user.id, session.user.email);
-                    setState({ user: session.user, profile, loading: false });
-                } else {
-                    setState({ user: null, profile: null, loading: false });
-                }
-            } catch (err) {
-                console.error("Auth state change error:", err);
-                // 에러가 나도 loading은 풀어야 UI가 보임
-                setState({ user: session?.user ?? null, profile: null, loading: false });
-            }
+        } = supabase.auth.onAuthStateChange((event, session) => {
+            if (event === "INITIAL_SESSION") return;
+            void syncSessionState(session);
         });
 
-        return () => subscription.unsubscribe();
-    }, [ensureProfile]);
+        void initializeSession();
+
+        return () => {
+            mountedRef.current = false;
+            requestIdRef.current += 1;
+            subscription.unsubscribe();
+        };
+    }, [syncSessionState]);
 
     // 회원가입
     const signUp = async (email: string, password: string, nickname: string) => {
@@ -93,6 +125,10 @@ export function useAuth() {
     const signOut = async () => {
         const { error } = await supabase.auth.signOut();
         if (error) throw error;
+        requestIdRef.current += 1;
+        if (mountedRef.current) {
+            setState({ user: null, profile: null, loading: false });
+        }
     };
 
     // 닉네임 변경
