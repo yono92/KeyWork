@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import type { Cell } from "./useTetrisEngine";
 import { BOARD_WIDTH, BOARD_HEIGHT } from "./useTetrisEngine";
+import { isOwnBroadcast } from "@/lib/multiplayerRealtime";
 
 // 채널에 등록된 핸들러를 추적하기 위한 WeakMap
 const registeredChannels = new WeakSet<RealtimeChannel>();
@@ -14,6 +15,15 @@ export interface OpponentState {
     lines: number;
     level: number;
     gameOver: boolean;
+}
+
+interface BoardBroadcastPayload extends OpponentState {
+    senderId: string;
+}
+
+interface GarbageBroadcastPayload {
+    lines: number;
+    senderId: string;
 }
 
 // Cell[][] → number[][] 직렬화 (PieceType → 1~7, null → 0)
@@ -59,6 +69,7 @@ export function getGarbageCount(linesCleared: number): number {
 export function useMultiplayerTetris(
     getChannel: () => RealtimeChannel | null,
     isPlaying: boolean,
+    myUserId: string,
 ) {
     const [opponent, setOpponent] = useState<OpponentState>({
         board: Array.from({ length: BOARD_HEIGHT }, () => Array(BOARD_WIDTH).fill(0)),
@@ -77,14 +88,16 @@ export function useMultiplayerTetris(
         if (registeredChannels.has(channel)) return;
         registeredChannels.add(channel);
 
-        channel.on("broadcast", { event: "board_state" }, ({ payload }: { payload: OpponentState }) => {
+        channel.on("broadcast", { event: "board_state" }, ({ payload }: { payload: BoardBroadcastPayload }) => {
+            if (isOwnBroadcast(payload, myUserId)) return;
             setOpponent(payload);
         });
 
-        channel.on("broadcast", { event: "garbage" }, ({ payload }: { payload: { lines: number } }) => {
+        channel.on("broadcast", { event: "garbage" }, ({ payload }: { payload: GarbageBroadcastPayload }) => {
+            if (isOwnBroadcast(payload, myUserId)) return;
             setPendingGarbage((prev) => prev + payload.lines);
         });
-    }, [getChannel, isPlaying]);
+    }, [getChannel, isPlaying, myUserId]);
 
     // 내 보드 브로드캐스트 (300ms 간격)
     const broadcastBoard = useCallback(
@@ -95,6 +108,7 @@ export function useMultiplayerTetris(
                 type: "broadcast",
                 event: "board_state",
                 payload: {
+                    senderId: myUserId,
                     board: serializeBoard(board),
                     score,
                     lines,
@@ -103,7 +117,7 @@ export function useMultiplayerTetris(
                 },
             });
         },
-        [getChannel],
+        [getChannel, myUserId],
     );
 
     // 가비지 전송
@@ -116,10 +130,10 @@ export function useMultiplayerTetris(
             channel.send({
                 type: "broadcast",
                 event: "garbage",
-                payload: { lines: count },
+                payload: { lines: count, senderId: myUserId },
             });
         },
-        [getChannel],
+        [getChannel, myUserId],
     );
 
     // 가비지 수신 처리 (0.5초 딜레이)

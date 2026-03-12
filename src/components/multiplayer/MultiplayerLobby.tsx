@@ -1,30 +1,27 @@
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
 import { useMultiplayerRoom } from "@/hooks/useMultiplayerRoom";
 import { useAuthContext } from "@/components/auth/AuthProvider";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import useTypingStore from "@/store/store";
 import PixelAvatar from "@/components/avatar/PixelAvatar";
 
 import type { AvatarConfig } from "@/lib/supabase/types";
 
 interface MultiplayerLobbyProps {
-    gameMode: string;
     gameName: string;
-    onGameStart: (channel: ReturnType<typeof useMultiplayerRoom>["getChannel"], roomId: string, isHost: boolean, opponentNickname: string, opponentAvatarConfig: AvatarConfig | null) => void;
+    room: ReturnType<typeof useMultiplayerRoom>;
+    onGameStart: (channel: ReturnType<typeof useMultiplayerRoom>["getChannel"], roomId: string, isHost: boolean, opponentNickname: string, opponentAvatarConfig: AvatarConfig | null, opponentUserId: string) => void;
     onBack: () => void;
 }
 
-export default function MultiplayerLobby({ gameMode, gameName, onGameStart, onBack }: MultiplayerLobbyProps) {
+export default function MultiplayerLobby({ gameName, room, onGameStart, onBack }: MultiplayerLobbyProps) {
     const { isLoggedIn, loading } = useAuthContext();
     const language = useTypingStore((s) => s.language);
     const retroTheme = useTypingStore((s) => s.retroTheme);
     const ko = language === "korean";
-    const room = useMultiplayerRoom(gameMode);
-    const [joinCode, setJoinCode] = useState("");
 
     // 로비 진입 시 오래된 방 정리 (비동기, 실패 무시)
     React.useEffect(() => {
@@ -33,10 +30,10 @@ export default function MultiplayerLobby({ gameMode, gameName, onGameStart, onBa
 
     // 게임 시작 감지
     React.useEffect(() => {
-        if (room.phase === "playing") {
-            onGameStart(room.getChannel, room.roomId!, room.isHost, room.opponentNickname ?? "Player", room.opponentAvatarConfig);
+        if (room.phase === "playing" && room.roomId && room.opponentUserId) {
+            onGameStart(room.getChannel, room.roomId, room.isHost, room.opponentNickname ?? "Player", room.opponentAvatarConfig, room.opponentUserId);
         }
-    }, [room.phase, room.getChannel, room.roomId, room.isHost, room.opponentNickname, room.opponentAvatarConfig, onGameStart]);
+    }, [room.phase, room.getChannel, room.roomId, room.isHost, room.opponentNickname, room.opponentAvatarConfig, room.opponentUserId, onGameStart]);
 
     if (loading) {
         return (
@@ -95,23 +92,28 @@ export default function MultiplayerLobby({ gameMode, gameName, onGameStart, onBa
                 </div>
                 <CardContent className="p-5 text-center space-y-3">
                     {room.roomId && (
-                        <>
-                            <p className="text-xs text-[var(--retro-text)]/60">
-                                {ko ? "방 코드" : "Room Code"}
+                        <div className="space-y-2">
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--retro-text)]/50">
+                                {ko ? "공개 대기방" : "Public Lobby"}
                             </p>
-                            <p className="text-3xl font-black tracking-[0.3em] text-[var(--retro-accent)] tabular-nums">
-                                {room.roomId}
+                            <p className="text-2xl font-black text-[var(--retro-accent)]">
+                                {ko ? "입장 대기 중" : "Waiting for Player"}
+                            </p>
+                            <p className="text-xs text-[var(--retro-text)]/65">
+                                {ko
+                                    ? "이 방은 공개 목록에 노출됩니다. 다른 플레이어가 목록에서 바로 참가할 수 있습니다."
+                                    : "This room is visible in the public list. Other players can join directly from the lobby."}
                             </p>
                             <p className="text-xs text-[var(--retro-text)]/60" style={{ animation: "tetris-blink 1.2s step-end infinite" }}>
                                 {room.opponentNickname
                                     ? `${room.opponentNickname} ${ko ? "참가함!" : "joined!"}`
-                                    : ko ? "상대를 기다리는 중..." : "Waiting for opponent..."}
+                                    : ko ? "목록에서 참가할 상대를 기다리는 중..." : "Waiting for someone to join from the list..."}
                             </p>
-                        </>
+                        </div>
                     )}
                     {!room.roomId && (
                         <p className="text-sm text-[var(--retro-text)]/60" style={{ animation: "tetris-blink 1.2s step-end infinite" }}>
-                            {ko ? "매칭 중..." : "Matching..."}
+                            {ko ? "공개 방을 준비하는 중..." : "Preparing public room..."}
                         </p>
                     )}
                     {room.error && (
@@ -119,7 +121,7 @@ export default function MultiplayerLobby({ gameMode, gameName, onGameStart, onBa
                     )}
                     <Button
                         variant="outline"
-                        onClick={() => { room.leaveRoom(); onBack(); }}
+                        onClick={async () => { await room.leaveRoom(); onBack(); }}
                         className={`text-xs ${retroTheme === "mac-classic" ? "rounded-md" : "rounded-none"}`}
                     >
                         {ko ? "취소" : "Cancel"}
@@ -142,7 +144,7 @@ export default function MultiplayerLobby({ gameMode, gameName, onGameStart, onBa
         <Card className={`max-w-md mx-auto mt-8 ${retroTheme === "mac-classic" ? "rounded-xl" : "rounded-none"}`}>
             <div className="retro-titlebar h-10 px-3 flex items-center justify-between border-b border-black/25">
                 <span className="text-sm font-semibold text-current">
-                    {gameName} — {ko ? "온라인 대전" : "Online Battle"}
+                    {gameName} — {ko ? "공개 로비" : "Public Lobby"}
                 </span>
             </div>
             <CardContent className="p-5 space-y-4">
@@ -150,20 +152,21 @@ export default function MultiplayerLobby({ gameMode, gameName, onGameStart, onBa
                     <p className="text-xs text-red-600 bg-red-50 border border-red-200 p-2">{room.error}</p>
                 )}
 
-                {/* 액션 버튼 */}
-                <div className="flex gap-2">
+                <div className="space-y-3">
+                    <div className="rounded-xl border border-[var(--retro-border-mid)] bg-[var(--retro-surface)]/70 px-4 py-3">
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--retro-text)]/50">
+                            {ko ? "입장 방식" : "Flow"}
+                        </p>
+                        <p className="mt-1 text-sm font-semibold text-[var(--retro-text)]">
+                            {ko ? "공개 방을 만들거나, 아래 목록에서 바로 참가하세요." : "Create a public room, or join directly from the list below."}
+                        </p>
+                    </div>
+
                     <Button
-                        onClick={room.quickMatch}
-                        className={`flex-1 font-semibold ${retroTheme === "mac-classic" ? "rounded-lg" : "rounded-none"}`}
-                    >
-                        {ko ? "빠른 매칭" : "Quick Match"}
-                    </Button>
-                    <Button
-                        variant="outline"
                         onClick={room.createRoom}
-                        className={`flex-1 ${retroTheme === "mac-classic" ? "rounded-md" : "rounded-none"}`}
+                        className={`w-full font-semibold ${retroTheme === "mac-classic" ? "rounded-lg" : "rounded-none"}`}
                     >
-                        {ko ? "방 만들기" : "Create Room"}
+                        {ko ? "공개 방 만들기" : "Create Public Room"}
                     </Button>
                 </div>
 
@@ -171,7 +174,7 @@ export default function MultiplayerLobby({ gameMode, gameName, onGameStart, onBa
                 <div>
                     <div className="flex items-center justify-between mb-2">
                         <p className="text-xs font-semibold text-[var(--retro-text)]/70">
-                            {ko ? "대기 중인 방" : "Waiting Rooms"}
+                            {ko ? "참가 가능한 공개 방" : "Open Rooms"}
                             {room.waitingRooms.length > 0 && (
                                 <span className="ml-1 text-[var(--retro-accent)]">({room.waitingRooms.length})</span>
                             )}
@@ -179,8 +182,9 @@ export default function MultiplayerLobby({ gameMode, gameName, onGameStart, onBa
                     </div>
                     <div className="border border-[var(--retro-border-mid)] bg-[var(--retro-bg)] min-h-[120px] max-h-[200px] overflow-y-auto">
                         {room.waitingRooms.length === 0 ? (
-                            <div className="flex items-center justify-center h-[120px] text-xs text-[var(--retro-text)]/40">
-                                {ko ? "대기 중인 방이 없습니다" : "No rooms available"}
+                            <div className="flex h-[120px] flex-col items-center justify-center gap-1 text-xs text-[var(--retro-text)]/40">
+                                <span>{ko ? "참가 가능한 공개 방이 없습니다" : "No public rooms available"}</span>
+                                <span>{ko ? "첫 방을 만들어 보세요." : "Create the first room."}</span>
                             </div>
                         ) : (
                             <ul className="divide-y divide-[var(--retro-border-mid)]">
@@ -199,8 +203,8 @@ export default function MultiplayerLobby({ gameMode, gameName, onGameStart, onBa
                                             <p className="text-sm font-medium text-[var(--retro-text)] truncate">
                                                 {wr.player1_nickname}
                                             </p>
-                                            <p className="text-[10px] text-[var(--retro-text)]/40 font-mono">
-                                                {wr.id} · {formatElapsed(wr.created_at)}
+                                            <p className="text-[10px] text-[var(--retro-text)]/40">
+                                                {ko ? "생성" : "Opened"} · {formatElapsed(wr.created_at)}
                                             </p>
                                         </div>
                                         <span className="text-xs text-[var(--retro-accent)] font-semibold shrink-0">
@@ -211,30 +215,6 @@ export default function MultiplayerLobby({ gameMode, gameName, onGameStart, onBa
                             </ul>
                         )}
                     </div>
-                </div>
-
-                {/* 코드로 참가 */}
-                <div className="flex items-center gap-2 text-xs text-[var(--retro-text)]/40">
-                    <div className="flex-1 border-t border-[var(--retro-border-mid)]" />
-                    <span>{ko ? "코드로 참가" : "Join by code"}</span>
-                    <div className="flex-1 border-t border-[var(--retro-border-mid)]" />
-                </div>
-
-                <div className="flex gap-2">
-                    <Input
-                        value={joinCode}
-                        onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-                        placeholder={ko ? "방 코드 입력" : "Room Code"}
-                        maxLength={6}
-                        className="flex-1 text-center tracking-widest font-mono uppercase"
-                    />
-                    <Button
-                        onClick={() => joinCode.length === 6 && room.joinRoom(joinCode)}
-                        disabled={joinCode.length !== 6}
-                        className={`${retroTheme === "mac-classic" ? "rounded-md" : "rounded-none"}`}
-                    >
-                        {ko ? "참가" : "Join"}
-                    </Button>
                 </div>
 
                 <Button

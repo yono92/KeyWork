@@ -4,10 +4,10 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useAuthContext } from "@/components/auth/AuthProvider";
 import type { RealtimeChannel } from "@supabase/supabase-js";
+import type { AvatarConfig } from "@/lib/supabase/types";
+import { getRoomCutoffIso } from "@/lib/multiplayerRealtime";
 
 export type RoomPhase = "idle" | "creating" | "joining" | "waiting" | "countdown" | "playing" | "finished" | "disconnected";
-
-import type { AvatarConfig } from "@/lib/supabase/types";
 
 export interface WaitingRoom {
     id: string;
@@ -21,18 +21,30 @@ interface RoomState {
     roomId: string | null;
     phase: RoomPhase;
     isHost: boolean;
+    opponentUserId: string | null;
     opponentNickname: string | null;
     opponentAvatarConfig: AvatarConfig | null;
     countdown: number;
     error: string | null;
 }
 
+const INITIAL_ROOM_STATE: RoomState = {
+    roomId: null,
+    phase: "idle",
+    isHost: false,
+    opponentUserId: null,
+    opponentNickname: null,
+    opponentAvatarConfig: null,
+    countdown: 3,
+    error: null,
+};
+
+const DISCONNECT_TIMEOUT_MS = 5000;
+
 const generateRoomCode = (): string => {
     const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
     return Array.from({ length: 6 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
 };
-
-const DISCONNECT_TIMEOUT_MS = 5000; // 5초 오프라인 시 상대 승리
 
 const supabase = createClient();
 
@@ -41,21 +53,10 @@ export function useMultiplayerRoom(gameMode: string) {
     const channelRef = useRef<RealtimeChannel | null>(null);
     const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const disconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const roomListChannelRef = useRef<RealtimeChannel | null>(null);
 
-    const [state, setState] = useState<RoomState>({
-        roomId: null,
-        phase: "idle",
-        isHost: false,
-        opponentNickname: null,
-        opponentAvatarConfig: null,
-        countdown: 3,
-        error: null,
-    });
-
+    const [state, setState] = useState<RoomState>(INITIAL_ROOM_STATE);
     const [waitingRooms, setWaitingRooms] = useState<WaitingRoom[]>([]);
 
-    // 방 정리
     const cleanup = useCallback(() => {
         if (channelRef.current) {
             supabase.removeChannel(channelRef.current);
@@ -72,9 +73,33 @@ export function useMultiplayerRoom(gameMode: string) {
         sessionStorage.removeItem("mp_roomId");
     }, []);
 
-    // 대기 중인 방 목록 조회
+    const resetRoomState = useCallback(() => {
+        setState({ ...INITIAL_ROOM_STATE });
+    }, []);
+
+    const startCountdown = useCallback(() => {
+        if (countdownRef.current) {
+            clearInterval(countdownRef.current);
+        }
+        setState((prev) => ({ ...prev, phase: "countdown", countdown: 3 }));
+        let count = 3;
+        countdownRef.current = setInterval(() => {
+            count -= 1;
+            if (count <= 0) {
+                if (countdownRef.current) {
+                    clearInterval(countdownRef.current);
+                    countdownRef.current = null;
+                }
+                setState((prev) => ({ ...prev, phase: "playing", countdown: 0 }));
+                return;
+            }
+            setState((prev) => ({ ...prev, countdown: count }));
+        }, 1000);
+    }, []);
+
     const fetchWaitingRooms = useCallback(async () => {
-        if (!user) return;
+        if (!user || !profile) return;
+        const cutoff = getRoomCutoffIso();
         const { data } = await supabase
             .from("rooms")
             .select("id, game_mode, created_at, player1_id, profiles!rooms_player1_id_fkey(nickname, avatar_config)")
@@ -82,32 +107,33 @@ export function useMultiplayerRoom(gameMode: string) {
             .eq("game_mode", gameMode)
             .neq("player1_id", user.id)
             .is("player2_id", null)
+            .gt("created_at", cutoff)
             .order("created_at", { ascending: false })
             .limit(20);
 
-        if (data) {
-            setWaitingRooms(
-                data.map((r) => {
-                    const p = r.profiles as unknown as { nickname: string; avatar_config: AvatarConfig | null } | null;
-                    return {
-                        id: r.id,
-                        game_mode: r.game_mode,
-                        created_at: r.created_at,
-                        player1_nickname: p?.nickname ?? "Player",
-                        player1_avatar_config: p?.avatar_config ?? null,
-                    };
-                }),
-            );
-        }
-    }, [user, gameMode]);
+        if (!data) return;
 
-    // 방 목록 실시간 구독
+        setWaitingRooms(
+            data.map((room) => {
+                const player = room.profiles as unknown as { nickname: string; avatar_config: AvatarConfig | null } | null;
+                return {
+                    id: room.id,
+                    game_mode: room.game_mode,
+                    created_at: room.created_at,
+                    player1_nickname: player?.nickname ?? "Player",
+                    player1_avatar_config: player?.avatar_config ?? null,
+                };
+            }),
+        );
+    }, [gameMode, profile, user]);
+
     useEffect(() => {
-        if (!user) return;
+        if (!user || !profile) return;
+
         void fetchWaitingRooms();
 
         const channel = supabase
-            .channel("room-list")
+            .channel(`room-list:${gameMode}`)
             .on(
                 "postgres_changes",
                 { event: "*", schema: "public", table: "rooms", filter: `game_mode=eq.${gameMode}` },
@@ -115,107 +141,106 @@ export function useMultiplayerRoom(gameMode: string) {
             )
             .subscribe();
 
-        roomListChannelRef.current = channel;
         return () => {
             supabase.removeChannel(channel);
-            roomListChannelRef.current = null;
         };
-    }, [user, gameMode, fetchWaitingRooms]);
+    }, [fetchWaitingRooms, gameMode, profile, user]);
 
-    // 채널 구독 — 구독 완료 시 resolve되는 Promise 반환
     const subscribeToRoom = useCallback((roomId: string): Promise<void> => {
+        if (!user || !profile) return Promise.resolve();
+
         return new Promise((resolve) => {
+            if (channelRef.current) {
+                supabase.removeChannel(channelRef.current);
+                channelRef.current = null;
+            }
+
             const channel = supabase.channel(`room:${roomId}`, {
                 config: {
-                    presence: { key: user?.id ?? "anon" },
+                    presence: { key: user.id },
                     broadcast: { self: true },
                 },
             });
 
             channel
                 .on("presence", { event: "join" }, ({ newPresences }) => {
-                    const opponent = newPresences.find(
-                        (p) => (p as Record<string, unknown>).user_id !== user?.id,
-                    );
-                    if (opponent) {
-                        // 재접속 시 disconnect 타이머 취소
-                        if (disconnectTimerRef.current) {
-                            clearTimeout(disconnectTimerRef.current);
-                            disconnectTimerRef.current = null;
-                        }
-                        const opp = opponent as Record<string, unknown>;
-                        setState((prev) => ({
-                            ...prev,
-                            opponentNickname: (opp.nickname as string) ?? "Player",
-                            opponentAvatarConfig: (opp.avatar_config as AvatarConfig) ?? null,
-                        }));
+                    const opponent = newPresences.find((presence) => (presence as Record<string, unknown>).user_id !== user.id);
+                    if (!opponent) return;
+
+                    if (disconnectTimerRef.current) {
+                        clearTimeout(disconnectTimerRef.current);
+                        disconnectTimerRef.current = null;
                     }
+
+                    const remote = opponent as Record<string, unknown>;
+                    setState((prev) => ({
+                        ...prev,
+                        opponentUserId: (remote.user_id as string) ?? null,
+                        opponentNickname: (remote.nickname as string) ?? "Player",
+                        opponentAvatarConfig: (remote.avatar_config as AvatarConfig) ?? null,
+                    }));
                 })
                 .on("presence", { event: "leave" }, ({ leftPresences }) => {
-                    const opponentLeft = leftPresences.some(
-                        (p) => (p as Record<string, unknown>).user_id !== user?.id,
-                    );
-                    if (opponentLeft) {
-                        setState((prev) => {
-                            // playing 중 상대 이탈 → 5초 후 승리 처리
-                            if (prev.phase === "playing") {
-                                disconnectTimerRef.current = setTimeout(() => {
-                                    setState((s) => ({
-                                        ...s,
-                                        phase: "finished",
-                                        error: "WIN",
-                                    }));
-                                    channelRef.current?.send({
-                                        type: "broadcast",
-                                        event: "game_over",
-                                        payload: { winner_id: user?.id, reason: "disconnect" },
-                                    });
-                                }, DISCONNECT_TIMEOUT_MS);
-                            }
-                            return { ...prev, opponentNickname: null };
-                        });
-                    }
+                    const opponentLeft = leftPresences.some((presence) => (presence as Record<string, unknown>).user_id !== user.id);
+                    if (!opponentLeft) return;
+
+                    setState((prev) => {
+                        if (prev.phase === "playing") {
+                            disconnectTimerRef.current = setTimeout(() => {
+                                setState((current) => ({
+                                    ...current,
+                                    phase: "finished",
+                                    error: "WIN",
+                                }));
+                                channelRef.current?.send({
+                                    type: "broadcast",
+                                    event: "game_over",
+                                    payload: { winner_id: user.id, reason: "disconnect" },
+                                });
+                            }, DISCONNECT_TIMEOUT_MS);
+                        }
+
+                        return {
+                            ...prev,
+                            opponentUserId: null,
+                            opponentNickname: null,
+                            opponentAvatarConfig: null,
+                        };
+                    });
                 })
                 .on("broadcast", { event: "game_start" }, () => {
-                    setState((prev) => ({ ...prev, phase: "countdown", countdown: 3 }));
-                    let count = 3;
-                    countdownRef.current = setInterval(() => {
-                        count -= 1;
-                        if (count <= 0) {
-                            if (countdownRef.current) clearInterval(countdownRef.current);
-                            setState((prev) => ({ ...prev, phase: "playing", countdown: 0 }));
-                        } else {
-                            setState((prev) => ({ ...prev, countdown: count }));
-                        }
-                    }, 1000);
+                    startCountdown();
                 })
                 .on("broadcast", { event: "game_over" }, ({ payload }) => {
+                    if (countdownRef.current) {
+                        clearInterval(countdownRef.current);
+                        countdownRef.current = null;
+                    }
                     setState((prev) => ({
                         ...prev,
                         phase: "finished",
-                        error: (payload as { winner_id?: string })?.winner_id === user?.id
-                            ? "WIN" : "LOSE",
+                        error: (payload as { winner_id?: string })?.winner_id === user.id ? "WIN" : "LOSE",
                     }));
                 })
                 .subscribe(async (status) => {
-                    if (status === "SUBSCRIBED") {
-                        await channel.track({
-                            user_id: user?.id,
-                            nickname: profile?.nickname ?? "Player",
-                            avatar_config: profile?.avatar_config ?? null,
-                            online_at: new Date().toISOString(),
-                        });
-                        resolve();
-                    }
+                    if (status !== "SUBSCRIBED") return;
+
+                    await channel.track({
+                        user_id: user.id,
+                        nickname: profile.nickname ?? "Player",
+                        avatar_config: profile.avatar_config ?? null,
+                        online_at: new Date().toISOString(),
+                    });
+                    resolve();
                 });
 
             channelRef.current = channel;
         });
-    }, [supabase, user, profile]);
+    }, [profile, startCountdown, user]);
 
-    // 방 생성
     const createRoom = useCallback(async () => {
-        if (!user) return;
+        if (!user || !profile) return;
+
         setState((prev) => ({ ...prev, phase: "creating", error: null }));
 
         const roomId = generateRoomCode();
@@ -237,20 +262,23 @@ export function useMultiplayerRoom(gameMode: string) {
             roomId,
             phase: "waiting",
             isHost: true,
+            error: null,
         }));
         await subscribeToRoom(roomId);
-    }, [user, gameMode, supabase, subscribeToRoom]);
+    }, [gameMode, profile, subscribeToRoom, user]);
 
-    // 방 참가
     const joinRoom = useCallback(async (code: string) => {
-        if (!user) return;
+        if (!user || !profile) return;
+
         setState((prev) => ({ ...prev, phase: "joining", error: null }));
+        const cutoff = getRoomCutoffIso();
 
         const { data: room, error: fetchError } = await supabase
             .from("rooms")
             .select("*")
             .eq("id", code.toUpperCase())
             .eq("status", "waiting")
+            .gt("created_at", cutoff)
             .single();
 
         if (fetchError || !room) {
@@ -262,7 +290,6 @@ export function useMultiplayerRoom(gameMode: string) {
             return;
         }
 
-        // 게임 모드 불일치 검증
         if (room.game_mode !== gameMode) {
             setState((prev) => ({
                 ...prev,
@@ -272,7 +299,6 @@ export function useMultiplayerRoom(gameMode: string) {
             return;
         }
 
-        // Race condition 방지: player2_id가 null인 경우만 업데이트
         const { data: updated, error: updateError } = await supabase
             .from("rooms")
             .update({ player2_id: user.id, status: "playing" })
@@ -297,39 +323,42 @@ export function useMultiplayerRoom(gameMode: string) {
             roomId: code.toUpperCase(),
             phase: "waiting",
             isHost: false,
+            error: null,
         }));
-        // 구독 완료까지 대기 후 game_start 브로드캐스트
-        await subscribeToRoom(code.toUpperCase());
 
+        await subscribeToRoom(code.toUpperCase());
+        startCountdown();
         channelRef.current?.send({
             type: "broadcast",
             event: "game_start",
             payload: {},
         });
-    }, [user, supabase, subscribeToRoom]);
+    }, [gameMode, profile, startCountdown, subscribeToRoom, user]);
 
-    // 빠른 매칭
     const quickMatch = useCallback(async () => {
-        if (!user) return;
-        setState((prev) => ({ ...prev, phase: "joining", error: null }));
+        if (!user || !profile) return;
 
-        const { data: waitingRooms } = await supabase
+        setState((prev) => ({ ...prev, phase: "joining", error: null }));
+        const cutoff = getRoomCutoffIso();
+
+        const { data } = await supabase
             .from("rooms")
             .select("id")
             .eq("status", "waiting")
             .eq("game_mode", gameMode)
             .neq("player1_id", user.id)
+            .gt("created_at", cutoff)
             .order("created_at", { ascending: true })
             .limit(1);
 
-        if (waitingRooms && waitingRooms.length > 0) {
-            await joinRoom(waitingRooms[0].id);
-        } else {
-            await createRoom();
+        if (data && data.length > 0) {
+            await joinRoom(data[0].id);
+            return;
         }
-    }, [user, gameMode, supabase, joinRoom, createRoom]);
 
-    // 게임 오버 브로드캐스트
+        await createRoom();
+    }, [createRoom, gameMode, joinRoom, profile, user]);
+
     const broadcastGameOver = useCallback((winnerId: string) => {
         channelRef.current?.send({
             type: "broadcast",
@@ -338,33 +367,33 @@ export function useMultiplayerRoom(gameMode: string) {
         });
     }, []);
 
-    // 채널 레퍼런스 반환
     const getChannel = useCallback(() => channelRef.current, []);
 
-    // 나가기
-    const leaveRoom = useCallback(() => {
-        cleanup();
-        setState({
-            roomId: null,
-            phase: "idle",
-            isHost: false,
-            opponentNickname: null,
-            opponentAvatarConfig: null,
-            countdown: 3,
-            error: null,
-        });
-    }, [cleanup]);
+    const leaveRoom = useCallback(async () => {
+        if (user && state.roomId) {
+            if (state.isHost || state.phase === "finished") {
+                await supabase.from("rooms").delete().eq("id", state.roomId);
+            } else {
+                await supabase
+                    .from("rooms")
+                    .update({ player2_id: null, status: "waiting" })
+                    .eq("id", state.roomId)
+                    .eq("player2_id", user.id);
+            }
+        }
 
-    // 재접속 시도
+        cleanup();
+        resetRoomState();
+    }, [cleanup, resetRoomState, state.isHost, state.phase, state.roomId, user]);
+
     useEffect(() => {
         const savedRoomId = sessionStorage.getItem("mp_roomId");
-        if (savedRoomId && user) {
-            setState((prev) => ({ ...prev, roomId: savedRoomId }));
-            void subscribeToRoom(savedRoomId);
-        }
-    }, [user, subscribeToRoom]);
+        if (!savedRoomId || !user || !profile) return;
 
-    // 언마운트 시 정리
+        setState((prev) => ({ ...prev, roomId: savedRoomId }));
+        void subscribeToRoom(savedRoomId);
+    }, [profile, subscribeToRoom, user]);
+
     useEffect(() => () => cleanup(), [cleanup]);
 
     return {

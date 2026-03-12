@@ -6,6 +6,12 @@ import {
     addGarbageToBoard,
     getGarbageCount,
 } from "@/hooks/useMultiplayerTetris";
+import {
+    getRoomCutoffIso,
+    isOwnBroadcast,
+    isRoomExpired,
+    pickStartingTurnUserId,
+} from "@/lib/multiplayerRealtime";
 import { BOARD_WIDTH, BOARD_HEIGHT } from "@/hooks/useTetrisEngine";
 import type { Cell } from "@/hooks/useTetrisEngine";
 
@@ -91,5 +97,27 @@ describe("addGarbageToBoard", () => {
         expect(result[BOARD_HEIGHT - 2]).toBe(garbage[0]);
         // Original last row moved up by 2
         expect(result[BOARD_HEIGHT - 3][0]).toBe("I");
+    });
+});
+
+describe("multiplayer realtime helpers", () => {
+    it("identifies self-broadcast payloads", () => {
+        expect(isOwnBroadcast({ senderId: "user-1" }, "user-1")).toBe(true);
+        expect(isOwnBroadcast({ senderId: "user-2" }, "user-1")).toBe(false);
+    });
+
+    it("picks the correct starting player id", () => {
+        expect(pickStartingTurnUserId("host-1", "guest-1", true)).toBe("host-1");
+        expect(pickStartingTurnUserId("host-1", "guest-1", false)).toBe("guest-1");
+    });
+
+    it("marks rooms older than the ttl as expired", () => {
+        const now = Date.parse("2026-03-12T00:00:00.000Z");
+        const freshRoom = "2026-03-11T23:30:00.000Z";
+        const staleRoom = "2026-03-11T22:30:00.000Z";
+
+        expect(isRoomExpired(freshRoom, now)).toBe(false);
+        expect(isRoomExpired(staleRoom, now)).toBe(true);
+        expect(getRoomCutoffIso(now)).toBe("2026-03-11T23:00:00.000Z");
     });
 });

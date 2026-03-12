@@ -1,12 +1,17 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-
-// 1시간 이상 된 방 정리
-const ROOM_TTL_MS = 60 * 60 * 1000;
+import { getRoomCutoffIso } from "@/lib/multiplayerRealtime";
 
 export async function POST() {
     const supabase = await createClient();
-    const cutoff = new Date(Date.now() - ROOM_TTL_MS).toISOString();
+    const {
+        data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) {
+        return NextResponse.json({ ok: true });
+    }
+
+    const cutoff = getRoomCutoffIso();
 
     const { error } = await supabase
         .from("rooms")

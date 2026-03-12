@@ -8,30 +8,33 @@ import Header from "@/components/Header";
 import MultiplayerLobby from "@/components/multiplayer/MultiplayerLobby";
 import dynamic from "next/dynamic";
 import useTypingStore from "@/store/store";
+import { useMultiplayerRoom } from "@/hooks/useMultiplayerRoom";
 
 const TetrisBattle = dynamic(() => import("@/components/multiplayer/TetrisBattle"), { ssr: false });
 
 type PlayMode = "single" | "lobby" | "battle";
-type BattleInfo = { getChannel: () => RealtimeChannel | null; roomId: string; isHost: boolean; opponentNickname: string; opponentAvatarConfig: AvatarConfig | null };
+type BattleInfo = { getChannel: () => RealtimeChannel | null; roomId: string; isHost: boolean; opponentNickname: string; opponentAvatarConfig: AvatarConfig | null; opponentUserId: string };
 
 export default function TetrisPage() {
     const [mode, setMode] = useState<PlayMode>("single");
     const [battleInfo, setBattleInfo] = useState<BattleInfo | null>(null);
+    const room = useMultiplayerRoom("tetris");
     const language = useTypingStore((s) => s.language);
     const ko = language === "korean";
 
     const handleGameStart = useCallback(
-        (getChannel: () => RealtimeChannel | null, roomId: string, isHost: boolean, opponentNickname: string, opponentAvatarConfig: AvatarConfig | null) => {
-            setBattleInfo({ getChannel, roomId, isHost, opponentNickname, opponentAvatarConfig });
+        (getChannel: () => RealtimeChannel | null, roomId: string, isHost: boolean, opponentNickname: string, opponentAvatarConfig: AvatarConfig | null, opponentUserId: string) => {
+            setBattleInfo({ getChannel, roomId, isHost, opponentNickname, opponentAvatarConfig, opponentUserId });
             setMode("battle");
         },
         [],
     );
 
     const handleBack = useCallback(() => {
+        void room.leaveRoom();
         setBattleInfo(null);
         setMode("lobby");
-    }, []);
+    }, [room]);
 
     if (mode === "single") {
         return (
@@ -74,8 +77,8 @@ export default function TetrisPage() {
             <Header />
             <div className="flex-1 min-h-0 overflow-hidden p-2">
                 <MultiplayerLobby
-                    gameMode="tetris"
                     gameName={ko ? "테트리스" : "Tetris"}
+                    room={room}
                     onGameStart={handleGameStart}
                     onBack={() => setMode("single")}
                 />

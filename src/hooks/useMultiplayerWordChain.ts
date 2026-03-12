@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
+import { isOwnBroadcast } from "@/lib/multiplayerRealtime";
 
 // 채널에 등록된 핸들러를 추적하기 위한 WeakSet
 const registeredChannels = new WeakSet<RealtimeChannel>();
@@ -11,11 +12,19 @@ interface WordEvent {
     userId: string;
     valid: boolean;
     nextChar: string;
+    senderId: string;
 }
 
 interface TurnEvent {
     currentUserId: string;
     timer: number;
+    senderId: string;
+}
+
+interface LivesEvent {
+    userId: string;
+    lives: number;
+    senderId: string;
 }
 
 export function useMultiplayerWordChain(
@@ -37,6 +46,7 @@ export function useMultiplayerWordChain(
 
         channel.on("broadcast", { event: "word_submit" }, ({ payload }: { payload: unknown }) => {
             const data = payload as WordEvent;
+            if (isOwnBroadcast(data, myUserId)) return;
             if (data.userId !== myUserId) {
                 setOpponentWord(data.word);
                 setCurrentChar(data.nextChar);
@@ -45,16 +55,14 @@ export function useMultiplayerWordChain(
         });
 
         channel.on("broadcast", { event: "word_result" }, ({ payload }: { payload: unknown }) => {
-            const data = payload as { userId: string; lives: number };
-            if (data.userId !== myUserId) {
-                setOpponentLives(data.lives);
-            } else {
-                setMyLives(data.lives);
-            }
+            const data = payload as LivesEvent;
+            if (isOwnBroadcast(data, myUserId)) return;
+            setOpponentLives(data.lives);
         });
 
         channel.on("broadcast", { event: "turn_change" }, ({ payload }: { payload: unknown }) => {
             const data = payload as TurnEvent;
+            if (isOwnBroadcast(data, myUserId)) return;
             setIsMyTurn(data.currentUserId === myUserId);
         });
     }, [getChannel, isPlaying, myUserId]);
@@ -65,7 +73,7 @@ export function useMultiplayerWordChain(
         channel.send({
             type: "broadcast",
             event: "word_submit",
-            payload: { word, userId: myUserId, valid: true, nextChar },
+            payload: { word, userId: myUserId, valid: true, nextChar, senderId: myUserId },
         });
     }, [getChannel, myUserId]);
 
@@ -75,7 +83,7 @@ export function useMultiplayerWordChain(
         channel.send({
             type: "broadcast",
             event: "word_result",
-            payload: { userId: myUserId, lives },
+            payload: { userId: myUserId, lives, senderId: myUserId },
         });
     }, [getChannel, myUserId]);
 
@@ -85,9 +93,9 @@ export function useMultiplayerWordChain(
         channel.send({
             type: "broadcast",
             event: "turn_change",
-            payload: { currentUserId, timer },
+            payload: { currentUserId, timer, senderId: myUserId },
         });
-    }, [getChannel]);
+    }, [getChannel, myUserId]);
 
     return {
         isMyTurn,

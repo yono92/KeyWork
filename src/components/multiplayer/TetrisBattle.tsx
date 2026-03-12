@@ -24,7 +24,7 @@ interface TetrisBattleProps {
 
 export default function TetrisBattle({ getChannel, opponentNickname, opponentAvatarConfig, onFinish }: TetrisBattleProps) {
     const { submitScore } = useScoreSubmit();
-    const { profile } = useAuthContext();
+    const { user, profile } = useAuthContext();
     const language = useTypingStore((s) => s.language);
     const ko = language === "korean";
     const { sectionRef, cellSize, isMobile } = useResponsiveTetrisSize();
@@ -48,7 +48,7 @@ export default function TetrisBattle({ getChannel, opponentNickname, opponentAva
     }, []);
 
     const engine = useTetrisEngine({ onLinesCleared, onHardDrop, onGameOver }, isMobile);
-    const mp = useMultiplayerTetris(getChannel, engine.running);
+    const mp = useMultiplayerTetris(getChannel, engine.running, user?.id ?? "");
 
     // 자동 시작
     useEffect(() => {

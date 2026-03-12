@@ -12,6 +12,7 @@ import { HANGUL_WORD_REGEX } from "@/utils/koreanConstants";
 import { Button } from "@/components/ui/button";
 import type { AvatarConfig } from "@/lib/supabase/types";
 import PixelAvatar from "@/components/avatar/PixelAvatar";
+import { pickStartingTurnUserId } from "@/lib/multiplayerRealtime";
 
 async function validateWordApi(word: string): Promise<boolean> {
     try {
@@ -30,12 +31,13 @@ interface WordChainBattleProps {
     isHost: boolean;
     opponentNickname: string;
     opponentAvatarConfig: AvatarConfig | null;
+    opponentUserId: string;
     onFinish: () => void;
 }
 
 const TIME_LIMIT = 15;
 
-export default function WordChainBattle({ getChannel, isHost, opponentNickname, opponentAvatarConfig, onFinish }: WordChainBattleProps) {
+export default function WordChainBattle({ getChannel, isHost, opponentNickname, opponentAvatarConfig, opponentUserId, onFinish }: WordChainBattleProps) {
     const { user, profile } = useAuthContext();
     const { submitScore } = useScoreSubmit();
     const language = useTypingStore((s) => s.language);
@@ -56,23 +58,36 @@ export default function WordChainBattle({ getChannel, isHost, opponentNickname, 
     const usedWordsRef = useRef<Set<string>>(new Set());
     const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-    // 선공 결정 (호스트 = 랜덤)
-    useEffect(() => {
-        if (isHost) {
-            const iGoFirst = Math.random() > 0.5;
-            mp.setIsMyTurn(iGoFirst);
-            mp.broadcastTurn(iGoFirst ? myId : "opponent", TIME_LIMIT);
-        }
-    }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
     // 타이머 — mp의 개별 함수/값만 ref로 캡처하여 불필요한 재시작 방지
     const isMyTurnRef = useRef(mp.isMyTurn);
     const myLivesRef = useRef(mp.myLives);
     isMyTurnRef.current = mp.isMyTurn;
     myLivesRef.current = mp.myLives;
 
+    const setIsMyTurnStable = mp.setIsMyTurn;
+    const broadcastTurnStable = mp.broadcastTurn;
     const setMyLivesStable = mp.setMyLives;
     const broadcastLivesStable = mp.broadcastLives;
+
+    const applyLifePenalty = useCallback(() => {
+        const newLives = myLivesRef.current - 1;
+        setMyLivesStable(newLives);
+        broadcastLivesStable(newLives);
+        setTimer(TIME_LIMIT);
+        if (newLives <= 0) {
+            setGameOver(true);
+            setWinner("opponent");
+        }
+    }, [broadcastLivesStable, setMyLivesStable]);
+
+    // 선공 결정 (호스트 = 랜덤)
+    useEffect(() => {
+        if (isHost) {
+            const iGoFirst = Math.random() > 0.5;
+            setIsMyTurnStable(iGoFirst);
+            broadcastTurnStable(pickStartingTurnUserId(myId, opponentUserId, iGoFirst), TIME_LIMIT);
+        }
+    }, [broadcastTurnStable, isHost, myId, opponentUserId, setIsMyTurnStable]);
 
     useEffect(() => {
         if (gameOver || validating) return;
@@ -127,16 +142,19 @@ export default function WordChainBattle({ getChannel, isHost, opponentNickname, 
 
         if (!HANGUL_WORD_REGEX.test(word)) {
             setMessages((prev) => [...prev, { text: word, sender: "me", valid: false }]);
+            applyLifePenalty();
             return;
         }
 
         if (mp.currentChar && !isChainValid(mp.currentChar, word)) {
             setMessages((prev) => [...prev, { text: word, sender: "me", valid: false }]);
+            applyLifePenalty();
             return;
         }
 
         if (usedWordsRef.current.has(word.toLowerCase())) {
             setMessages((prev) => [...prev, { text: word, sender: "me", valid: false }]);
+            applyLifePenalty();
             return;
         }
 
@@ -147,6 +165,7 @@ export default function WordChainBattle({ getChannel, isHost, opponentNickname, 
 
         if (!isValid) {
             setMessages((prev) => [...prev, { text: word, sender: "me", valid: false }]);
+            applyLifePenalty();
             return;
         }
 
@@ -159,7 +178,7 @@ export default function WordChainBattle({ getChannel, isHost, opponentNickname, 
         mp.broadcastWord(word, nextChar);
         mp.setCurrentChar(nextChar);
         setTimer(TIME_LIMIT);
-    }, [mp, input, gameOver, validating]);
+    }, [applyLifePenalty, gameOver, input, mp, validating]);
 
     // 게임 종료 시 점수 제출
     useEffect(() => {

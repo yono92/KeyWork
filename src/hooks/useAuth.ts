@@ -11,6 +11,11 @@ interface AuthState {
     loading: boolean;
 }
 
+const buildFallbackNickname = (userId: string, email?: string) => {
+    const base = (email?.split("@")[0] ?? "player").replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 12) || "player";
+    return `${base}_${userId.slice(0, 6)}`;
+};
+
 // 모듈 레벨 싱글턴 — 렌더마다 재생성 방지
 const supabase = createClient();
 
@@ -42,7 +47,7 @@ export function useAuth() {
     const ensureProfile = useCallback(async (userId: string, email?: string) => {
         let profile = await fetchProfile(userId);
         if (!profile) {
-            const fallbackNickname = email?.split("@")[0] ?? `user_${userId.slice(0, 6)}`;
+            const fallbackNickname = buildFallbackNickname(userId, email);
             await supabase
                 .from("profiles")
                 .upsert({ id: userId, nickname: fallbackNickname }, { onConflict: "id" });
@@ -120,7 +125,13 @@ export function useAuth() {
             const { error: profileError } = await supabase
                 .from("profiles")
                 .insert({ id: data.user.id, nickname });
-            if (profileError) throw profileError;
+            if (profileError) {
+                const fallbackNickname = buildFallbackNickname(data.user.id, email);
+                const { error: fallbackError } = await supabase
+                    .from("profiles")
+                    .upsert({ id: data.user.id, nickname: fallbackNickname }, { onConflict: "id" });
+                if (fallbackError) throw profileError;
+            }
         }
         return data;
     };
@@ -175,7 +186,7 @@ export function useAuth() {
         user: state.user,
         profile: state.profile,
         loading: state.loading,
-        isLoggedIn: !!state.user,
+        isLoggedIn: !!state.user && !!state.profile,
         signUp,
         signIn,
         signOut,

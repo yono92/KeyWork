@@ -43,10 +43,12 @@ const mocks = vi.hoisted(() => {
         from,
         getSession,
         getUser,
+        insert,
         mockSupabase,
         onAuthStateChange,
         select,
         signOut,
+        signUp,
         single,
         triggerAuth: async (event: string, session: unknown) => {
             if (authCallback) {
@@ -106,6 +108,8 @@ describe("useAuth", () => {
         mocks.getUser.mockResolvedValue({ data: { user: null }, error: null });
         mocks.signOut.mockResolvedValue({ error: null });
         mocks.single.mockResolvedValue({ data: null });
+        mocks.insert.mockResolvedValue({ error: null });
+        mocks.signUp.mockResolvedValue({ data: { user: null }, error: null });
         mocks.upsert.mockResolvedValue({ error: null });
     });
 
@@ -236,5 +240,47 @@ describe("useAuth", () => {
         expect(result.current.user).toBeNull();
         expect(result.current.profile).toBeNull();
         expect(mocks.signOut).toHaveBeenCalledWith({ scope: "local" });
+    });
+
+    it("does not report logged-in UI state when profile hydration fails", async () => {
+        const user = createUser();
+
+        mocks.getSession.mockResolvedValue({
+            data: { session: { user } },
+            error: null,
+        });
+        mocks.getUser.mockResolvedValue({ data: { user }, error: null });
+        mocks.single.mockRejectedValue(new Error("profile fetch failed"));
+
+        const { result } = renderHook(() => useAuth());
+
+        await waitFor(() => expect(result.current.loading).toBe(false));
+
+        expect(result.current.user?.id).toBe(user.id);
+        expect(result.current.profile).toBeNull();
+        expect(result.current.isLoggedIn).toBe(false);
+    });
+
+    it("creates a fallback profile when signup profile creation fails", async () => {
+        const user = createUser();
+
+        mocks.signUp.mockResolvedValue({
+            data: { user },
+            error: null,
+        });
+        mocks.insert.mockResolvedValue({ error: new Error("duplicate key value violates unique constraint") });
+        mocks.upsert.mockResolvedValue({ error: null });
+
+        const { result } = renderHook(() => useAuth());
+
+        await act(async () => {
+            await result.current.signUp("player@example.com", "secret123", "PlayerOne");
+        });
+
+        expect(mocks.insert).toHaveBeenCalledWith({ id: user.id, nickname: "PlayerOne" });
+        expect(mocks.upsert).toHaveBeenCalledWith(
+            { id: user.id, nickname: "player_user-1" },
+            { onConflict: "id" },
+        );
     });
 });

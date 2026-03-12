@@ -92,7 +92,19 @@ CREATE POLICY "rooms_insert" ON rooms
 -- 참가자만 UPDATE (player2 참가, 상태 변경 등)
 CREATE POLICY "rooms_update" ON rooms
   FOR UPDATE USING (
+    auth.uid() = player1_id
+    OR auth.uid() = player2_id
+    OR (status = 'waiting' AND player2_id IS NULL)
+  )
+  WITH CHECK (
     auth.uid() = player1_id OR auth.uid() = player2_id
+  );
+
+-- 참가자만 DELETE (방 취소, 경기 종료 후 정리)
+CREATE POLICY "rooms_delete" ON rooms
+  FOR DELETE USING (
+    auth.uid() = player1_id
+    OR auth.uid() = player2_id
   );
 
 -- ──────────────────────────────────────────────
