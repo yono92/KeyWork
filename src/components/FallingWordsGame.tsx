@@ -6,6 +6,10 @@ import { useGameAudio } from "../hooks/useGameAudio";
 import { usePauseHandler } from "../hooks/usePauseHandler";
 import { useKoreanWords } from "../hooks/useKoreanWords";
 import { usePowerUpSystem } from "../hooks/usePowerUpSystem";
+import {
+    calculateFallingWordsMatchScore,
+    findClaimableFallingWord,
+} from "@/lib/fallingWords";
 import PauseOverlay from "./game/PauseOverlay";
 import GameOverModal from "./game/GameOverModal";
 import GameInput from "./game/GameInput";
@@ -73,6 +77,8 @@ const FallingWordsGame: React.FC = () => {
 
     const gameAreaRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
+    const comboRef = useRef(0);
+    const claimedWordIdsRef = useRef<Set<number>>(new Set());
 
     // 게임 통계 refs
     const totalWordsTypedRef = useRef(0);
@@ -98,6 +104,10 @@ const FallingWordsGame: React.FC = () => {
 
     const { playSound } = useGameAudio();
     usePauseHandler(gameStarted, gameOver, setIsPaused);
+
+    useEffect(() => {
+        comboRef.current = combo;
+    }, [combo]);
 
     // 카운트다운 타이머
     useEffect(() => {
@@ -217,7 +227,8 @@ const FallingWordsGame: React.FC = () => {
                 break;
             case "score":
                 setScore((prev) => prev + 200 * level);
-                setCombo((prev) => prev + 1);
+                comboRef.current += 1;
+                setCombo(comboRef.current);
                 break;
         }
     };
@@ -264,6 +275,7 @@ const FallingWordsGame: React.FC = () => {
                         }
                         return newLives;
                     });
+                    comboRef.current = 0;
                     setCombo(0);
                 }
 
@@ -291,6 +303,9 @@ const FallingWordsGame: React.FC = () => {
         if (animatedWords.length === 0) return;
 
         const timer = setTimeout(() => {
+            animatedWords.forEach((word) => {
+                claimedWordIdsRef.current.delete(word.id);
+            });
             setWords((curr) => curr.filter((w) => w.status === "falling"));
         }, 450);
 
@@ -324,9 +339,11 @@ const FallingWordsGame: React.FC = () => {
 
     const handleSubmit = (): void => {
         const value = input;
-        const matchedWord = words.find((word) => value === word.text && word.status === "falling");
+        const matchedWord = findClaimableFallingWord(words, value, claimedWordIdsRef.current);
 
         if (matchedWord) {
+            claimedWordIdsRef.current.add(matchedWord.id);
+
             const now = Date.now();
             const timeSinceLastType = lastTypedTime > 0 ? now - lastTypedTime : Infinity;
             setLastTypedTime(now);
@@ -349,52 +366,55 @@ const FallingWordsGame: React.FC = () => {
                     matchedWord.top
                 );
             } else {
+                const {
+                    nextCombo,
+                    finalScore,
+                    triggeredComboMilestone,
+                    triggeredComboSound,
+                } = calculateFallingWordsMatchScore(
+                    comboRef.current,
+                    matchedWord.text.length,
+                    timeSinceLastType,
+                );
+
+                comboRef.current = nextCombo;
+                setCombo(nextCombo);
+
+                if (nextCombo > maxComboRef.current) {
+                    maxComboRef.current = nextCombo;
+                }
+
                 playSound("match");
-                setCombo((prevCombo) => {
-                    const newCombo = prevCombo + 1;
 
-                    if (newCombo > maxComboRef.current) {
-                        maxComboRef.current = newCombo;
+                if (triggeredComboSound) {
+                    playSound("combo");
+                }
+
+                if (triggeredComboMilestone) {
+                    setComboGlow(true);
+                    setTimeout(() => setComboGlow(false), 800);
+                }
+
+                setScore((prev) => {
+                    const newScore = prev + finalScore;
+                    const requirements = getLevelRequirements(level);
+                    if (newScore >= requirements.scoreNeeded) {
+                        setLevel((prevLevel) => prevLevel + 1);
+                        setLevelUp(true);
+                        playSound("levelUp");
+                        setTimeout(() => setLevelUp(false), 1000);
                     }
-
-                    if (newCombo >= 5) {
-                        playSound("combo");
-                        if (newCombo % 5 === 0) {
-                            setComboGlow(true);
-                            setTimeout(() => setComboGlow(false), 800);
-                        }
-                    }
-
-                    let wordScore = matchedWord.text.length * 10;
-                    const comboMultiplier = Math.min(1 + newCombo * 0.2, 2);
-                    wordScore *= comboMultiplier;
-
-                    if (timeSinceLastType < 500) wordScore *= 1.5;
-
-                    const finalScore = Math.round(wordScore);
-
-                    setScore((prev) => {
-                        const newScore = prev + finalScore;
-                        const requirements = getLevelRequirements(level);
-                        if (newScore >= requirements.scoreNeeded) {
-                            setLevel((prevLevel) => prevLevel + 1);
-                            setLevelUp(true);
-                            playSound("levelUp");
-                            setTimeout(() => setLevelUp(false), 1000);
-                        }
-                        return newScore;
-                    });
-
-                    showScorePopup(
-                        `+${finalScore}`,
-                        matchedWord.left,
-                        matchedWord.top
-                    );
-
-                    return newCombo;
+                    return newScore;
                 });
+
+                showScorePopup(
+                    `+${finalScore}`,
+                    matchedWord.left,
+                    matchedWord.top
+                );
             }
         } else {
+            comboRef.current = 0;
             setCombo(0);
             clearInput();
         }
@@ -411,10 +431,12 @@ const FallingWordsGame: React.FC = () => {
         setGameStarted(false);
         setLevelUp(false);
         setCombo(0);
+        comboRef.current = 0;
         setScorePopups([]);
         setIsPaused(false);
         clearInput();
         setLastTypedTime(0);
+        claimedWordIdsRef.current.clear();
         if (language === "korean" && koreanWords.length === 0) {
             void fetchKoreanWords();
         }
