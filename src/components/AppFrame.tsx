@@ -4,6 +4,7 @@ import React, { useEffect } from "react";
 import type { ReactNode } from "react";
 import SideNav from "./SideNav";
 import useTypingStore from "../store/store";
+import GlobalInviteHost from "./multiplayer/GlobalInviteHost";
 
 interface AppFrameProps {
     children: ReactNode;
@@ -36,6 +37,7 @@ export default function AppFrame({ children }: AppFrameProps) {
 
     return (
         <div className="relative h-screen overflow-hidden bg-[var(--retro-app-bg)]">
+            <GlobalInviteHost />
             <div className="relative z-10 h-full box-border p-2.5 md:p-3.5">
                 <div className="flex h-full gap-2.5 md:gap-3.5">
                     <SideNav />

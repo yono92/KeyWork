@@ -9,7 +9,6 @@ import { Button } from "@/components/ui/button";
 import useTypingStore from "@/store/store";
 import PixelAvatar from "@/components/avatar/PixelAvatar";
 import FriendInvitePanel from "./FriendInvitePanel";
-import InviteToast from "./InviteToast";
 
 interface MultiplayerLobbyProps {
     gameName: string;
@@ -23,7 +22,7 @@ export default function MultiplayerLobby({ gameName, gameMode, room, onBack }: M
     const language = useTypingStore((s) => s.language);
     const retroTheme = useTypingStore((s) => s.retroTheme);
     const ko = language === "korean";
-    const { pendingInvite, sendInvite, dismissInvite } = useGameInvite();
+    const { sendInvite } = useGameInvite();
 
     const handleInviteFriend = useCallback(
         (targetUserId: string) => {
@@ -33,13 +32,6 @@ export default function MultiplayerLobby({ gameName, gameMode, room, onBack }: M
         },
         [room.roomId, gameMode, sendInvite],
     );
-
-    const handleAcceptInvite = useCallback(() => {
-        if (pendingInvite) {
-            room.joinRoom(pendingInvite.roomCode);
-            dismissInvite();
-        }
-    }, [pendingInvite, room, dismissInvite]);
 
     React.useEffect(() => {
         fetch("/api/rooms/cleanup", { method: "POST" }).catch(() => {});
@@ -177,16 +169,6 @@ export default function MultiplayerLobby({ gameName, gameMode, room, onBack }: M
             </CardContent>
         </Card>
 
-        {/* 초대 수신 토스트 */}
-        {pendingInvite && (
-            <InviteToast
-                invite={pendingInvite}
-                ko={ko}
-                rounded={retroTheme === "mac-classic"}
-                onAccept={handleAcceptInvite}
-                onDismiss={dismissInvite}
-            />
-        )}
     </>
     );
 }

@@ -1,21 +1,65 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { Suspense, useEffect, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import MainLayout from "../../../src/components/MainLayout";
 import Header from "@/components/Header";
 import MultiplayerLobby from "@/components/multiplayer/MultiplayerLobby";
 import WordChainBattle from "@/components/multiplayer/WordChainBattle";
 import useTypingStore from "@/store/store";
 import { useMultiplayerRoom } from "@/hooks/useMultiplayerRoom";
+import { useGameInvite } from "@/hooks/useGameInvite";
 
 type PlayMode = "single" | "online";
 
-export default function WordChainPage() {
-    const [mode, setMode] = useState<PlayMode>("single");
+function WordChainPageContent() {
+    const searchParams = useSearchParams();
+    const router = useRouter();
+    const inviteCode = searchParams.get("invite");
+    const inviteTarget = searchParams.get("inviteTarget");
+    const forceOnline = searchParams.get("online") === "1" || !!inviteCode || !!inviteTarget;
+    const [mode, setMode] = useState<PlayMode>(forceOnline ? "online" : "single");
     const room = useMultiplayerRoom("word-chain");
+    const { sendInvite } = useGameInvite();
     const language = useTypingStore((s) => s.language);
     const ko = language === "korean";
     const inRoom = !!room.roomId || room.phase === "countdown" || room.phase === "playing" || room.phase === "finished";
+    const handledInviteRef = useRef<string | null>(null);
+    const handledOutgoingRef = useRef<string | null>(null);
+
+    useEffect(() => {
+        if (forceOnline) {
+            setMode("online");
+        }
+    }, [forceOnline]);
+
+    useEffect(() => {
+        if (!inviteCode || handledInviteRef.current === inviteCode) return;
+        if (room.roomId || room.phase === "joining" || room.phase === "creating") return;
+
+        handledInviteRef.current = inviteCode;
+        void room.joinRoom(inviteCode).then(() => {
+            router.replace("/word-chain?online=1");
+        });
+    }, [inviteCode, room, router]);
+
+    useEffect(() => {
+        if (!inviteTarget || handledOutgoingRef.current === inviteTarget) return;
+        if (room.roomId || room.phase === "creating" || room.phase === "joining") return;
+
+        handledOutgoingRef.current = inviteTarget;
+        void room.createRoom();
+    }, [inviteTarget, room]);
+
+    useEffect(() => {
+        if (!inviteTarget || !room.roomId) return;
+        if (room.phase !== "waiting" || !room.isHost) return;
+        if (handledOutgoingRef.current !== inviteTarget) return;
+
+        void sendInvite(inviteTarget, "word-chain", room.roomId).then(() => {
+            router.replace("/word-chain?online=1");
+        });
+    }, [inviteTarget, room.isHost, room.phase, room.roomId, router, sendInvite]);
 
     if (mode === "single") {
         return (
@@ -50,5 +94,13 @@ export default function WordChainPage() {
                 )}
             </div>
         </div>
+    );
+}
+
+export default function WordChainPage() {
+    return (
+        <Suspense fallback={null}>
+            <WordChainPageContent />
+        </Suspense>
     );
 }

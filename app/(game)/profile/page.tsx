@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useAuthContext } from "@/components/auth/AuthProvider";
 import useTypingStore from "@/store/store";
 import { Card, CardContent } from "@/components/ui/card";
@@ -1098,6 +1099,11 @@ const CATEGORY_ORDER: AchievementCategory[] = [
     "beginner", "mode-master", "record", "grinder", "multiplayer",
 ];
 
+const FRIEND_CHALLENGE_MODES = [
+    { id: "tetris", labelKo: "테트리스", labelEn: "Tetris", path: "/tetris" },
+    { id: "word-chain", labelKo: "끝말잇기", labelEn: "Word Chain", path: "/word-chain" },
+] as const;
+
 function AchievementsSection({ ko, rounded }: { ko: boolean; rounded: boolean }) {
     const { achievements, unlockedCount, totalCount, loading } = useAchievements();
     const [filterCat, setFilterCat] = useState<AchievementCategory | "all">("all");
@@ -1223,6 +1229,7 @@ function AchievementsSection({ ko, rounded }: { ko: boolean; rounded: boolean })
 /* ───── 친구 섹션 ───── */
 
 function FriendsSection({ ko, rounded }: { ko: boolean; rounded: boolean }) {
+    const router = useRouter();
     const {
         friends,
         incomingRequests,
@@ -1239,6 +1246,7 @@ function FriendsSection({ ko, rounded }: { ko: boolean; rounded: boolean }) {
     const [searching, setSearching] = useState(false);
     const [sentIds, setSentIds] = useState<Set<string>>(new Set());
     const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
+    const [challengeMode, setChallengeMode] = useState<(typeof FRIEND_CHALLENGE_MODES)[number]["id"]>("tetris");
 
     const handleSearch = async () => {
         if (searchQuery.trim().length < 2) return;
@@ -1263,6 +1271,12 @@ function FriendsSection({ ko, rounded }: { ko: boolean; rounded: boolean }) {
     const handleRemove = async (friendshipId: number) => {
         await removeFriendship(friendshipId);
         setDeleteConfirm(null);
+    };
+
+    const handleChallenge = (friendId: string) => {
+        const selected = FRIEND_CHALLENGE_MODES.find((mode) => mode.id === challengeMode);
+        if (!selected) return;
+        router.push(`${selected.path}?online=1&inviteTarget=${encodeURIComponent(friendId)}`);
     };
 
     if (loading) {
@@ -1329,6 +1343,37 @@ function FriendsSection({ ko, rounded }: { ko: boolean; rounded: boolean }) {
                     </div>
                 )}
 
+                <div className="rounded-xl border border-[var(--retro-border-mid)] bg-[var(--retro-surface-alt)]/80 p-3">
+                    <div className="flex items-center justify-between gap-3">
+                        <div>
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--retro-text)]/50">
+                                {ko ? "친구 도전" : "Friend challenge"}
+                            </p>
+                            <p className="mt-1 text-xs leading-relaxed text-[var(--retro-text)]/60">
+                                {ko
+                                    ? "게임을 고른 뒤 친구 카드에서 바로 도전장을 보낼 수 있습니다."
+                                    : "Pick a game, then send a challenge directly from any friend card."}
+                            </p>
+                        </div>
+                        <Swords className="h-4 w-4 text-[var(--retro-accent)]" />
+                    </div>
+                    <div className="mt-3 flex flex-wrap gap-1.5">
+                        {FRIEND_CHALLENGE_MODES.map((mode) => (
+                            <button
+                                key={mode.id}
+                                onClick={() => setChallengeMode(mode.id)}
+                                className={`rounded-lg px-2.5 py-1 text-[11px] font-semibold transition-colors ${
+                                    challengeMode === mode.id
+                                        ? "bg-[var(--retro-accent)] text-[var(--retro-text-inverse)]"
+                                        : "border border-[var(--retro-border-mid)] bg-[var(--retro-surface)] text-[var(--retro-text)]/60 hover:bg-[var(--retro-surface-alt)]"
+                                }`}
+                            >
+                                {ko ? mode.labelKo : mode.labelEn}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
                 {/* 친구 목록 */}
                 {friends.length > 0 ? (
                     <div className="space-y-1.5">
@@ -1341,6 +1386,12 @@ function FriendsSection({ ko, rounded }: { ko: boolean; rounded: boolean }) {
                                 <span className="flex-1 truncate text-sm font-semibold text-[var(--retro-text)]">
                                     {f.nickname}
                                 </span>
+                                <button
+                                    onClick={() => handleChallenge(f.friendId)}
+                                    className="rounded-lg border border-[var(--retro-accent)]/25 bg-[var(--retro-accent)]/10 px-2 py-1 text-[10px] font-bold text-[var(--retro-accent)] hover:bg-[var(--retro-accent)]/15"
+                                >
+                                    {ko ? "도전" : "Challenge"}
+                                </button>
                                 {deleteConfirm === f.friendshipId ? (
                                     <button
                                         onClick={() => void handleRemove(f.friendshipId)}
