@@ -3,7 +3,7 @@
 import { useCallback, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useAuthContext } from "@/components/auth/AuthProvider";
-import { ACHIEVEMENTS } from "@/data/achievements";
+import { getNewlyUnlockedAchievements } from "@/data/achievements";
 import type { AchievementDef, AchievementCheckContext } from "@/data/achievements";
 
 export function useAchievementChecker() {
@@ -51,9 +51,7 @@ export function useAchievementChecker() {
                 };
 
                 // 미해금 + 조건 충족인 업적 필터
-                const newly = ACHIEVEMENTS.filter(
-                    (a) => !unlockedSet.has(a.id) && a.check(ctx),
-                );
+                const newly = getNewlyUnlockedAchievements(ctx, unlockedSet);
 
                 if (newly.length > 0) {
                     // 일괄 INSERT (UNIQUE 제약으로 중복 방지)

@@ -320,3 +320,12 @@ export const ACHIEVEMENTS: AchievementDef[] = [
 ];
 
 export const ACHIEVEMENT_MAP = new Map(ACHIEVEMENTS.map((a) => [a.id, a]));
+
+export function getNewlyUnlockedAchievements(
+    ctx: AchievementCheckContext,
+    unlockedIds: ReadonlySet<string>,
+) {
+    return ACHIEVEMENTS.filter((achievement) => (
+        !unlockedIds.has(achievement.id) && achievement.check(ctx)
+    ));
+}
