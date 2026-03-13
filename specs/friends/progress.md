@@ -7,6 +7,7 @@
 ## T2: useFriends 훅
 - **상태**: `완료`
 - CRUD 훅 구현 (fetchFriends, searchUsers, sendRequest, acceptRequest, removeFriendship)
+- 보낸 요청(outgoingRequests)과 `pending-sent` 상태 판정 반영
 
 ## T3: 프로필 친구 섹션 UI
 - **상태**: `완료`
@@ -20,3 +21,4 @@
 ## T5: 테스트 및 빌드 검증
 - **상태**: `완료`
 - lint 통과, build 통과, Playwright 스크린샷 확인
+- Vitest: 친구/받은 요청/보낸 요청 분리와 닉네임 검색 검증

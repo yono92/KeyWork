@@ -15,12 +15,14 @@ export function useFriends() {
     const { user } = useAuthContext();
     const [friends, setFriends] = useState<FriendWithProfile[]>([]);
     const [incomingRequests, setIncomingRequests] = useState<FriendRequest[]>([]);
+    const [outgoingRequests, setOutgoingRequests] = useState<FriendRequest[]>([]);
     const [loading, setLoading] = useState(true);
 
     const fetchFriends = useCallback(async () => {
         if (!user) {
             setFriends([]);
             setIncomingRequests([]);
+            setOutgoingRequests([]);
             setLoading(false);
             return;
         }
@@ -42,12 +44,16 @@ export function useFriends() {
             const friendIds = new Set<string>();
             const accepted = rows.filter((r) => r.status === "accepted");
             const pendingIncoming = rows.filter((r) => r.status === "pending" && r.addressee_id === user.id);
+            const pendingOutgoing = rows.filter((r) => r.status === "pending" && r.requester_id === user.id);
 
             for (const r of accepted) {
                 friendIds.add(r.requester_id === user.id ? r.addressee_id : r.requester_id);
             }
             for (const r of pendingIncoming) {
                 friendIds.add(r.requester_id);
+            }
+            for (const r of pendingOutgoing) {
+                friendIds.add(r.addressee_id);
             }
 
             // 프로필 일괄 조회
@@ -94,11 +100,27 @@ export function useFriends() {
                 })
                 .filter((f): f is FriendRequest => f !== null);
 
+            const outgoing: FriendRequest[] = pendingOutgoing
+                .map((r) => {
+                    const p = profileMap.get(r.addressee_id);
+                    if (!p) return null;
+                    return {
+                        friendshipId: r.id,
+                        userId: r.addressee_id,
+                        nickname: p.nickname,
+                        avatarConfig: p.avatar_config,
+                        createdAt: r.created_at,
+                    };
+                })
+                .filter((f): f is FriendRequest => f !== null);
+
             setFriends(friendList);
             setIncomingRequests(incoming);
+            setOutgoingRequests(outgoing);
         } catch {
             setFriends([]);
             setIncomingRequests([]);
+            setOutgoingRequests([]);
         } finally {
             setLoading(false);
         }
@@ -174,15 +196,16 @@ export function useFriends() {
         (targetId: string): "none" | "pending-sent" | "pending-received" | "friends" => {
             if (friends.some((f) => f.friendId === targetId)) return "friends";
             if (incomingRequests.some((r) => r.userId === targetId)) return "pending-received";
-            // 보낸 요청은 별도 조회가 필요하지만, 여기서는 friends에 없으면 none
+            if (outgoingRequests.some((r) => r.userId === targetId)) return "pending-sent";
             return "none";
         },
-        [friends, incomingRequests],
+        [friends, incomingRequests, outgoingRequests],
     );
 
     return {
         friends,
         incomingRequests,
+        outgoingRequests,
         loading,
         searchUsers,
         sendRequest,

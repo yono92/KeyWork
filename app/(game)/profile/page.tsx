@@ -1233,6 +1233,7 @@ function FriendsSection({ ko, rounded }: { ko: boolean; rounded: boolean }) {
     const {
         friends,
         incomingRequests,
+        outgoingRequests,
         loading,
         searchUsers,
         sendRequest,
@@ -1244,7 +1245,6 @@ function FriendsSection({ ko, rounded }: { ko: boolean; rounded: boolean }) {
     const [searchQuery, setSearchQuery] = useState("");
     const [searchResults, setSearchResults] = useState<{ id: string; nickname: string; avatar_config: AvatarConfigType | null }[]>([]);
     const [searching, setSearching] = useState(false);
-    const [sentIds, setSentIds] = useState<Set<string>>(new Set());
     const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
     const [challengeMode, setChallengeMode] = useState<(typeof FRIEND_CHALLENGE_MODES)[number]["id"]>("tetris");
 
@@ -1262,7 +1262,6 @@ function FriendsSection({ ko, rounded }: { ko: boolean; rounded: boolean }) {
     const handleSendRequest = async (targetId: string) => {
         try {
             await sendRequest(targetId);
-            setSentIds((prev) => new Set(prev).add(targetId));
         } catch {
             // 이미 요청 중이거나 친구인 경우
         }
@@ -1336,6 +1335,38 @@ function FriendsSection({ ko, rounded }: { ko: boolean; rounded: boolean }) {
                                         className="rounded-lg border border-[var(--retro-border-mid)] bg-[var(--retro-surface)] p-1.5 text-[var(--retro-text)]/50 hover:text-red-500"
                                     >
                                         <X className="h-3.5 w-3.5" />
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                {outgoingRequests.length > 0 && (
+                    <div>
+                        <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--retro-text)]/45">
+                            {ko ? `보낸 요청 (${outgoingRequests.length})` : `Sent requests (${outgoingRequests.length})`}
+                        </p>
+                        <div className="space-y-1.5">
+                            {outgoingRequests.map((req) => (
+                                <div
+                                    key={req.friendshipId}
+                                    className="flex items-center gap-2.5 rounded-xl border border-[var(--retro-border-mid)] bg-[var(--retro-surface)] px-3 py-2"
+                                >
+                                    <PixelAvatar config={req.avatarConfig} nickname={req.nickname} size="sm" />
+                                    <div className="min-w-0 flex-1">
+                                        <p className="truncate text-sm font-semibold text-[var(--retro-text)]">
+                                            {req.nickname}
+                                        </p>
+                                        <p className="text-[10px] text-[var(--retro-text)]/40">
+                                            {ko ? "수락 대기 중" : "Waiting for response"}
+                                        </p>
+                                    </div>
+                                    <button
+                                        onClick={() => void removeFriendship(req.friendshipId)}
+                                        className="rounded-lg border border-[var(--retro-border-mid)] bg-[var(--retro-surface-alt)] px-2 py-1 text-[10px] font-bold text-[var(--retro-text)]/55 hover:text-red-500"
+                                    >
+                                        {ko ? "취소" : "Cancel"}
                                     </button>
                                 </div>
                             ))}
@@ -1458,7 +1489,7 @@ function FriendsSection({ ko, rounded }: { ko: boolean; rounded: boolean }) {
                             <div className="max-h-[160px] space-y-1 overflow-y-auto">
                                 {searchResults.map((u) => {
                                     const alreadyFriend = friends.some((f) => f.friendId === u.id);
-                                    const alreadySent = sentIds.has(u.id);
+                                    const alreadySent = outgoingRequests.some((req) => req.userId === u.id);
                                     return (
                                         <div
                                             key={u.id}
