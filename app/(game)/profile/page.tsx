@@ -30,6 +30,7 @@ import {
 } from "lucide-react";
 import PixelAvatar from "@/components/avatar/PixelAvatar";
 import AvatarEditor from "@/components/avatar/AvatarEditor";
+import LevelBadge from "@/components/LevelBadge";
 import type { AvatarConfig } from "@/lib/supabase/types";
 import { useUserStats, getModeLabel } from "@/hooks/useUserStats";
 import type { DailyMission, RecentMatch, UserStats } from "@/hooks/useUserStats";
@@ -169,6 +170,7 @@ export default function ProfilePage() {
     const joinedLabel = formatJoinDate(profile.created_at, ko);
     const themeLabel = getThemeLabel(retroTheme, ko);
     const nicknameLength = editing ? newNickname.trim().length : profile.nickname.length;
+    const progression = userStatsQuery.stats?.progression ?? null;
 
     const startNicknameEdit = () => {
         setNewNickname(profile.nickname);
@@ -301,6 +303,35 @@ export default function ProfilePage() {
                                             </div>
                                         </div>
 
+                                        {progression && (
+                                            <div className="mt-5 rounded-[22px] border border-[var(--retro-border-mid)] bg-[var(--retro-surface)] p-4">
+                                                <div className="flex items-start justify-between gap-3">
+                                                    <div>
+                                                        <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--retro-text)]/45">
+                                                            {ko ? "플레이어 레벨" : "Player level"}
+                                                        </p>
+                                                        <p className="mt-2 text-2xl font-black leading-none text-[var(--retro-text)]">
+                                                            LV. {progression.level}
+                                                        </p>
+                                                        <p className="mt-1 text-xs text-[var(--retro-text)]/55">
+                                                            {progression.totalXp.toLocaleString()} XP
+                                                        </p>
+                                                    </div>
+                                                    <LevelBadge level={progression.level} progressPercent={progression.progressPercent} />
+                                                </div>
+                                                <div className="mt-4 flex items-center justify-between text-[11px] font-semibold text-[var(--retro-text)]/55">
+                                                    <span>{ko ? "다음 레벨까지" : "Until next level"}</span>
+                                                    <span>{progression.currentLevelXp}/{progression.nextLevelXp} XP</span>
+                                                </div>
+                                                <div className="mt-2 h-2.5 overflow-hidden rounded-full bg-[var(--retro-border-mid)]">
+                                                    <div
+                                                        className="h-full rounded-full bg-[var(--retro-accent)] transition-all"
+                                                        style={{ width: `${progression.progressPercent}%` }}
+                                                    />
+                                                </div>
+                                            </div>
+                                        )}
+
                                         <div className="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
                                             <div className="rounded-xl border border-[var(--retro-border-mid)] bg-[var(--retro-surface)] px-3 py-2">
                                                 <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--retro-text)]/45">
@@ -349,6 +380,20 @@ export default function ProfilePage() {
                                     <div className="grid gap-3 md:grid-cols-3">
                                         <div className="rounded-2xl border border-[var(--retro-border-mid)] bg-[var(--retro-surface-alt)]/85 p-4">
                                             <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--retro-text)]/45">
+                                                {ko ? "오늘 XP" : "Today's XP"}
+                                            </p>
+                                            <p className="mt-2 text-2xl font-black leading-none text-[var(--retro-text)]">
+                                                {progression ? `+${progression.todayXp}` : "—"}
+                                            </p>
+                                            <p className="mt-2 text-xs leading-relaxed text-[var(--retro-text)]/60">
+                                                {ko
+                                                    ? "오늘 플레이와 오늘 완료한 미션 보상 XP를 합산한 값입니다."
+                                                    : "Combined XP from today's runs and completed daily missions."}
+                                            </p>
+                                        </div>
+
+                                        <div className="rounded-2xl border border-[var(--retro-border-mid)] bg-[var(--retro-surface-alt)]/85 p-4">
+                                            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--retro-text)]/45">
                                                 {ko ? "프로필 완성도" : "Profile state"}
                                             </p>
                                             <p className="mt-2 text-2xl font-black leading-none text-[var(--retro-text)]">
@@ -372,20 +417,6 @@ export default function ProfilePage() {
                                                 {ko
                                                     ? "공개 방 목록, 대기방, 랭킹에서 동일한 플레이어 카드로 사용됩니다."
                                                     : "Used consistently in room lists, ready rooms, and leaderboards."}
-                                            </p>
-                                        </div>
-
-                                        <div className="rounded-2xl border border-[var(--retro-border-mid)] bg-[var(--retro-surface-alt)]/85 p-4">
-                                            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--retro-text)]/45">
-                                                {ko ? "입력 모드" : "Input mode"}
-                                            </p>
-                                            <p className="mt-2 text-2xl font-black leading-none text-[var(--retro-text)]">
-                                                {ko ? "한/영 전환" : "Bi-lingual"}
-                                            </p>
-                                            <p className="mt-2 text-xs leading-relaxed text-[var(--retro-text)]/60">
-                                                {ko
-                                                    ? "닉네임은 최대 20자까지 저장되며, 현재 언어 설정은 UI 표시에 반영됩니다."
-                                                    : "Nicknames support up to 20 characters and follow your current UI language."}
                                             </p>
                                         </div>
                                     </div>
@@ -801,6 +832,7 @@ function DailyMissionsSection({
     if (!stats) return null;
 
     const { activity } = stats;
+    const { progression } = stats;
 
     return (
         <Card className={`${rounded ? "rounded-[24px]" : "rounded-none"} lg:col-span-2`}>
@@ -848,6 +880,19 @@ function DailyMissionsSection({
                                 </p>
                                 <p className="mt-1 text-lg font-bold text-[var(--retro-text)]">
                                     {activity.longestStreak}{ko ? "일" : " days"}
+                                </p>
+                            </div>
+                            <div className="rounded-xl border border-[var(--retro-border-mid)] bg-[var(--retro-surface)] px-3 py-2">
+                                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--retro-text)]/45">
+                                    {ko ? "오늘 XP" : "Today's XP"}
+                                </p>
+                                <p className="mt-1 text-lg font-bold text-[var(--retro-text)]">
+                                    +{activity.todayXp} XP
+                                </p>
+                                <p className="mt-1 text-[11px] leading-relaxed text-[var(--retro-text)]/55">
+                                    {ko
+                                        ? `미션 보상 ${activity.todayMissionXp} XP 포함 · 현재 LV.${progression.level}`
+                                        : `Includes ${activity.todayMissionXp} XP from mission rewards · current LV.${progression.level}`}
                                 </p>
                             </div>
                             <div className="rounded-xl border border-[var(--retro-border-mid)] bg-[var(--retro-surface)] px-3 py-2">
@@ -908,7 +953,7 @@ function DailyMissionsSection({
 
                                     <div className="mt-3 flex items-center justify-between text-[11px] font-semibold text-[var(--retro-text)]/55">
                                         <span>{ko ? "진행도" : "Progress"}</span>
-                                        <span>{mission.current}/{mission.target}</span>
+                                        <span>{mission.current}/{mission.target} · +{mission.rewardXp} XP</span>
                                     </div>
                                     <div className="mt-2 h-2.5 overflow-hidden rounded-full bg-[var(--retro-border-mid)]">
                                         <div

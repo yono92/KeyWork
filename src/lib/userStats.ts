@@ -32,6 +32,7 @@ export interface DailyMissionSummary {
     current: number;
     target: number;
     completed: boolean;
+    rewardXp: number;
 }
 
 export interface StreakDaySummary {
@@ -48,6 +49,22 @@ export interface ActivitySummary {
     recentDays: StreakDaySummary[];
     dailyMissions: DailyMissionSummary[];
     completedMissionCount: number;
+    todayXp: number;
+    todayMissionXp: number;
+}
+
+export interface ProgressionSummary {
+    level: number;
+    totalXp: number;
+    playXp: number;
+    missionXp: number;
+    currentLevelXp: number;
+    nextLevelXp: number;
+    progressPercent: number;
+    currentLevelStartXp: number;
+    nextLevelTotalXp: number;
+    todayXp: number;
+    todayMissionXp: number;
 }
 
 export interface AggregatedUserStats {
@@ -62,7 +79,19 @@ export interface AggregatedUserStats {
     mostPlayedMode: string | null;
     recentMatches: RecentMatchSummary[];
     activity: ActivitySummary;
+    progression: ProgressionSummary;
 }
+
+const XP_PER_PLAY = 20;
+const XP_MULTIPLAYER_BONUS = 10;
+const XP_WIN_BONUS = 15;
+const XP_ACCURACY_BONUS = 5;
+
+const DAILY_MISSION_REWARDS = {
+    plays: 30,
+    modes: 40,
+    multiplayer: 50,
+} as const;
 
 function toDayKey(dateValue: string | Date) {
     const date = typeof dateValue === "string" ? new Date(dateValue) : dateValue;
@@ -78,14 +107,123 @@ function addDays(baseDate: Date, amount: number) {
     return next;
 }
 
-function buildActivitySummary(scores: readonly ScoreStatRow[]): ActivitySummary {
-    const dayCounts = new Map<string, number>();
+interface DaySnapshot {
+    playCount: number;
+    multiplayerCount: number;
+    modes: Set<string>;
+}
+
+function buildDaySnapshots(scores: readonly ScoreStatRow[]) {
+    const snapshots = new Map<string, DaySnapshot>();
 
     for (const score of scores) {
         const dayKey = toDayKey(score.created_at);
-        dayCounts.set(dayKey, (dayCounts.get(dayKey) ?? 0) + 1);
+        const snapshot = snapshots.get(dayKey) ?? {
+            playCount: 0,
+            multiplayerCount: 0,
+            modes: new Set<string>(),
+        };
+
+        snapshot.playCount += 1;
+        snapshot.modes.add(score.game_mode);
+        if (score.is_multiplayer) snapshot.multiplayerCount += 1;
+        snapshots.set(dayKey, snapshot);
     }
 
+    return snapshots;
+}
+
+function buildDailyMissions(snapshot: DaySnapshot | undefined): DailyMissionSummary[] {
+    const playCount = snapshot?.playCount ?? 0;
+    const uniqueModes = snapshot?.modes.size ?? 0;
+    const multiplayerCount = snapshot?.multiplayerCount ?? 0;
+
+    return [
+        {
+            id: "plays",
+            current: playCount,
+            target: 3,
+            completed: playCount >= 3,
+            rewardXp: DAILY_MISSION_REWARDS.plays,
+        },
+        {
+            id: "modes",
+            current: uniqueModes,
+            target: 2,
+            completed: uniqueModes >= 2,
+            rewardXp: DAILY_MISSION_REWARDS.modes,
+        },
+        {
+            id: "multiplayer",
+            current: multiplayerCount,
+            target: 1,
+            completed: multiplayerCount >= 1,
+            rewardXp: DAILY_MISSION_REWARDS.multiplayer,
+        },
+    ];
+}
+
+function getScoreXp(score: ScoreStatRow) {
+    return XP_PER_PLAY
+        + (score.is_multiplayer ? XP_MULTIPLAYER_BONUS : 0)
+        + (score.is_win ? XP_WIN_BONUS : 0)
+        + ((score.accuracy ?? 0) >= 95 ? XP_ACCURACY_BONUS : 0);
+}
+
+function getXpRequiredForLevel(level: number) {
+    return 100 + (level - 1) * 50;
+}
+
+function buildProgressionSummary(scores: readonly ScoreStatRow[], daySnapshots: ReadonlyMap<string, DaySnapshot>): ProgressionSummary {
+    const playXp = scores.reduce((sum, score) => sum + getScoreXp(score), 0);
+    const missionXp = [...daySnapshots.values()].reduce((sum, snapshot) => (
+        sum + buildDailyMissions(snapshot)
+            .filter((mission) => mission.completed)
+            .reduce((inner, mission) => inner + mission.rewardXp, 0)
+    ), 0);
+
+    const totalXp = playXp + missionXp;
+    let level = 1;
+    let currentLevelStartXp = 0;
+    let nextLevelXp = getXpRequiredForLevel(level);
+    let remainingXp = totalXp;
+
+    while (remainingXp >= nextLevelXp) {
+        remainingXp -= nextLevelXp;
+        currentLevelStartXp += nextLevelXp;
+        level += 1;
+        nextLevelXp = getXpRequiredForLevel(level);
+    }
+
+    const todayKey = toDayKey(new Date());
+    const todaySnapshot = daySnapshots.get(todayKey);
+    const todayPlayXp = scores
+        .filter((score) => toDayKey(score.created_at) === todayKey)
+        .reduce((sum, score) => sum + getScoreXp(score), 0);
+    const todayMissionXp = buildDailyMissions(todaySnapshot)
+        .filter((mission) => mission.completed)
+        .reduce((sum, mission) => sum + mission.rewardXp, 0);
+
+    return {
+        level,
+        totalXp,
+        playXp,
+        missionXp,
+        currentLevelXp: remainingXp,
+        nextLevelXp,
+        progressPercent: nextLevelXp > 0 ? Math.round((remainingXp / nextLevelXp) * 100) : 0,
+        currentLevelStartXp,
+        nextLevelTotalXp: currentLevelStartXp + nextLevelXp,
+        todayXp: todayPlayXp + todayMissionXp,
+        todayMissionXp,
+    };
+}
+
+function buildActivitySummary(scores: readonly ScoreStatRow[]): ActivitySummary {
+    const daySnapshots = buildDaySnapshots(scores);
+    const dayCounts = new Map(
+        [...daySnapshots.entries()].map(([key, snapshot]) => [key, snapshot.playCount]),
+    );
     const sortedKeys = [...dayCounts.keys()].sort();
     const today = new Date();
     const todayKey = toDayKey(today);
@@ -121,30 +259,14 @@ function buildActivitySummary(scores: readonly ScoreStatRow[]): ActivitySummary 
         }
     }
 
-    const todayScores = scores.filter((score) => toDayKey(score.created_at) === todayKey);
-    const uniqueModesToday = new Set(todayScores.map((score) => score.game_mode)).size;
-    const multiplayerToday = todayScores.filter((score) => score.is_multiplayer).length;
-
-    const dailyMissions: DailyMissionSummary[] = [
-        {
-            id: "plays",
-            current: todayScores.length,
-            target: 3,
-            completed: todayScores.length >= 3,
-        },
-        {
-            id: "modes",
-            current: uniqueModesToday,
-            target: 2,
-            completed: uniqueModesToday >= 2,
-        },
-        {
-            id: "multiplayer",
-            current: multiplayerToday,
-            target: 1,
-            completed: multiplayerToday >= 1,
-        },
-    ];
+    const todaySnapshot = daySnapshots.get(todayKey);
+    const dailyMissions = buildDailyMissions(todaySnapshot);
+    const todayMissionXp = dailyMissions
+        .filter((mission) => mission.completed)
+        .reduce((sum, mission) => sum + mission.rewardXp, 0);
+    const todayPlayXp = scores
+        .filter((score) => toDayKey(score.created_at) === todayKey)
+        .reduce((sum, score) => sum + getScoreXp(score), 0);
 
     const recentDays = Array.from({ length: 7 }, (_, index) => {
         const day = addDays(today, index - 6);
@@ -164,6 +286,8 @@ function buildActivitySummary(scores: readonly ScoreStatRow[]): ActivitySummary 
         recentDays,
         dailyMissions,
         completedMissionCount: dailyMissions.filter((mission) => mission.completed).length,
+        todayXp: todayPlayXp + todayMissionXp,
+        todayMissionXp,
     };
 }
 
@@ -171,6 +295,7 @@ export function aggregateUserStats(
     scores: readonly ScoreStatRow[],
     displayModes: readonly string[],
 ): AggregatedUserStats {
+    const daySnapshots = buildDaySnapshots(scores);
     const modeStats: ModeStatsSummary[] = displayModes.map((mode) => {
         const modeScores = scores.filter((score) => score.game_mode === mode);
         const accuracies = modeScores
@@ -218,5 +343,6 @@ export function aggregateUserStats(
             createdAt: score.created_at,
         })),
         activity: buildActivitySummary(scores),
+        progression: buildProgressionSummary(scores, daySnapshots),
     };
 }

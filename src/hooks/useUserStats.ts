@@ -11,6 +11,7 @@ import {
     type RecentMatchSummary,
     type DailyMissionSummary,
     type StreakDaySummary,
+    type ProgressionSummary,
 } from "@/lib/userStats";
 
 const DISPLAY_MODES = NAV_ITEMS.map((item) => item.id);
@@ -25,6 +26,7 @@ export type ModeStats = ModeStatsSummary;
 export type RecentMatch = RecentMatchSummary;
 export type DailyMission = DailyMissionSummary;
 export type StreakDay = StreakDaySummary;
+export type Progression = ProgressionSummary;
 export type UserStats = AggregatedUserStats;
 
 export function useUserStats() {
