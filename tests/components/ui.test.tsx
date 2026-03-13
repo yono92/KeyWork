@@ -9,16 +9,52 @@ import LanguageToggle from "../../src/components/LanguageToggle";
 import Logo from "../../src/components/Logo";
 import MuteToggle from "../../src/components/MuteToggle";
 import ProgressBar from "../../src/components/ProgressBar";
+import UserMenu from "../../src/components/auth/UserMenu";
 import useTypingStore from "../../src/store/store";
 
+const authContext = {
+    user: null as null | { id: string },
+    profile: null as null | { nickname: string; avatar_config: null },
+    isLoggedIn: false,
+    loading: false,
+    signIn: vi.fn(),
+    signUp: vi.fn(),
+    signOut: vi.fn(),
+    updateNickname: vi.fn(),
+};
+
+const userStatsState = {
+    stats: null as null | {
+        progression: {
+            level: number;
+            progressPercent: number;
+        };
+    },
+    loading: false,
+};
+
 vi.mock("../../src/components/auth/AuthProvider", () => ({
-    useAuthContext: () => ({ user: null, profile: null, isLoggedIn: false, loading: false, signIn: vi.fn(), signUp: vi.fn(), signOut: vi.fn(), updateNickname: vi.fn() }),
+    useAuthContext: () => authContext,
     AuthProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+}));
+
+vi.mock("../../src/hooks/useUserStats", () => ({
+    useUserStats: () => userStatsState,
 }));
 
 describe("UI components", () => {
     beforeEach(() => {
         globalThis.__TEST_PATHNAME__ = "/practice";
+        Object.assign(authContext, {
+            user: null,
+            profile: null,
+            isLoggedIn: false,
+            loading: false,
+        });
+        Object.assign(userStatsState, {
+            stats: null,
+            loading: false,
+        });
         useTypingStore.setState({
             darkMode: false,
             progress: 25,
@@ -87,5 +123,21 @@ describe("UI components", () => {
             </AppFrame>
         );
         expect(screen.getByText("child")).toBeInTheDocument();
+    });
+
+    it("shows the current level in the user menu when logged in", () => {
+        Object.assign(authContext, {
+            user: { id: "user-1" },
+            profile: { nickname: "PlayerOne", avatar_config: null },
+            isLoggedIn: true,
+        });
+        Object.assign(userStatsState, {
+            stats: { progression: { level: 7, progressPercent: 42 } },
+        });
+
+        render(<UserMenu />);
+        fireEvent.click(screen.getByRole("button", { name: /PlayerOne/ }));
+
+        expect(screen.getByLabelText("Level 7, 42% progress")).toBeInTheDocument();
     });
 });

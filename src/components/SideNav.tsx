@@ -17,12 +17,15 @@ import { cn } from "@/lib/utils";
 import { useAuthContext } from "@/components/auth/AuthProvider";
 import AuthModal from "@/components/auth/AuthModal";
 import PixelAvatar from "@/components/avatar/PixelAvatar";
+import LevelBadge from "@/components/LevelBadge";
+import { useUserStats } from "@/hooks/useUserStats";
 
 function AccountSection({ language, pathname, onNavigate, variant = "full" }: {
     language: AppLanguage; pathname: string; onNavigate: (path: string) => void; variant?: "full" | "compact";
 }) {
     const ko = language === "korean";
     const { isLoggedIn, loading, profile, signOut } = useAuthContext();
+    const { stats } = useUserStats();
     const [showAuth, setShowAuth] = useState(false);
 
     return (
@@ -65,6 +68,18 @@ function AccountSection({ language, pathname, onNavigate, variant = "full" }: {
                             {profile?.nickname ?? "Player"}
                         </span>
                     </div>
+                    {stats && (
+                        <div className={cn(
+                            "px-3 pb-1.5",
+                            variant === "compact" ? "hidden lg:block" : "",
+                        )}>
+                            <LevelBadge
+                                level={stats.progression.level}
+                                progressPercent={stats.progression.progressPercent}
+                                compact
+                            />
+                        </div>
+                    )}
 
                     {/* 프로필 */}
                     <NavButton

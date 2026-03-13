@@ -9,6 +9,7 @@ interface LevelBadgeProps {
 export default function LevelBadge({ level, progressPercent = 0, compact = false }: LevelBadgeProps) {
     return (
         <div
+            aria-label={`Level ${level}, ${progressPercent}% progress`}
             className={`inline-flex items-center gap-2 border border-[var(--retro-border-mid)] bg-[var(--retro-surface)] ${
                 compact ? "rounded-lg px-2 py-1" : "rounded-xl px-3 py-2"
             }`}
