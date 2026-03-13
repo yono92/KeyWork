@@ -7,6 +7,14 @@ import WordChainGame from "../../src/components/WordChainGame";
 import TetrisGame from "../../src/components/TetrisGame";
 import useTypingStore from "../../src/store/store";
 
+vi.mock("@/components/auth/AuthProvider", () => ({
+    useAuthContext: () => ({
+        user: null,
+        profile: null,
+        isLoggedIn: false,
+    }),
+}));
+
 describe("game components smoke", () => {
     beforeEach(() => {
         vi.stubGlobal("fetch", vi.fn(() => new Promise(() => {})));

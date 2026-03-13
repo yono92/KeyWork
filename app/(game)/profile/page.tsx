@@ -31,7 +31,7 @@ import PixelAvatar from "@/components/avatar/PixelAvatar";
 import AvatarEditor from "@/components/avatar/AvatarEditor";
 import type { AvatarConfig } from "@/lib/supabase/types";
 import { useUserStats, getModeLabel } from "@/hooks/useUserStats";
-import type { RecentMatch } from "@/hooks/useUserStats";
+import type { DailyMission, RecentMatch, UserStats } from "@/hooks/useUserStats";
 import { useAchievements } from "@/hooks/useAchievements";
 import { getCategoryLabel } from "@/data/achievements";
 import type { AchievementCategory } from "@/data/achievements";
@@ -103,6 +103,7 @@ export default function ProfilePage() {
     const [newNickname, setNewNickname] = useState("");
     const [saving, setSaving] = useState(false);
     const [message, setMessage] = useState<FlashMessage | null>(null);
+    const userStatsQuery = useUserStats();
 
     if (loading) {
         return (
@@ -688,7 +689,18 @@ export default function ProfilePage() {
                                 </CardContent>
                             </Card>
                         </div>
-                        <UserStatsSection ko={ko} rounded={rounded} />
+                        <DailyMissionsSection
+                            ko={ko}
+                            rounded={rounded}
+                            stats={userStatsQuery.stats}
+                            loading={userStatsQuery.loading}
+                        />
+                        <UserStatsSection
+                            ko={ko}
+                            rounded={rounded}
+                            stats={userStatsQuery.stats}
+                            loading={userStatsQuery.loading}
+                        />
                         <AchievementsSection ko={ko} rounded={rounded} />
                         <FriendsSection ko={ko} rounded={rounded} />
                     </div>
@@ -738,8 +750,194 @@ function MatchRow({ match, ko }: { match: RecentMatch; ko: boolean }) {
     );
 }
 
-function UserStatsSection({ ko, rounded }: { ko: boolean; rounded: boolean }) {
-    const { stats, loading } = useUserStats();
+function getMissionLabel(mission: DailyMission, ko: boolean) {
+    switch (mission.id) {
+        case "plays":
+            return {
+                title: ko ? "오늘 3판 플레이" : "Play 3 games today",
+                helper: ko ? "짧게라도 세 번 플레이해 오늘 루프를 채우세요." : "Finish three runs to lock in today's loop.",
+            };
+        case "modes":
+            return {
+                title: ko ? "오늘 2개 모드 플레이" : "Try 2 modes today",
+                helper: ko ? "한 모드에만 머무르지 말고 다른 모드도 섞어보세요." : "Mix in another mode instead of grinding just one.",
+            };
+        case "multiplayer":
+            return {
+                title: ko ? "오늘 멀티 1판 완료" : "Finish 1 multiplayer match",
+                helper: ko ? "경쟁 루프를 유지하려면 매일 한 번은 사람과 붙는 게 좋습니다." : "One real match a day keeps the competitive loop alive.",
+            };
+    }
+}
+
+function DailyMissionsSection({
+    ko,
+    rounded,
+    stats,
+    loading,
+}: {
+    ko: boolean;
+    rounded: boolean;
+    stats: UserStats | null;
+    loading: boolean;
+}) {
+    if (loading) {
+        return (
+            <Card className={`${rounded ? "rounded-[24px]" : "rounded-none"} lg:col-span-2`}>
+                <div className="retro-titlebar h-10 px-3 flex items-center gap-2 border-b border-black/25">
+                    <CalendarDays className="h-4 w-4 text-current" />
+                    <span className="text-sm font-semibold text-current">
+                        {ko ? "오늘의 루프" : "Daily loop"}
+                    </span>
+                </div>
+                <CardContent className="p-6 text-center text-sm text-[var(--retro-text)]/60">
+                    {ko ? "일일 미션을 계산하는 중..." : "Calculating today's missions..."}
+                </CardContent>
+            </Card>
+        );
+    }
+
+    if (!stats) return null;
+
+    const { activity } = stats;
+
+    return (
+        <Card className={`${rounded ? "rounded-[24px]" : "rounded-none"} lg:col-span-2`}>
+            <div className="retro-titlebar h-10 px-3 flex items-center justify-between border-b border-black/25">
+                <div className="flex items-center gap-2">
+                    <CalendarDays className="h-4 w-4 text-current" />
+                    <span className="text-sm font-semibold text-current">
+                        {ko ? "오늘의 루프" : "Daily loop"}
+                    </span>
+                </div>
+                <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-current/75">
+                    {activity.completedMissionCount}/{activity.dailyMissions.length}
+                </span>
+            </div>
+            <CardContent className="p-5">
+                <div className="grid gap-4 xl:grid-cols-[320px_minmax(0,1fr)]">
+                    <div className="rounded-[22px] border border-[var(--retro-border-mid)] bg-[var(--retro-surface-alt)]/85 p-4">
+                        <div className="flex items-start justify-between gap-3">
+                            <div>
+                                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--retro-text)]/45">
+                                    {ko ? "연속 플레이" : "Streak"}
+                                </p>
+                                <p className="mt-2 text-4xl font-black leading-none text-[var(--retro-text)]">
+                                    {activity.currentStreak}
+                                </p>
+                                <p className="mt-1 text-sm font-semibold text-[var(--retro-text)]/65">
+                                    {ko ? "일 연속" : "days in a row"}
+                                </p>
+                            </div>
+                            <div className={`rounded-full border px-2 py-1 text-[10px] font-bold uppercase tracking-[0.14em] ${
+                                activity.activeToday
+                                    ? "border-emerald-600/25 bg-emerald-500/10 text-emerald-700"
+                                    : "border-amber-600/25 bg-amber-500/10 text-amber-700"
+                            }`}>
+                                {activity.activeToday
+                                    ? ko ? "오늘 유지 중" : "Active today"
+                                    : ko ? "오늘 플레이 필요" : "Play today"}
+                            </div>
+                        </div>
+
+                        <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-1">
+                            <div className="rounded-xl border border-[var(--retro-border-mid)] bg-[var(--retro-surface)] px-3 py-2">
+                                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--retro-text)]/45">
+                                    {ko ? "최고 스트릭" : "Best streak"}
+                                </p>
+                                <p className="mt-1 text-lg font-bold text-[var(--retro-text)]">
+                                    {activity.longestStreak}{ko ? "일" : " days"}
+                                </p>
+                            </div>
+                            <div className="rounded-xl border border-[var(--retro-border-mid)] bg-[var(--retro-surface)] px-3 py-2">
+                                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--retro-text)]/45">
+                                    {ko ? "최근 7일" : "Last 7 days"}
+                                </p>
+                                <div className="mt-2 flex gap-1.5">
+                                    {activity.recentDays.map((day) => (
+                                        <div
+                                            key={day.key}
+                                            className={`flex-1 rounded-lg border px-1 py-2 text-center ${
+                                                day.played
+                                                    ? "border-[var(--retro-accent)]/30 bg-[var(--retro-accent)]/15"
+                                                    : "border-[var(--retro-border-mid)] bg-[var(--retro-bg)]/60"
+                                            }`}
+                                            title={`${day.key} · ${day.playCount}${ko ? "회" : " plays"}`}
+                                        >
+                                            <p className="text-[10px] font-semibold uppercase text-[var(--retro-text)]/45">
+                                                {day.label}
+                                            </p>
+                                            <p className="mt-1 text-xs font-bold text-[var(--retro-text)]">
+                                                {day.played ? day.playCount : "—"}
+                                            </p>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="grid gap-3">
+                        {activity.dailyMissions.map((mission) => {
+                            const labels = getMissionLabel(mission, ko);
+                            const progressPercent = Math.min((mission.current / mission.target) * 100, 100);
+
+                            return (
+                                <div
+                                    key={mission.id}
+                                    className="rounded-[22px] border border-[var(--retro-border-mid)] bg-[var(--retro-surface-alt)]/80 p-4"
+                                >
+                                    <div className="flex items-start justify-between gap-3">
+                                        <div>
+                                            <p className="text-sm font-bold text-[var(--retro-text)]">
+                                                {labels.title}
+                                            </p>
+                                            <p className="mt-1 text-xs leading-relaxed text-[var(--retro-text)]/60">
+                                                {labels.helper}
+                                            </p>
+                                        </div>
+                                        <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border ${
+                                            mission.completed
+                                                ? "border-emerald-600/25 bg-emerald-500/10 text-emerald-700"
+                                                : "border-[var(--retro-border-mid)] bg-[var(--retro-surface)] text-[var(--retro-text)]/45"
+                                        }`}>
+                                            {mission.completed ? <Check className="h-4 w-4" /> : <Clock className="h-4 w-4" />}
+                                        </div>
+                                    </div>
+
+                                    <div className="mt-3 flex items-center justify-between text-[11px] font-semibold text-[var(--retro-text)]/55">
+                                        <span>{ko ? "진행도" : "Progress"}</span>
+                                        <span>{mission.current}/{mission.target}</span>
+                                    </div>
+                                    <div className="mt-2 h-2.5 overflow-hidden rounded-full bg-[var(--retro-border-mid)]">
+                                        <div
+                                            className={`h-full rounded-full transition-all ${
+                                                mission.completed ? "bg-emerald-500" : "bg-[var(--retro-accent)]"
+                                            }`}
+                                            style={{ width: `${progressPercent}%` }}
+                                        />
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            </CardContent>
+        </Card>
+    );
+}
+
+function UserStatsSection({
+    ko,
+    rounded,
+    stats,
+    loading,
+}: {
+    ko: boolean;
+    rounded: boolean;
+    stats: UserStats | null;
+    loading: boolean;
+}) {
 
     if (loading) {
         return (
