@@ -18,6 +18,7 @@ export default function TetrisBattlePage() {
                 ) : (
                     <MultiplayerLobby
                         gameName="Tetris"
+                        gameMode="tetris"
                         room={room}
                         onBack={() => window.history.back()}
                     />

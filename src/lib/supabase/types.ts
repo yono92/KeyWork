@@ -57,6 +57,51 @@ export interface Room {
   created_at: string;
 }
 
+export interface UserAchievement {
+  id: number;
+  user_id: string;
+  achievement_id: string;
+  unlocked_at: string;
+}
+
+export interface CustomText {
+  id: number;
+  user_id: string;
+  title: string;
+  content: string;
+  language: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export type FriendshipStatus = "pending" | "accepted";
+
+export interface Friendship {
+  id: number;
+  requester_id: string;
+  addressee_id: string;
+  status: FriendshipStatus;
+  created_at: string;
+}
+
+/** 친구 목록 표시용 (프로필 정보 포함) */
+export interface FriendWithProfile {
+  friendshipId: number;
+  friendId: string;
+  nickname: string;
+  avatarConfig: AvatarConfig | null;
+  since: string;
+}
+
+/** 받은/보낸 요청 표시용 */
+export interface FriendRequest {
+  friendshipId: number;
+  userId: string;
+  nickname: string;
+  avatarConfig: AvatarConfig | null;
+  createdAt: string;
+}
+
 // ── INSERT 타입 ──
 
 export type GameScoreInsert = {
@@ -165,6 +210,51 @@ export interface Database {
           player2_id?: string | null;
           winner_id?: string | null;
           created_at?: string;
+        };
+        Relationships: GenericRelationship[];
+      };
+      friendships: {
+        Row: Friendship;
+        Insert: {
+          requester_id: string;
+          addressee_id: string;
+          status?: FriendshipStatus;
+          created_at?: string;
+        };
+        Update: {
+          status?: FriendshipStatus;
+        };
+        Relationships: GenericRelationship[];
+      };
+      custom_texts: {
+        Row: CustomText;
+        Insert: {
+          user_id: string;
+          title: string;
+          content: string;
+          language?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          title?: string;
+          content?: string;
+          language?: string;
+          updated_at?: string;
+        };
+        Relationships: GenericRelationship[];
+      };
+      user_achievements: {
+        Row: UserAchievement;
+        Insert: {
+          user_id: string;
+          achievement_id: string;
+          unlocked_at?: string;
+        };
+        Update: {
+          user_id?: string;
+          achievement_id?: string;
+          unlocked_at?: string;
         };
         Relationships: GenericRelationship[];
       };

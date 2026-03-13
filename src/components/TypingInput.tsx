@@ -1,11 +1,18 @@
-import React, { useEffect, useRef, useState, useMemo } from "react";
+import React, { useEffect, useRef, useState, useMemo, useCallback } from "react";
 import useTypingStore from "../store/store";
 import Keyboard from "./Keyboard";
 import ProgressBar from "./ProgressBar";
 import { useScreenSize } from "../hooks/useScreenSize";
 import { useKeyboardState } from "../hooks/useKeyboardState";
 import { usePracticeText } from "../hooks/usePracticeText";
+import type { PracticeSource } from "../hooks/usePracticeText";
 import { useTypingMetrics } from "../hooks/useTypingMetrics";
+import { useCustomTexts } from "../hooks/useCustomTexts";
+import { useAuthContext } from "@/components/auth/AuthProvider";
+import CustomTextManager from "./practice/CustomTextManager";
+import { BookOpen, FileText, Settings2 } from "lucide-react";
+
+const SOURCE_STORAGE_KEY = "keywork_practice_source";
 
 const TypingInput: React.FC = () => {
     const text = useTypingStore((state) => state.text);
@@ -13,13 +20,26 @@ const TypingInput: React.FC = () => {
     const language = useTypingStore((state) => state.language);
     const setProgress = useTypingStore((state) => state.setProgress);
     const retroTheme = useTypingStore((state) => state.retroTheme);
+    const ko = language === "korean";
+    const rounded = retroTheme === "mac-classic";
 
     const inputRef = useRef<HTMLTextAreaElement>(null);
     const { isMobile, isShortScreen, isLargeScreen } = useScreenSize();
     const [platform, setPlatform] = useState<"mac" | "windows">("windows");
 
+    // 텍스트 소스
+    const { isLoggedIn } = useAuthContext();
+    const [source, setSource] = useState<PracticeSource>(() => {
+        if (typeof window === "undefined") return "proverbs";
+        return (localStorage.getItem(SOURCE_STORAGE_KEY) as PracticeSource) || "proverbs";
+    });
+    const [showManager, setShowManager] = useState(false);
+
+    const { texts: customTexts, loading: customLoading, addText, updateText, deleteText } = useCustomTexts(language);
+    const effectiveSource = (!isLoggedIn || source !== "custom") ? "proverbs" : source;
+
     const { pressedKeys } = useKeyboardState();
-    const { advanceToNextPrompt } = usePracticeText();
+    const { advanceToNextPrompt } = usePracticeText(effectiveSource, customTexts);
     const {
         input,
         setInput,
@@ -34,6 +54,12 @@ const TypingInput: React.FC = () => {
         resetCurrentMetrics,
         playKeyClickSound,
     } = useTypingMetrics();
+
+    const handleSourceChange = useCallback((newSource: PracticeSource) => {
+        setSource(newSource);
+        localStorage.setItem(SOURCE_STORAGE_KEY, newSource);
+        setShowManager(false);
+    }, []);
 
     // 언어 변경 시 입력 초기화 + 포커스
     useEffect(() => {
@@ -124,9 +150,66 @@ const TypingInput: React.FC = () => {
     }, [text.length, isLargeScreen]);
 
     const lg = isLargeScreen;
+    const rnd = rounded ? "rounded-xl" : "rounded-none";
 
     return (
         <div className={`w-full ${lg ? "" : "max-w-4xl mx-auto"} animate-panel-in ${lg ? "space-y-8" : "space-y-4 md:space-y-6"} my-auto`}>
+            {/* 소스 탭 */}
+            <div className="flex items-center justify-between">
+                <div className="flex gap-1">
+                    <button
+                        onClick={() => handleSourceChange("proverbs")}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold transition-colors ${rnd} ${
+                            effectiveSource === "proverbs"
+                                ? "bg-[var(--retro-accent)] text-[var(--retro-text-inverse)]"
+                                : "border border-[var(--retro-border-mid)] bg-[var(--retro-surface)] text-[var(--retro-text)]/60 hover:bg-[var(--retro-surface-alt)]"
+                        }`}
+                    >
+                        <BookOpen className="h-3 w-3" />
+                        {ko ? "속담" : "Proverbs"}
+                    </button>
+                    <button
+                        onClick={() => isLoggedIn && handleSourceChange("custom")}
+                        disabled={!isLoggedIn}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold transition-colors ${rnd} ${
+                            effectiveSource === "custom"
+                                ? "bg-[var(--retro-accent)] text-[var(--retro-text-inverse)]"
+                                : isLoggedIn
+                                    ? "border border-[var(--retro-border-mid)] bg-[var(--retro-surface)] text-[var(--retro-text)]/60 hover:bg-[var(--retro-surface-alt)]"
+                                    : "border border-[var(--retro-border-mid)] bg-[var(--retro-surface)] text-[var(--retro-text)]/30 cursor-not-allowed"
+                        }`}
+                    >
+                        <FileText className="h-3 w-3" />
+                        {ko ? "내 텍스트" : "My Texts"}
+                    </button>
+                </div>
+                {effectiveSource === "custom" && (
+                    <button
+                        onClick={() => setShowManager((v) => !v)}
+                        className={`flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-semibold text-[var(--retro-text)]/60 hover:text-[var(--retro-text)] border border-[var(--retro-border-mid)] bg-[var(--retro-surface)] hover:bg-[var(--retro-surface-alt)] transition-colors ${rnd}`}
+                    >
+                        <Settings2 className="h-3 w-3" />
+                        {ko ? "관리" : "Manage"}
+                    </button>
+                )}
+            </div>
+
+            {/* 커스텀 텍스트 관리 패널 */}
+            {showManager && effectiveSource === "custom" && (
+                <div className={`border-2 border-[var(--retro-border-mid)] border-t-[var(--retro-border-light)] border-l-[var(--retro-border-light)] border-r-[var(--retro-border-dark)] border-b-[var(--retro-border-dark)] bg-[var(--retro-surface)] p-4 ${rnd}`}>
+                    <CustomTextManager
+                        texts={customTexts}
+                        loading={customLoading}
+                        ko={ko}
+                        rounded={rounded}
+                        onAdd={addText}
+                        onUpdate={updateText}
+                        onDelete={deleteText}
+                        onClose={() => setShowManager(false)}
+                    />
+                </div>
+            )}
+
             {/* 타이핑 영역 */}
             <div
                 className={`${lg ? "px-12 py-10" : "px-6 py-6 md:px-8 md:py-8"} transition-all duration-300 border-2 ${

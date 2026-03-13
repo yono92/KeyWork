@@ -18,6 +18,7 @@ export default function WordChainBattlePage() {
                 ) : (
                     <MultiplayerLobby
                         gameName="Word Chain"
+                        gameMode="word-chain"
                         room={room}
                         onBack={() => window.history.back()}
                     />

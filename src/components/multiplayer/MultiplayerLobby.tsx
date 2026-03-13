@@ -1,24 +1,45 @@
 "use client";
 
-import React from "react";
+import React, { useCallback } from "react";
 import { useMultiplayerRoom } from "@/hooks/useMultiplayerRoom";
 import { useAuthContext } from "@/components/auth/AuthProvider";
+import { useGameInvite } from "@/hooks/useGameInvite";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import useTypingStore from "@/store/store";
 import PixelAvatar from "@/components/avatar/PixelAvatar";
+import FriendInvitePanel from "./FriendInvitePanel";
+import InviteToast from "./InviteToast";
 
 interface MultiplayerLobbyProps {
     gameName: string;
+    gameMode?: string;
     room: ReturnType<typeof useMultiplayerRoom>;
     onBack: () => void;
 }
 
-export default function MultiplayerLobby({ gameName, room, onBack }: MultiplayerLobbyProps) {
+export default function MultiplayerLobby({ gameName, gameMode, room, onBack }: MultiplayerLobbyProps) {
     const { isLoggedIn, loading } = useAuthContext();
     const language = useTypingStore((s) => s.language);
     const retroTheme = useTypingStore((s) => s.retroTheme);
     const ko = language === "korean";
+    const { pendingInvite, sendInvite, dismissInvite } = useGameInvite();
+
+    const handleInviteFriend = useCallback(
+        (targetUserId: string) => {
+            if (room.roomId && gameMode) {
+                void sendInvite(targetUserId, gameMode, room.roomId);
+            }
+        },
+        [room.roomId, gameMode, sendInvite],
+    );
+
+    const handleAcceptInvite = useCallback(() => {
+        if (pendingInvite) {
+            room.joinRoom(pendingInvite.roomCode);
+            dismissInvite();
+        }
+    }, [pendingInvite, room, dismissInvite]);
 
     React.useEffect(() => {
         fetch("/api/rooms/cleanup", { method: "POST" }).catch(() => {});
@@ -56,6 +77,7 @@ export default function MultiplayerLobby({ gameName, room, onBack }: Multiplayer
     };
 
     return (
+    <>
         <Card className={`max-w-md mx-auto mt-8 ${retroTheme === "mac-classic" ? "rounded-xl" : "rounded-none"}`}>
             <div className="retro-titlebar h-10 px-3 flex items-center justify-between border-b border-black/25">
                 <span className="text-sm font-semibold text-current">
@@ -135,6 +157,16 @@ export default function MultiplayerLobby({ gameName, room, onBack }: Multiplayer
                     </div>
                 </div>
 
+                {/* 친구 초대 */}
+                {isLoggedIn && (
+                    <FriendInvitePanel
+                        ko={ko}
+                        rounded={retroTheme === "mac-classic"}
+                        roomCode={room.roomId}
+                        onInvite={handleInviteFriend}
+                    />
+                )}
+
                 <Button
                     variant="ghost"
                     onClick={onBack}
@@ -144,5 +176,17 @@ export default function MultiplayerLobby({ gameName, room, onBack }: Multiplayer
                 </Button>
             </CardContent>
         </Card>
+
+        {/* 초대 수신 토스트 */}
+        {pendingInvite && (
+            <InviteToast
+                invite={pendingInvite}
+                ko={ko}
+                rounded={retroTheme === "mac-classic"}
+                onAccept={handleAcceptInvite}
+                onDismiss={dismissInvite}
+            />
+        )}
+    </>
     );
 }

@@ -2,7 +2,7 @@
 
 import React from "react";
 import { usePathname } from "next/navigation";
-import { Menu, Keyboard, CloudRain, Rabbit, Link2 } from "lucide-react";
+import { Menu, Keyboard, CloudRain, Rabbit, Link2, Shield, Ear } from "lucide-react";
 import useTypingStore from "../store/store";
 import { Button } from "@/components/ui/button";
 import { getPageTitle, getModeByPathname } from "@/features/game-shell/config";
@@ -19,6 +19,8 @@ export default function Header() {
         rain: CloudRain,
         runner: Rabbit,
         chain: Link2,
+        shield: Shield,
+        ear: Ear,
     }[mode.icon];
 
     return (

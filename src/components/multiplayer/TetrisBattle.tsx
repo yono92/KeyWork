@@ -7,6 +7,7 @@ import { useTetrisEngine, PIECES, CELL_COLORS, BOARD_WIDTH } from "@/hooks/useTe
 import type { PieceType } from "@/hooks/useTetrisEngine";
 import { useMultiplayerTetris, deserializeBoard } from "@/hooks/useMultiplayerTetris";
 import { useScoreSubmit } from "@/hooks/useScoreSubmit";
+import { useAchievementChecker } from "@/hooks/useAchievementChecker";
 import { useAuthContext } from "@/components/auth/AuthProvider";
 import type { useMultiplayerRoom } from "@/hooks/useMultiplayerRoom";
 import useTypingStore from "@/store/store";
@@ -21,6 +22,7 @@ interface TetrisBattleProps {
 
 export default function TetrisBattle({ room, onFinish }: TetrisBattleProps) {
     const { submitScore } = useScoreSubmit();
+    const { checkAchievements } = useAchievementChecker();
     const { user, profile } = useAuthContext();
     const language = useTypingStore((s) => s.language);
     const ko = language === "korean";
@@ -151,14 +153,15 @@ export default function TetrisBattle({ room, onFinish }: TetrisBattleProps) {
         if (room.phase !== "finished" || !room.error || scoreSubmittedRef.current) return;
 
         scoreSubmittedRef.current = true;
-        void submitScore({
+        const scoreData = {
             game_mode: "tetris",
             score: engine.score,
             lines: engine.lines,
             is_multiplayer: true,
             is_win: room.error === "WIN",
-        });
-    }, [engine.lines, engine.score, room.error, room.phase, submitScore]);
+        };
+        void submitScore(scoreData).then(() => checkAchievements(scoreData));
+    }, [engine.lines, engine.score, room.error, room.phase, submitScore, checkAchievements]);
 
     // 레벨업 글로우
     useEffect(() => {

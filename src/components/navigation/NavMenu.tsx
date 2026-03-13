@@ -10,9 +10,11 @@ import {
     CloudRain,
     Rabbit,
     Link2,
+    Shield,
+    Ear,
 } from "lucide-react";
 
-const VISIBLE_MENU_ITEMS: readonly GameMode[] = ["practice", "falling-words", "word-chain", "typing-runner", "tetris"];
+const VISIBLE_MENU_ITEMS: readonly GameMode[] = ["practice", "falling-words", "word-chain", "typing-runner", "tetris", "typing-defense", "dictation"];
 
 interface NavMenuProps {
     language: AppLanguage;
@@ -26,6 +28,8 @@ const iconByType: Record<NavItem["icon"], React.ComponentType<{ className?: stri
     rain: CloudRain,
     runner: Rabbit,
     chain: Link2,
+    shield: Shield,
+    ear: Ear,
 };
 
 export default function NavMenu({

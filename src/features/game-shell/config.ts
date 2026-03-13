@@ -5,11 +5,13 @@ export type GameMode =
     | "falling-words"
     | "typing-runner"
     | "word-chain"
-    | "tetris";
+    | "tetris"
+    | "typing-defense"
+    | "dictation";
 
 export interface NavItem {
     id: GameMode;
-    icon: "keyboard" | "rain" | "runner" | "chain";
+    icon: "keyboard" | "rain" | "runner" | "chain" | "shield" | "ear";
     label: Record<AppLanguage, string>;
     shortLabel: Record<AppLanguage, string>;
 }
@@ -44,6 +46,18 @@ export const NAV_ITEMS: readonly NavItem[] = [
         icon: "keyboard",
         label: { korean: "테트리스", english: "Tetris" },
         shortLabel: { korean: "테트리스", english: "Tetris" },
+    },
+    {
+        id: "typing-defense",
+        icon: "shield",
+        label: { korean: "타이핑 디펜스", english: "Typing Defense" },
+        shortLabel: { korean: "디펜스", english: "Defense" },
+    },
+    {
+        id: "dictation",
+        icon: "ear",
+        label: { korean: "받아쓰기", english: "Dictation" },
+        shortLabel: { korean: "받아쓰기", english: "Dictation" },
     },
 ];
 

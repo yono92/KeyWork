@@ -5,6 +5,7 @@ import { useMultiplayerWordChain } from "@/hooks/useMultiplayerWordChain";
 import type { useMultiplayerRoom } from "@/hooks/useMultiplayerRoom";
 import { useAuthContext } from "@/components/auth/AuthProvider";
 import { useScoreSubmit } from "@/hooks/useScoreSubmit";
+import { useAchievementChecker } from "@/hooks/useAchievementChecker";
 import useTypingStore from "@/store/store";
 import GameInput from "@/components/game/GameInput";
 import { isChainValid, getLastChar } from "@/utils/dueumUtils";
@@ -35,6 +36,7 @@ const TIME_LIMIT = 15;
 export default function WordChainBattle({ room, onFinish }: WordChainBattleProps) {
     const { user, profile } = useAuthContext();
     const { submitScore } = useScoreSubmit();
+    const { checkAchievements } = useAchievementChecker();
     const language = useTypingStore((s) => s.language);
     const ko = language === "korean";
     const myId = user?.id ?? "";
@@ -165,13 +167,14 @@ export default function WordChainBattle({ room, onFinish }: WordChainBattleProps
         if (room.phase !== "finished" || !room.error || scoreSubmittedRef.current) return;
 
         scoreSubmittedRef.current = true;
-        void submitScore({
+        const scoreData = {
             game_mode: "word-chain",
             score,
             is_multiplayer: true,
             is_win: room.error === "WIN",
-        });
-    }, [room.error, room.phase, score, submitScore]);
+        };
+        void submitScore(scoreData).then(() => checkAchievements(scoreData));
+    }, [room.error, room.phase, score, submitScore, checkAchievements]);
 
     const handleSubmit = useCallback(async () => {
         const word = input.trim();

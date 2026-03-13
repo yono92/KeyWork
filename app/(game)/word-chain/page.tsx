@@ -43,6 +43,7 @@ export default function WordChainPage() {
                 ) : (
                     <MultiplayerLobby
                         gameName={ko ? "끝말잇기" : "Word Chain"}
+                        gameMode="word-chain"
                         room={room}
                         onBack={() => setMode("single")}
                     />

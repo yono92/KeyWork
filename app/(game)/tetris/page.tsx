@@ -43,6 +43,7 @@ export default function TetrisPage() {
                 ) : (
                     <MultiplayerLobby
                         gameName={ko ? "테트리스" : "Tetris"}
+                        gameMode="tetris"
                         room={room}
                         onBack={() => setMode("single")}
                     />

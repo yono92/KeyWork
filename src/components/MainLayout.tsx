@@ -12,6 +12,8 @@ const FallingWordsGame = dynamic(() => import("./FallingWordsGame"), { ssr: fals
 const WordChainGame = dynamic(() => import("./WordChainGame"), { ssr: false });
 const TypingRunnerGame = dynamic(() => import("./TypingRunnerGame"), { ssr: false });
 const TetrisGame = dynamic(() => import("./TetrisGame"), { ssr: false });
+const TypingDefenseGame = dynamic(() => import("./TypingDefenseGame"), { ssr: false });
+const DictationGame = dynamic(() => import("./DictationGame"), { ssr: false });
 
 interface MainLayoutProps {
     gameMode: GameMode;
@@ -26,6 +28,8 @@ const MainLayout: React.FC<MainLayoutProps> = ({ gameMode }) => {
         "typing-runner": <TypingRunnerGame />,
         "word-chain": <WordChainGame />,
         tetris: <TetrisGame />,
+        "typing-defense": <TypingDefenseGame />,
+        dictation: <DictationGame />,
     }), []);
 
     useEffect(() => {

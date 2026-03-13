@@ -8,17 +8,35 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import Header from "@/components/Header";
 import {
+    Award,
+    BarChart3,
     CalendarDays,
+    Check,
+    Clock,
+    Gamepad2,
     Mail,
     Paintbrush2,
     PencilLine,
+    Search,
     ShieldCheck,
     Sparkles,
+    Swords,
+    Trophy,
     User,
+    UserPlus,
+    Users,
+    X,
 } from "lucide-react";
 import PixelAvatar from "@/components/avatar/PixelAvatar";
 import AvatarEditor from "@/components/avatar/AvatarEditor";
 import type { AvatarConfig } from "@/lib/supabase/types";
+import { useUserStats, getModeLabel } from "@/hooks/useUserStats";
+import type { RecentMatch } from "@/hooks/useUserStats";
+import { useAchievements } from "@/hooks/useAchievements";
+import { getCategoryLabel } from "@/data/achievements";
+import type { AchievementCategory } from "@/data/achievements";
+import { useFriends } from "@/hooks/useFriends";
+import type { AvatarConfig as AvatarConfigType } from "@/lib/supabase/types";
 
 type FlashMessage = {
     type: "success" | "error";
@@ -670,9 +688,576 @@ export default function ProfilePage() {
                                 </CardContent>
                             </Card>
                         </div>
+                        <UserStatsSection ko={ko} rounded={rounded} />
+                        <AchievementsSection ko={ko} rounded={rounded} />
+                        <FriendsSection ko={ko} rounded={rounded} />
                     </div>
                 </div>
             </div>
         </div>
+    );
+}
+
+/* ───── 유저 통계 섹션 ───── */
+
+function formatDate(dateStr: string, ko: boolean) {
+    const d = new Date(dateStr);
+    const now = new Date();
+    const diffMs = now.getTime() - d.getTime();
+    const diffH = Math.floor(diffMs / 3600000);
+
+    if (diffH < 1) return ko ? "방금 전" : "Just now";
+    if (diffH < 24) return ko ? `${diffH}시간 전` : `${diffH}h ago`;
+    const diffD = Math.floor(diffH / 24);
+    if (diffD < 7) return ko ? `${diffD}일 전` : `${diffD}d ago`;
+    return d.toLocaleDateString(ko ? "ko-KR" : "en-US", { month: "short", day: "numeric" });
+}
+
+function MatchRow({ match, ko }: { match: RecentMatch; ko: boolean }) {
+    return (
+        <div className="flex items-center gap-3 rounded-xl border border-[var(--retro-border-mid)] bg-[var(--retro-surface)] px-3 py-2">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-[var(--retro-border-mid)] bg-[var(--retro-surface-alt)] text-xs font-bold text-[var(--retro-accent)]">
+                {match.isMultiplayer
+                    ? match.isWin ? "W" : "L"
+                    : "#"}
+            </div>
+            <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-semibold text-[var(--retro-text)]">
+                    {getModeLabel(match.gameMode, ko)}
+                </p>
+                <p className="text-[11px] text-[var(--retro-text)]/55">
+                    {match.score.toLocaleString()}{ko ? "점" : "pts"}
+                    {match.accuracy != null && ` · ${match.accuracy}%`}
+                    {match.wpm != null && ` · ${match.wpm} WPM`}
+                </p>
+            </div>
+            <span className="shrink-0 text-[11px] font-medium text-[var(--retro-text)]/45">
+                {formatDate(match.createdAt, ko)}
+            </span>
+        </div>
+    );
+}
+
+function UserStatsSection({ ko, rounded }: { ko: boolean; rounded: boolean }) {
+    const { stats, loading } = useUserStats();
+
+    if (loading) {
+        return (
+            <Card className={rounded ? "rounded-[24px]" : "rounded-none"}>
+                <div className="retro-titlebar h-10 px-3 flex items-center gap-2 border-b border-black/25">
+                    <BarChart3 className="h-4 w-4 text-current" />
+                    <span className="text-sm font-semibold text-current">
+                        {ko ? "내 전적" : "My Stats"}
+                    </span>
+                </div>
+                <CardContent className="p-6 text-center text-sm text-[var(--retro-text)]/60">
+                    {ko ? "통계를 불러오는 중..." : "Loading stats..."}
+                </CardContent>
+            </Card>
+        );
+    }
+
+    if (!stats) return null;
+
+    const { totalPlays, modeStats, multiplayer, mostPlayedMode, recentMatches } = stats;
+
+    return (
+        <>
+            {/* 종합 통계 */}
+            <Card className={rounded ? "rounded-[24px]" : "rounded-none"}>
+                <div className="retro-titlebar h-10 px-3 flex items-center justify-between border-b border-black/25">
+                    <div className="flex items-center gap-2">
+                        <BarChart3 className="h-4 w-4 text-current" />
+                        <span className="text-sm font-semibold text-current">
+                            {ko ? "내 전적" : "My Stats"}
+                        </span>
+                    </div>
+                    <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-current/75">
+                        {ko ? "종합 요약" : "Summary"}
+                    </span>
+                </div>
+                <CardContent className="p-5">
+                    <div className="grid gap-3 sm:grid-cols-3">
+                        <div className="rounded-2xl border border-[var(--retro-border-mid)] bg-[var(--retro-surface-alt)]/85 p-4">
+                            <div className="flex items-center gap-2">
+                                <Gamepad2 className="h-4 w-4 text-[var(--retro-accent)]" />
+                                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--retro-text)]/45">
+                                    {ko ? "총 플레이" : "Total plays"}
+                                </p>
+                            </div>
+                            <p className="mt-2 text-3xl font-black leading-none text-[var(--retro-text)]">
+                                {totalPlays.toLocaleString()}
+                            </p>
+                        </div>
+
+                        <div className="rounded-2xl border border-[var(--retro-border-mid)] bg-[var(--retro-surface-alt)]/85 p-4">
+                            <div className="flex items-center gap-2">
+                                <Swords className="h-4 w-4 text-[var(--retro-accent)]" />
+                                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--retro-text)]/45">
+                                    {ko ? "멀티 승률" : "MP Win rate"}
+                                </p>
+                            </div>
+                            <p className="mt-2 text-3xl font-black leading-none text-[var(--retro-text)]">
+                                {multiplayer.total > 0 ? `${multiplayer.winRate}%` : "—"}
+                            </p>
+                            {multiplayer.total > 0 && (
+                                <p className="mt-1 text-xs text-[var(--retro-text)]/55">
+                                    {multiplayer.wins}W {multiplayer.losses}L / {multiplayer.total}
+                                </p>
+                            )}
+                        </div>
+
+                        <div className="rounded-2xl border border-[var(--retro-border-mid)] bg-[var(--retro-surface-alt)]/85 p-4">
+                            <div className="flex items-center gap-2">
+                                <Trophy className="h-4 w-4 text-[var(--retro-accent)]" />
+                                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--retro-text)]/45">
+                                    {ko ? "최다 모드" : "Most played"}
+                                </p>
+                            </div>
+                            <p className="mt-2 text-xl font-black leading-tight text-[var(--retro-text)]">
+                                {mostPlayedMode ? getModeLabel(mostPlayedMode, ko) : "—"}
+                            </p>
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
+
+            {/* 모드별 통계 */}
+            <Card className={rounded ? "rounded-[24px]" : "rounded-none"}>
+                <div className="retro-titlebar h-10 px-3 flex items-center gap-2 border-b border-black/25">
+                    <Trophy className="h-4 w-4 text-current" />
+                    <span className="text-sm font-semibold text-current">
+                        {ko ? "모드별 기록" : "Records by mode"}
+                    </span>
+                </div>
+                <CardContent className="p-5">
+                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                        {modeStats.map((ms) => (
+                            <div
+                                key={ms.mode}
+                                className="rounded-2xl border border-[var(--retro-border-mid)] bg-[var(--retro-surface-alt)]/80 p-4"
+                            >
+                                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--retro-accent)]">
+                                    {getModeLabel(ms.mode, ko)}
+                                </p>
+                                {ms.playCount > 0 ? (
+                                    <>
+                                        <p className="mt-2 text-2xl font-black leading-none text-[var(--retro-text)]">
+                                            {ms.bestScore.toLocaleString()}
+                                        </p>
+                                        <div className="mt-2 flex items-center gap-3 text-xs text-[var(--retro-text)]/60">
+                                            <span>{ms.playCount}{ko ? "회" : " plays"}</span>
+                                            {ms.avgAccuracy != null && (
+                                                <span>{ko ? "정확도" : "Acc"} {ms.avgAccuracy}%</span>
+                                            )}
+                                        </div>
+                                    </>
+                                ) : (
+                                    <p className="mt-3 text-sm font-semibold text-[var(--retro-text)]/40">
+                                        {ko ? "아직 기록 없음" : "No records yet"}
+                                    </p>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                </CardContent>
+            </Card>
+
+            {/* 최근 매치 */}
+            <Card className={rounded ? "rounded-[24px]" : "rounded-none"}>
+                <div className="retro-titlebar h-10 px-3 flex items-center gap-2 border-b border-black/25">
+                    <Clock className="h-4 w-4 text-current" />
+                    <span className="text-sm font-semibold text-current">
+                        {ko ? "최근 매치" : "Recent matches"}
+                    </span>
+                </div>
+                <CardContent className="p-5">
+                    {recentMatches.length > 0 ? (
+                        <div className="space-y-2">
+                            {recentMatches.map((m) => (
+                                <MatchRow key={m.id} match={m} ko={ko} />
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="rounded-2xl border border-dashed border-[var(--retro-border-mid)] bg-[var(--retro-bg)]/50 p-5 text-center">
+                            <p className="text-sm font-semibold text-[var(--retro-text)]/50">
+                                {ko ? "아직 플레이 기록이 없습니다." : "No match history yet."}
+                            </p>
+                            <p className="mt-1 text-xs text-[var(--retro-text)]/40">
+                                {ko ? "게임을 플레이하면 여기에 기록이 표시됩니다." : "Play a game and your records will appear here."}
+                            </p>
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
+        </>
+    );
+}
+
+/* ───── 업적 섹션 ───── */
+
+const CATEGORY_ORDER: AchievementCategory[] = [
+    "beginner", "mode-master", "record", "grinder", "multiplayer",
+];
+
+function AchievementsSection({ ko, rounded }: { ko: boolean; rounded: boolean }) {
+    const { achievements, unlockedCount, totalCount, loading } = useAchievements();
+    const [filterCat, setFilterCat] = useState<AchievementCategory | "all">("all");
+
+    if (loading) {
+        return (
+            <Card className={rounded ? "rounded-[24px]" : "rounded-none"}>
+                <div className="retro-titlebar h-10 px-3 flex items-center gap-2 border-b border-black/25">
+                    <Award className="h-4 w-4 text-current" />
+                    <span className="text-sm font-semibold text-current">
+                        {ko ? "업적" : "Achievements"}
+                    </span>
+                </div>
+                <CardContent className="p-6 text-center text-sm text-[var(--retro-text)]/60">
+                    {ko ? "업적을 불러오는 중..." : "Loading achievements..."}
+                </CardContent>
+            </Card>
+        );
+    }
+
+    if (achievements.length === 0) return null;
+
+    const filtered = filterCat === "all"
+        ? achievements
+        : achievements.filter((a) => a.def.category === filterCat);
+
+    return (
+        <Card className={rounded ? "rounded-[24px]" : "rounded-none"}>
+            <div className="retro-titlebar h-10 px-3 flex items-center justify-between border-b border-black/25">
+                <div className="flex items-center gap-2">
+                    <Award className="h-4 w-4 text-current" />
+                    <span className="text-sm font-semibold text-current">
+                        {ko ? "업적" : "Achievements"}
+                    </span>
+                </div>
+                <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-current/75">
+                    {unlockedCount}/{totalCount}
+                </span>
+            </div>
+            <CardContent className="p-5">
+                {/* 진행률 바 */}
+                <div className="mb-4 rounded-xl border border-[var(--retro-border-mid)] bg-[var(--retro-surface-alt)] p-3">
+                    <div className="flex items-center justify-between text-xs font-semibold text-[var(--retro-text)]/60">
+                        <span>{ko ? "해금 진행" : "Progress"}</span>
+                        <span>{totalCount > 0 ? Math.round((unlockedCount / totalCount) * 100) : 0}%</span>
+                    </div>
+                    <div className="mt-2 h-2.5 overflow-hidden rounded-full bg-[var(--retro-border-mid)]">
+                        <div
+                            className="h-full rounded-full bg-[var(--retro-accent)] transition-all"
+                            style={{ width: `${totalCount > 0 ? (unlockedCount / totalCount) * 100 : 0}%` }}
+                        />
+                    </div>
+                </div>
+
+                {/* 카테고리 필터 */}
+                <div className="mb-4 flex flex-wrap gap-1.5">
+                    <button
+                        onClick={() => setFilterCat("all")}
+                        className={`rounded-lg px-2.5 py-1 text-[11px] font-semibold transition-colors ${
+                            filterCat === "all"
+                                ? "bg-[var(--retro-accent)] text-[var(--retro-text-inverse)]"
+                                : "border border-[var(--retro-border-mid)] bg-[var(--retro-surface)] text-[var(--retro-text)]/60 hover:bg-[var(--retro-surface-alt)]"
+                        }`}
+                    >
+                        {ko ? "전체" : "All"}
+                    </button>
+                    {CATEGORY_ORDER.map((cat) => (
+                        <button
+                            key={cat}
+                            onClick={() => setFilterCat(cat)}
+                            className={`rounded-lg px-2.5 py-1 text-[11px] font-semibold transition-colors ${
+                                filterCat === cat
+                                    ? "bg-[var(--retro-accent)] text-[var(--retro-text-inverse)]"
+                                    : "border border-[var(--retro-border-mid)] bg-[var(--retro-surface)] text-[var(--retro-text)]/60 hover:bg-[var(--retro-surface-alt)]"
+                            }`}
+                        >
+                            {getCategoryLabel(cat, ko)}
+                        </button>
+                    ))}
+                </div>
+
+                {/* 업적 그리드 */}
+                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                    {filtered.map((a) => (
+                        <div
+                            key={a.def.id}
+                            className={`rounded-xl border p-3 transition-colors ${
+                                a.unlocked
+                                    ? "border-[var(--retro-accent)]/30 bg-[var(--retro-surface-alt)]"
+                                    : "border-[var(--retro-border-mid)] bg-[var(--retro-surface)] opacity-50"
+                            }`}
+                        >
+                            <div className="flex items-start gap-2.5">
+                                <span className={`text-xl ${a.unlocked ? "" : "grayscale"}`}>
+                                    {a.def.icon}
+                                </span>
+                                <div className="min-w-0 flex-1">
+                                    <p className={`text-sm font-bold ${
+                                        a.unlocked ? "text-[var(--retro-text)]" : "text-[var(--retro-text)]/50"
+                                    }`}>
+                                        {ko ? a.def.name.ko : a.def.name.en}
+                                    </p>
+                                    <p className="mt-0.5 text-[11px] leading-relaxed text-[var(--retro-text)]/50">
+                                        {ko ? a.def.description.ko : a.def.description.en}
+                                    </p>
+                                    {a.unlocked && a.unlockedAt && (
+                                        <p className="mt-1 text-[10px] font-medium text-[var(--retro-accent)]">
+                                            {new Date(a.unlockedAt).toLocaleDateString(ko ? "ko-KR" : "en-US", {
+                                                month: "short", day: "numeric",
+                                            })}
+                                        </p>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </CardContent>
+        </Card>
+    );
+}
+
+/* ───── 친구 섹션 ───── */
+
+function FriendsSection({ ko, rounded }: { ko: boolean; rounded: boolean }) {
+    const {
+        friends,
+        incomingRequests,
+        loading,
+        searchUsers,
+        sendRequest,
+        acceptRequest,
+        removeFriendship,
+    } = useFriends();
+
+    const [showSearch, setShowSearch] = useState(false);
+    const [searchQuery, setSearchQuery] = useState("");
+    const [searchResults, setSearchResults] = useState<{ id: string; nickname: string; avatar_config: AvatarConfigType | null }[]>([]);
+    const [searching, setSearching] = useState(false);
+    const [sentIds, setSentIds] = useState<Set<string>>(new Set());
+    const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
+
+    const handleSearch = async () => {
+        if (searchQuery.trim().length < 2) return;
+        setSearching(true);
+        try {
+            const results = await searchUsers(searchQuery);
+            setSearchResults(results);
+        } finally {
+            setSearching(false);
+        }
+    };
+
+    const handleSendRequest = async (targetId: string) => {
+        try {
+            await sendRequest(targetId);
+            setSentIds((prev) => new Set(prev).add(targetId));
+        } catch {
+            // 이미 요청 중이거나 친구인 경우
+        }
+    };
+
+    const handleRemove = async (friendshipId: number) => {
+        await removeFriendship(friendshipId);
+        setDeleteConfirm(null);
+    };
+
+    if (loading) {
+        return (
+            <Card className={rounded ? "rounded-[24px]" : "rounded-none"}>
+                <div className="retro-titlebar h-10 px-3 flex items-center gap-2 border-b border-black/25">
+                    <Users className="h-4 w-4 text-current" />
+                    <span className="text-sm font-semibold text-current">
+                        {ko ? "친구" : "Friends"}
+                    </span>
+                </div>
+                <CardContent className="p-6 text-center text-sm text-[var(--retro-text)]/60">
+                    {ko ? "친구 목록을 불러오는 중..." : "Loading friends..."}
+                </CardContent>
+            </Card>
+        );
+    }
+
+    return (
+        <Card className={rounded ? "rounded-[24px]" : "rounded-none"}>
+            <div className="retro-titlebar h-10 px-3 flex items-center justify-between border-b border-black/25">
+                <div className="flex items-center gap-2">
+                    <Users className="h-4 w-4 text-current" />
+                    <span className="text-sm font-semibold text-current">
+                        {ko ? "친구" : "Friends"}
+                    </span>
+                </div>
+                <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-current/75">
+                    {friends.length}{ko ? "명" : ""}
+                </span>
+            </div>
+            <CardContent className="p-5 space-y-4">
+                {/* 받은 요청 */}
+                {incomingRequests.length > 0 && (
+                    <div>
+                        <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--retro-accent)]">
+                            {ko ? `받은 요청 (${incomingRequests.length})` : `Requests (${incomingRequests.length})`}
+                        </p>
+                        <div className="space-y-1.5">
+                            {incomingRequests.map((req) => (
+                                <div
+                                    key={req.friendshipId}
+                                    className="flex items-center gap-2.5 rounded-xl border border-[var(--retro-accent)]/20 bg-[var(--retro-accent)]/5 px-3 py-2"
+                                >
+                                    <PixelAvatar config={req.avatarConfig} nickname={req.nickname} size="sm" />
+                                    <span className="flex-1 truncate text-sm font-semibold text-[var(--retro-text)]">
+                                        {req.nickname}
+                                    </span>
+                                    <button
+                                        onClick={() => void acceptRequest(req.friendshipId)}
+                                        className="rounded-lg bg-[var(--retro-accent)] p-1.5 text-[var(--retro-text-inverse)] hover:opacity-80"
+                                    >
+                                        <Check className="h-3.5 w-3.5" />
+                                    </button>
+                                    <button
+                                        onClick={() => void removeFriendship(req.friendshipId)}
+                                        className="rounded-lg border border-[var(--retro-border-mid)] bg-[var(--retro-surface)] p-1.5 text-[var(--retro-text)]/50 hover:text-red-500"
+                                    >
+                                        <X className="h-3.5 w-3.5" />
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                {/* 친구 목록 */}
+                {friends.length > 0 ? (
+                    <div className="space-y-1.5">
+                        {friends.map((f) => (
+                            <div
+                                key={f.friendshipId}
+                                className="flex items-center gap-2.5 rounded-xl border border-[var(--retro-border-mid)] bg-[var(--retro-surface)] px-3 py-2"
+                            >
+                                <PixelAvatar config={f.avatarConfig} nickname={f.nickname} size="sm" />
+                                <span className="flex-1 truncate text-sm font-semibold text-[var(--retro-text)]">
+                                    {f.nickname}
+                                </span>
+                                {deleteConfirm === f.friendshipId ? (
+                                    <button
+                                        onClick={() => void handleRemove(f.friendshipId)}
+                                        className="rounded-lg bg-red-500/10 px-2 py-1 text-[10px] font-bold text-red-500"
+                                    >
+                                        {ko ? "삭제 확인" : "Confirm"}
+                                    </button>
+                                ) : (
+                                    <button
+                                        onClick={() => setDeleteConfirm(f.friendshipId)}
+                                        className="rounded p-1 text-[var(--retro-text)]/30 hover:text-red-500"
+                                    >
+                                        <X className="h-3.5 w-3.5" />
+                                    </button>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                ) : (
+                    !showSearch && (
+                        <div className="rounded-2xl border border-dashed border-[var(--retro-border-mid)] bg-[var(--retro-bg)]/50 p-4 text-center">
+                            <p className="text-sm font-semibold text-[var(--retro-text)]/50">
+                                {ko ? "아직 친구가 없습니다" : "No friends yet"}
+                            </p>
+                            <p className="mt-1 text-xs text-[var(--retro-text)]/40">
+                                {ko ? "닉네임으로 검색하여 친구를 추가하세요" : "Search by nickname to add friends"}
+                            </p>
+                        </div>
+                    )
+                )}
+
+                {/* 친구 추가 검색 */}
+                {showSearch ? (
+                    <div className="space-y-2.5 rounded-xl border border-[var(--retro-border-mid)] bg-[var(--retro-surface-alt)]/80 p-3">
+                        <div className="flex items-center justify-between">
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--retro-text)]/50">
+                                {ko ? "닉네임 검색" : "Search nickname"}
+                            </p>
+                            <button
+                                onClick={() => { setShowSearch(false); setSearchResults([]); setSearchQuery(""); }}
+                                className="text-[var(--retro-text)]/40 hover:text-[var(--retro-text)]"
+                            >
+                                <X className="h-3.5 w-3.5" />
+                            </button>
+                        </div>
+                        <div className="flex gap-1.5">
+                            <Input
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                onKeyDown={(e) => { if (e.key === "Enter") void handleSearch(); }}
+                                placeholder={ko ? "닉네임 입력 (2자 이상)" : "Enter nickname (min 2)"}
+                                className={`h-8 flex-1 text-sm ${rounded ? "rounded-lg" : "rounded-none"}`}
+                            />
+                            <Button
+                                size="sm"
+                                onClick={() => void handleSearch()}
+                                disabled={searching || searchQuery.trim().length < 2}
+                                className={`h-8 px-2.5 ${rounded ? "rounded-lg" : "rounded-none"}`}
+                            >
+                                <Search className="h-3.5 w-3.5" />
+                            </Button>
+                        </div>
+                        {searchResults.length > 0 && (
+                            <div className="max-h-[160px] space-y-1 overflow-y-auto">
+                                {searchResults.map((u) => {
+                                    const alreadyFriend = friends.some((f) => f.friendId === u.id);
+                                    const alreadySent = sentIds.has(u.id);
+                                    return (
+                                        <div
+                                            key={u.id}
+                                            className="flex items-center gap-2 rounded-lg border border-[var(--retro-border-mid)] bg-[var(--retro-surface)] px-2.5 py-1.5"
+                                        >
+                                            <PixelAvatar config={u.avatar_config} nickname={u.nickname} size="sm" />
+                                            <span className="flex-1 truncate text-sm font-semibold text-[var(--retro-text)]">
+                                                {u.nickname}
+                                            </span>
+                                            {alreadyFriend ? (
+                                                <span className="text-[10px] font-bold text-[var(--retro-accent)]">
+                                                    {ko ? "친구" : "Friend"}
+                                                </span>
+                                            ) : alreadySent ? (
+                                                <span className="text-[10px] font-bold text-[var(--retro-text)]/40">
+                                                    {ko ? "요청됨" : "Sent"}
+                                                </span>
+                                            ) : (
+                                                <button
+                                                    onClick={() => void handleSendRequest(u.id)}
+                                                    className="rounded-lg bg-[var(--retro-accent)] p-1.5 text-[var(--retro-text-inverse)] hover:opacity-80"
+                                                >
+                                                    <UserPlus className="h-3 w-3" />
+                                                </button>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+                        {searching && (
+                            <p className="text-center text-xs text-[var(--retro-text)]/40">
+                                {ko ? "검색 중..." : "Searching..."}
+                            </p>
+                        )}
+                    </div>
+                ) : (
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowSearch(true)}
+                        className={`w-full gap-1.5 text-xs ${rounded ? "rounded-xl" : "rounded-none"}`}
+                    >
+                        <UserPlus className="h-3.5 w-3.5" />
+                        {ko ? "친구 추가" : "Add Friend"}
+                    </Button>
+                )}
+            </CardContent>
+        </Card>
     );
 }
