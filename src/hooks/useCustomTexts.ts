@@ -65,13 +65,16 @@ export function useCustomTexts(language: "korean" | "english") {
     const updateText = useCallback(
         async (id: number, title: string, content: string) => {
             if (!user) return;
+            const nextTitle = title.trim().slice(0, 50);
+            const nextContent = content.trim().slice(0, 2000);
+            const updatedAt = new Date().toISOString();
             const supabase = createClient();
             const { error } = await supabase
                 .from("custom_texts")
                 .update({
-                    title: title.trim().slice(0, 50),
-                    content: content.trim().slice(0, 2000),
-                    updated_at: new Date().toISOString(),
+                    title: nextTitle,
+                    content: nextContent,
+                    updated_at: updatedAt,
                 })
                 .eq("id", id)
                 .eq("user_id", user.id);
@@ -79,7 +82,7 @@ export function useCustomTexts(language: "korean" | "english") {
             if (error) throw error;
             setTexts((prev) =>
                 prev.map((t) =>
-                    t.id === id ? { ...t, title: title.trim(), content: content.trim(), updated_at: new Date().toISOString() } : t,
+                    t.id === id ? { ...t, title: nextTitle, content: nextContent, updated_at: updatedAt } : t,
                 ),
             );
         },

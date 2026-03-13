@@ -33,12 +33,14 @@ const CustomTextManager: React.FC<Props> = ({
     const [content, setContent] = useState("");
     const [saving, setSaving] = useState(false);
     const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
     const resetForm = () => {
         setTitle("");
         setContent("");
         setEditId(null);
         setMode("list");
+        setErrorMessage(null);
     };
 
     const startEdit = (t: CustomText) => {
@@ -46,11 +48,13 @@ const CustomTextManager: React.FC<Props> = ({
         setContent(t.content);
         setEditId(t.id);
         setMode("edit");
+        setErrorMessage(null);
     };
 
     const handleSave = async () => {
         if (!title.trim() || !content.trim()) return;
         setSaving(true);
+        setErrorMessage(null);
         try {
             if (mode === "edit" && editId != null) {
                 await onUpdate(editId, title, content);
@@ -58,14 +62,21 @@ const CustomTextManager: React.FC<Props> = ({
                 await onAdd(title, content);
             }
             resetForm();
+        } catch {
+            setErrorMessage(ko ? "저장 중 문제가 발생했습니다. 다시 시도해 주세요." : "Could not save your text. Please try again.");
         } finally {
             setSaving(false);
         }
     };
 
     const handleDelete = async (id: number) => {
-        await onDelete(id);
-        setDeleteConfirm(null);
+        setErrorMessage(null);
+        try {
+            await onDelete(id);
+            setDeleteConfirm(null);
+        } catch {
+            setErrorMessage(ko ? "삭제 중 문제가 발생했습니다." : "Could not delete this text.");
+        }
     };
 
     const rnd = rounded ? "rounded-lg" : "rounded-none";
@@ -84,6 +95,12 @@ const CustomTextManager: React.FC<Props> = ({
                         <X className="h-4 w-4" />
                     </button>
                 </div>
+
+                {errorMessage && (
+                    <div className={`border border-red-500/30 bg-red-500/10 px-3 py-2 text-[11px] font-medium text-red-500 ${rnd}`}>
+                        {errorMessage}
+                    </div>
+                )}
 
                 <div>
                     <label className="mb-1 block text-[11px] font-semibold text-[var(--retro-text)]/60">
@@ -150,6 +167,12 @@ const CustomTextManager: React.FC<Props> = ({
                     </button>
                 </div>
             </div>
+
+            {errorMessage && (
+                <div className={`border border-red-500/30 bg-red-500/10 px-3 py-2 text-[11px] font-medium text-red-500 ${rnd}`}>
+                    {errorMessage}
+                </div>
+            )}
 
             {loading ? (
                 <p className="py-4 text-center text-xs text-[var(--retro-text)]/50">

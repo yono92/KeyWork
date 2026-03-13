@@ -210,6 +210,27 @@ const TypingInput: React.FC = () => {
                 </div>
             )}
 
+            {effectiveSource === "custom" && !customLoading && customTexts.length === 0 && (
+                <div className={`border-2 border-dashed border-[var(--retro-border-mid)] bg-[var(--retro-bg)]/50 px-4 py-3 text-sm text-[var(--retro-text)]/70 ${rnd}`}>
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                            <p className="font-semibold text-[var(--retro-text)]">
+                                {ko ? "등록된 내 텍스트가 없어 속담으로 이어서 연습 중입니다." : "No custom text yet, so practice continues with proverbs."}
+                            </p>
+                            <p className="mt-1 text-xs text-[var(--retro-text)]/50">
+                                {ko ? "관리에서 한국어/영어별 연습 문장을 추가하면 바로 내 텍스트 소스로 전환됩니다." : "Add practice lines in Manage for this language to switch the source immediately."}
+                            </p>
+                        </div>
+                        <button
+                            onClick={() => setShowManager(true)}
+                            className={`inline-flex items-center justify-center border border-[var(--retro-border-mid)] bg-[var(--retro-surface)] px-3 py-1.5 text-[11px] font-semibold text-[var(--retro-text)] hover:bg-[var(--retro-surface-alt)] ${rnd}`}
+                        >
+                            {ko ? "텍스트 추가" : "Add text"}
+                        </button>
+                    </div>
+                </div>
+            )}
+
             {/* 타이핑 영역 */}
             <div
                 className={`${lg ? "px-12 py-10" : "px-6 py-6 md:px-8 md:py-8"} transition-all duration-300 border-2 ${
