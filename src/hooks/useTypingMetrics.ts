@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import useTypingStore from "../store/store";
-import { calculateHangulAccuracy, countKeystrokes } from "../utils/hangulUtils";
+import { calculateHangulAccuracy, countCorrectJamo } from "../utils/hangulUtils";
 
 const NON_TYPING_KEYS = new Set([
     "Shift",
@@ -21,6 +21,33 @@ const NON_TYPING_KEYS = new Set([
     "Insert",
     "Delete",
 ]);
+
+/** 최근 값에 더 높은 가중치를 부여한 가중 평균 */
+const weightedAverage = (values: number[]): number => {
+    if (values.length === 0) return 0;
+    let weightedSum = 0;
+    let weightSum = 0;
+    values.forEach((value, index) => {
+        const weight = index + 1;
+        weightedSum += value * weight;
+        weightSum += weight;
+    });
+    return weightedSum / weightSum;
+};
+
+/** IQR 기반 이상치 제거 (상한 + 하한 모두 적용) */
+const filterOutliers = (values: number[]): number[] => {
+    if (values.length < 3) return values;
+
+    const sorted = [...values].sort((a, b) => a - b);
+    const q1 = sorted[Math.floor(sorted.length * 0.25)];
+    const q3 = sorted[Math.floor(sorted.length * 0.75)];
+    const iqr = q3 - q1;
+    const lowerBound = q1 - 1.5 * iqr;
+    const upperBound = q3 + 1.5 * iqr;
+
+    return values.filter((v) => v >= lowerBound && v <= upperBound);
+};
 
 type AudioContextClass = typeof AudioContext;
 
@@ -117,13 +144,8 @@ export function useTypingMetrics() {
                 (currentTime - startTime) / 60000
             );
 
-            // Net KPM: 정확하게 입력한 자모 수만 카운트 (오타 자동 차감)
-            let correctKeystrokes = 0;
-            for (let i = 0; i < input.length && i < text.length; i++) {
-                if (input[i] === text[i]) {
-                    correctKeystrokes += countKeystrokes(input[i]);
-                }
-            }
+            // 자모 단위 정타수 (한글: 자모 분해 후 비교, 영어: 문자 단위)
+            const { correct: correctKeystrokes } = countCorrectJamo(text, input);
 
             // 영어: WPM (1 word = 5 chars), 한국어: KPM (자모 기준)
             const rawSpeed = language === "english"
@@ -155,34 +177,13 @@ export function useTypingMetrics() {
         setAllSpeeds((prevSpeeds) => {
             const updatedSpeeds = [...prevSpeeds, typingSpeed];
 
-            // 이상치 제거 (평균의 2배 이상인 값은 제외)
-            const validSpeeds =
-                updatedSpeeds.length > 1
-                    ? updatedSpeeds.filter((speed) => {
-                          const currentAvg =
-                              updatedSpeeds.reduce(
-                                  (acc, curr) => acc + curr,
-                                  0
-                              ) / updatedSpeeds.length;
-                          return speed <= currentAvg * 2;
-                      })
-                    : updatedSpeeds;
+            // 이상치 제거 (IQR 방식: 상하한 모두 필터링)
+            const validSpeeds = filterOutliers(updatedSpeeds);
 
-            // 최근 값에 더 높은 가중치 부여
-            let weightedSum = 0;
-            let weightSum = 0;
-            validSpeeds.forEach((speed, index) => {
-                const weight = index + 1;
-                weightedSum += speed * weight;
-                weightSum += weight;
-            });
+            // 유효 값이 없으면 원본 사용
+            const source = validSpeeds.length > 0 ? validSpeeds : updatedSpeeds;
 
-            const newAverageSpeed =
-                weightSum > 0
-                    ? weightedSum / weightSum
-                    : validSpeeds.reduce((acc, curr) => acc + curr, 0) /
-                      validSpeeds.length;
-
+            const newAverageSpeed = weightedAverage(source);
             setAverageSpeed(Math.round(newAverageSpeed));
             return updatedSpeeds;
         });
@@ -190,22 +191,7 @@ export function useTypingMetrics() {
         setAllAccuracies((prevAccuracies) => {
             const updatedAccuracies = [...prevAccuracies, accuracy];
 
-            let weightedSum = 0;
-            let weightSum = 0;
-            updatedAccuracies.forEach((acc, index) => {
-                const weight = index + 1;
-                weightedSum += acc * weight;
-                weightSum += weight;
-            });
-
-            const newAverageAccuracy =
-                weightSum > 0
-                    ? weightedSum / weightSum
-                    : updatedAccuracies.reduce(
-                          (acc, curr) => acc + curr,
-                          0
-                      ) / updatedAccuracies.length;
-
+            const newAverageAccuracy = weightedAverage(updatedAccuracies);
             setAverageAccuracy(Math.round(newAverageAccuracy));
             return updatedAccuracies;
         });

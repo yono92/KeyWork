@@ -102,15 +102,21 @@ export const pruneCache = <T>(
 ): void => {
     const now = Date.now();
 
+    // 1) 만료된 엔트리 먼저 제거
     for (const [key, value] of cache.entries()) {
         if (value.expiresAt <= now) {
             cache.delete(key);
         }
     }
 
-    while (cache.size > maxEntries) {
-        const first = cache.keys().next();
-        if (first.done) break;
-        cache.delete(first.value);
+    // 2) 여전히 초과하면 만료 임박 순으로 제거 (TTL이 짧은 것부터)
+    if (cache.size > maxEntries) {
+        const entries = [...cache.entries()].sort(
+            (a, b) => a[1].expiresAt - b[1].expiresAt
+        );
+        const toRemove = entries.slice(0, cache.size - maxEntries);
+        for (const [key] of toRemove) {
+            cache.delete(key);
+        }
     }
 };

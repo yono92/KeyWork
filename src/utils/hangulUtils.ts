@@ -58,6 +58,27 @@ export const compareHangulJamo = (
     });
 };
 
+/**
+ * 자모 단위로 정타수(correct keystrokes)를 계산.
+ * Levenshtein 거리를 사용하여 삽입/삭제/치환을 모두 반영.
+ * 속도(KPM/WPM)와 정확도가 동일한 기준으로 계산됨.
+ */
+export const countCorrectJamo = (
+    target: string,
+    input: string
+): { correct: number; total: number } => {
+    if (!input || !target) return { correct: 0, total: 0 };
+
+    const targetJamo = target.split("").flatMap(decomposeHangul);
+    const inputJamo = input.split("").flatMap(decomposeHangul);
+
+    const distance = getLevenshteinDistance(targetJamo, inputJamo);
+    const maxLen = Math.max(targetJamo.length, inputJamo.length);
+    const correct = Math.max(0, maxLen - distance);
+
+    return { correct, total: targetJamo.length };
+};
+
 export const calculateHangulAccuracy = (
     target: string,
     input: string
@@ -71,15 +92,12 @@ export const calculateHangulAccuracy = (
     // 목표 텍스트의 자모 개수를 기준으로 함
     const totalJamo = targetJamo.length;
 
-    // 레벤슈타인 거리 계산
-    const distance = getLevenshteinDistance(
-        targetJamo,
-        // 입력된 자모가 목표보다 길 경우를 대비해 목표 길이만큼만 사용
-        inputJamo.slice(0, totalJamo)
-    );
+    // 레벤슈타인 거리 계산 (초과 입력도 포함하여 전체 비교)
+    const distance = getLevenshteinDistance(targetJamo, inputJamo);
 
-    // 정확도 계산: (전체 자모 수 - 편집 거리) / 전체 자모 수 * 100
-    const accuracy = ((totalJamo - distance) / totalJamo) * 100;
+    // 정확도 계산: 비교 기준은 target과 input 중 긴 쪽
+    const maxLen = Math.max(totalJamo, inputJamo.length);
+    const accuracy = ((maxLen - distance) / maxLen) * 100;
 
     // 0~100 사이의 값으로 제한하고 반올림
     return Math.min(100, Math.max(0, Math.round(accuracy)));
