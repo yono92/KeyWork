@@ -22,12 +22,17 @@ const NON_TYPING_KEYS = new Set([
     "Delete",
 ]);
 
+/** 최근 N개 세션만 유지하는 슬라이딩 윈도우 크기 */
+const AVERAGE_WINDOW_SIZE = 15;
+
 /** 최근 값에 더 높은 가중치를 부여한 가중 평균 */
 const weightedAverage = (values: number[]): number => {
     if (values.length === 0) return 0;
+    // 슬라이딩 윈도우: 최근 N개만 사용
+    const window = values.slice(-AVERAGE_WINDOW_SIZE);
     let weightedSum = 0;
     let weightSum = 0;
-    values.forEach((value, index) => {
+    window.forEach((value, index) => {
         const weight = index + 1;
         weightedSum += value * weight;
         weightSum += weight;
@@ -175,7 +180,8 @@ export function useTypingMetrics() {
         if (typingSpeed <= 0 || accuracy <= 0) return;
 
         setAllSpeeds((prevSpeeds) => {
-            const updatedSpeeds = [...prevSpeeds, typingSpeed];
+            // 최근 윈도우 크기만큼만 유지 (무한 누적 방지)
+            const updatedSpeeds = [...prevSpeeds, typingSpeed].slice(-AVERAGE_WINDOW_SIZE);
 
             // 이상치 제거 (IQR 방식: 상하한 모두 필터링)
             const validSpeeds = filterOutliers(updatedSpeeds);
@@ -189,7 +195,7 @@ export function useTypingMetrics() {
         });
 
         setAllAccuracies((prevAccuracies) => {
-            const updatedAccuracies = [...prevAccuracies, accuracy];
+            const updatedAccuracies = [...prevAccuracies, accuracy].slice(-AVERAGE_WINDOW_SIZE);
 
             const newAverageAccuracy = weightedAverage(updatedAccuracies);
             setAverageAccuracy(Math.round(newAverageAccuracy));
