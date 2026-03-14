@@ -341,7 +341,6 @@ export function useWordChainGame() {
 
             setIsValidatingWord(true);
             const krdictResult = await validateWordWithKrdict(word);
-            setIsValidatingWord(false);
 
             if (!krdictResult) {
                 addMessage("사전 연결 오류", "player", false);
