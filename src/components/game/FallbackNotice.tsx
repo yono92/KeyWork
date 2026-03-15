@@ -1,42 +1,55 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 
 interface FallbackNoticeProps {
     message: string;
-    sourceLabel: string;
     onRetry?: () => void;
     darkMode?: boolean;
     className?: string;
+    /** 자동 소멸 시간(ms). 0이면 소멸 안 함. 기본 6000 */
+    autoDismissMs?: number;
 }
 
 const FallbackNotice: React.FC<FallbackNoticeProps> = ({
     message,
-    sourceLabel,
     onRetry,
     darkMode = false,
     className,
+    autoDismissMs = 6000,
 }) => {
+    const [visible, setVisible] = useState(true);
+
+    useEffect(() => {
+        setVisible(true);
+        if (autoDismissMs <= 0) return;
+        const timer = setTimeout(() => setVisible(false), autoDismissMs);
+        return () => clearTimeout(timer);
+    }, [message, autoDismissMs]);
+
+    if (!visible) return null;
+
     return (
         <div
-            className={`flex items-center justify-between gap-3 px-3 py-2 text-xs sm:text-sm border rounded-lg ${
+            className={`flex items-center justify-between gap-3 px-3 py-1.5 text-[11px] sm:text-xs border rounded-lg transition-opacity duration-300 ${
                 darkMode
-                    ? "bg-amber-500/10 border-amber-400/30 text-amber-200"
-                    : "bg-amber-50 border-amber-200 text-amber-700"
+                    ? "bg-amber-500/10 border-amber-400/20 text-amber-300/80"
+                    : "bg-amber-50/80 border-amber-200/60 text-amber-600"
             } ${className ?? ""}`}
             role="status"
             aria-live="polite"
         >
-            <p className="font-medium">
-                {message} <span className="opacity-80">({sourceLabel})</span>
-            </p>
+            <p>{message}</p>
             {onRetry && (
                 <Button
                     type="button"
                     variant="outline"
-                    onClick={onRetry}
-                    className="h-7 px-2.5 text-xs"
+                    onClick={() => {
+                        onRetry();
+                        setVisible(false);
+                    }}
+                    className="h-6 px-2 text-[11px]"
                 >
-                    다시 시도
+                    재연결
                 </Button>
             )}
         </div>

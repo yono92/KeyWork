@@ -43,7 +43,7 @@ export function useKoreanWords(
             if (!response.ok) {
                 if (trackFallback) {
                     setWordSource("local");
-                    setFallbackMessage("사전 연결이 불안정해 로컬 단어로 진행 중입니다.");
+                    setFallbackMessage("기본 단어장으로 진행합니다.");
                 }
                 return;
             }
@@ -69,12 +69,12 @@ export function useKoreanWords(
             }
             if (trackFallback) {
                 setWordSource("local");
-                setFallbackMessage("사전 응답이 비어 로컬 단어로 진행 중입니다.");
+                setFallbackMessage("기본 단어장으로 진행합니다.");
             }
         } catch {
             if (trackFallback) {
                 setWordSource("local");
-                setFallbackMessage("사전 연결 실패로 로컬 단어로 진행 중입니다.");
+                setFallbackMessage("기본 단어장으로 진행합니다.");
             }
         }
     }, [language, startCount, trackFallback]);

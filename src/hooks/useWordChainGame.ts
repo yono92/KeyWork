@@ -11,7 +11,7 @@ import {
     isKillerWord,
 } from "../utils/dueumUtils";
 import wordChainDict from "../data/wordchain-dict.json";
-import { ClientFetchError, fetchWithClientTimeout } from "../lib/clientFetch";
+import { fetchWithClientTimeout } from "../lib/clientFetch";
 import { isTooSimilarWord, pickDiverseWord } from "../utils/wordDiversity";
 
 const RECENT_WORD_WINDOW = 8;
@@ -99,7 +99,7 @@ export function useWordChainGame() {
             if (!response.ok) {
                 const localExists = localDictSetRef.current.has(word.toLowerCase());
                 setDictionarySource("local");
-                setFallbackMessage("사전 연결이 불안정해 로컬 사전으로 검증합니다.");
+                setFallbackMessage("기본 단어장으로 검증합니다.");
                 return { exists: localExists, definition: null, source: "local" };
             }
 
@@ -122,14 +122,10 @@ export function useWordChainGame() {
                 };
             }
             return null;
-        } catch (error) {
+        } catch {
             const localExists = localDictSetRef.current.has(word.toLowerCase());
             setDictionarySource("local");
-            setFallbackMessage(
-                error instanceof ClientFetchError && error.code === "TIMEOUT"
-                    ? "사전 응답 지연으로 로컬 사전으로 검증합니다."
-                    : "사전 연결 실패로 로컬 사전으로 검증합니다."
-            );
+            setFallbackMessage("기본 단어장으로 검증합니다.");
             return { exists: localExists, definition: null, source: "local" };
         }
     }, []);
@@ -143,7 +139,7 @@ export function useWordChainGame() {
             );
             if (!response.ok) {
                 setDictionarySource("local");
-                setFallbackMessage("사전 연결이 불안정해 로컬 단어 후보로 진행합니다.");
+                setFallbackMessage("기본 단어장으로 진행합니다.");
                 return localKoreanDict.filter((w) => starts.includes(getFirstChar(w)));
             }
 
@@ -156,16 +152,12 @@ export function useWordChainGame() {
             }
             console.error("[끝말잇기] candidates API 응답 형식 오류:", data);
             setDictionarySource("local");
-            setFallbackMessage("사전 응답 오류로 로컬 단어 후보로 진행합니다.");
+            setFallbackMessage("기본 단어장으로 진행합니다.");
             return localKoreanDict.filter((w) => starts.includes(getFirstChar(w)));
         } catch (err) {
             console.error("[끝말잇기] candidates API 예외:", err);
             setDictionarySource("local");
-            setFallbackMessage(
-                err instanceof ClientFetchError && err.code === "TIMEOUT"
-                    ? "사전 응답 지연으로 로컬 단어 후보로 진행합니다."
-                    : "사전 연결 실패로 로컬 단어 후보로 진행합니다."
-            );
+            setFallbackMessage("기본 단어장으로 진행합니다.");
             return localKoreanDict.filter((w) => starts.includes(getFirstChar(w)));
         }
     }, [localKoreanDict]);
@@ -343,7 +335,7 @@ export function useWordChainGame() {
             const krdictResult = await validateWordWithKrdict(word);
 
             if (!krdictResult) {
-                addMessage("사전 연결 오류", "player", false);
+                addMessage("단어 확인에 실패했습니다", "player", false);
                 playSound("wrong");
                 setCombo(0);
                 return;
@@ -438,7 +430,7 @@ export function useWordChainGame() {
             }
 
             if (!firstWord) {
-                addMessage("사전 연결 실패 — 다시 시도해주세요", "ai", false);
+                addMessage("단어를 불러오지 못했습니다 — 다시 시도해주세요", "ai", false);
                 setGameOver(true);
                 setPlayerWon(false);
                 setIsAiTurn(false);

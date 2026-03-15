@@ -79,7 +79,6 @@ const WordChainGame: React.FC = () => {
                         <FallbackNotice
                             darkMode={darkMode}
                             message={game.fallbackMessage}
-                            sourceLabel={game.dictionarySource === "krdict" ? "krdict" : "local wordchain-dict"}
                             onRetry={() => {
                                 void game.fetchKrdictCandidates(game.currentChar ? getStartChars(game.currentChar) : ["가"]);
                             }}

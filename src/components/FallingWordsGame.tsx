@@ -86,7 +86,7 @@ const FallingWordsGame: React.FC = () => {
     const gameStartTimeRef = useRef(Date.now());
     const itemsCollectedRef = useRef(0);
 
-    const { getRandomWord, koreanWords, fetchKoreanWords, wordSource, fallbackMessage } =
+    const { getRandomWord, koreanWords, fetchKoreanWords, fallbackMessage } =
         useKoreanWords(language, { trackFallback: true });
 
     const { slowMotion, shield, activeEffects, applyEffect, resetEffects } = usePowerUpSystem();
@@ -574,7 +574,6 @@ const FallingWordsGame: React.FC = () => {
                         className="absolute top-[72px] left-2 right-2 sm:left-4 sm:right-4 z-20"
                         darkMode={darkMode}
                         message={fallbackMessage}
-                        sourceLabel={wordSource === "krdict" ? "krdict" : "local word.json"}
                         onRetry={() => {
                             void fetchKoreanWords();
                         }}
