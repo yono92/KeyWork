@@ -26,7 +26,24 @@ export async function updateSession(request: NextRequest) {
     );
 
     // getUser()를 호출해야 JWT 토큰이 만료 전 자동 갱신됨
-    await supabase.auth.getUser();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    // /admin 경로 보호: 미인증 또는 admin이 아닌 유저 → 홈으로 리다이렉트
+    if (request.nextUrl.pathname.startsWith("/admin")) {
+        if (!user) {
+            return NextResponse.redirect(new URL("/", request.url));
+        }
+
+        const { data: profile } = await supabase
+            .from("profiles")
+            .select("role")
+            .eq("id", user.id)
+            .single();
+
+        if (!profile || profile.role !== "admin") {
+            return NextResponse.redirect(new URL("/", request.url));
+        }
+    }
 
     return supabaseResponse;
 }

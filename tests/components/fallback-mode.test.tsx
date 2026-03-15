@@ -43,7 +43,7 @@ describe("fallback mode UI", () => {
 
         await waitFor(() => {
             expect(
-                screen.getByText(/로컬 단어로 진행 중입니다/)
+                screen.getByText(/기본 단어장으로 진행합니다/)
             ).toBeInTheDocument();
         });
     });

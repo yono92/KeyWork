@@ -25,11 +25,14 @@ export interface AvatarConfig {
 
 // ── 테이블 Row 타입 ──
 
+export type UserRole = "user" | "admin";
+
 export interface Profile {
   id: string;
   nickname: string;
   avatar_url: string | null;
   avatar_config: AvatarConfig | null;
+  role: UserRole;
   created_at: string;
 }
 
@@ -62,6 +65,13 @@ export interface UserAchievement {
   user_id: string;
   achievement_id: string;
   unlocked_at: string;
+}
+
+export interface GameConfig {
+  game_mode: string;
+  config: Record<string, unknown>;
+  updated_at: string;
+  updated_by: string | null;
 }
 
 export interface CustomText {
@@ -150,6 +160,7 @@ export interface Database {
           nickname: string;
           avatar_url?: string | null;
           avatar_config?: AvatarConfig | null;
+          role?: UserRole;
           created_at?: string;
         };
         Update: {
@@ -157,7 +168,24 @@ export interface Database {
           nickname?: string;
           avatar_url?: string | null;
           avatar_config?: AvatarConfig | null;
+          role?: UserRole;
           created_at?: string;
+        };
+        Relationships: GenericRelationship[];
+      };
+      game_config: {
+        Row: GameConfig;
+        Insert: {
+          game_mode: string;
+          config: Record<string, unknown>;
+          updated_at?: string;
+          updated_by?: string | null;
+        };
+        Update: {
+          game_mode?: string;
+          config?: Record<string, unknown>;
+          updated_at?: string;
+          updated_by?: string | null;
         };
         Relationships: GenericRelationship[];
       };
