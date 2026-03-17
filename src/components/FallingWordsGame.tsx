@@ -22,7 +22,7 @@ interface Word {
     text: string;
     left: number;
     top: number;
-    type: "normal" | "life" | "slow" | "clear" | "shield" | "score";
+    type: "normal" | "life" | "slow" | "clear" | "shield" | "score" | "golden";
     color?: string;
     status: "falling" | "matched" | "missed";
     floatDelay: number;
@@ -33,6 +33,22 @@ interface ScorePopup {
     text: string;
     left: number;
     top: number;
+}
+
+interface Particle {
+    id: number;
+    x: number;
+    y: number;
+    char: string;
+    dx: number;
+    dy: number;
+}
+
+interface MultiKillText {
+    id: number;
+    text: string;
+    x: number;
+    y: number;
 }
 
 const ITEM_TYPES = {
@@ -74,6 +90,11 @@ const FallingWordsGame: React.FC = () => {
     const [countdown, setCountdown] = useState<number | null>(null);
     const [comboGlow, setComboGlow] = useState(false);
     const [lifeLostShake, setLifeLostShake] = useState(false);
+    const [particles, setParticles] = useState<Particle[]>([]);
+    const [multiKills, setMultiKills] = useState<MultiKillText[]>([]);
+    const [inputRipple, setInputRipple] = useState(false);
+    const lastMatchTimeRef = useRef(0);
+    const rapidMatchCountRef = useRef(0);
 
     const gameAreaRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
@@ -132,6 +153,30 @@ const FallingWordsGame: React.FC = () => {
         }, 800);
     };
 
+    const spawnParticles = useCallback((text: string, left: number, top: number) => {
+        const chars = text.split("");
+        const newParticles: Particle[] = chars.map((char, i) => ({
+            id: Date.now() + Math.random() + i,
+            x: left + i * 14,
+            y: top,
+            char,
+            dx: (Math.random() - 0.5) * 120,
+            dy: (Math.random() - 0.8) * 80,
+        }));
+        setParticles((prev) => [...prev, ...newParticles]);
+        setTimeout(() => {
+            setParticles((prev) => prev.filter((p) => !newParticles.some((np) => np.id === p.id)));
+        }, 600);
+    }, []);
+
+    const showMultiKill = useCallback((count: number, x: number, y: number) => {
+        const labels = ["", "", "DOUBLE!", "TRIPLE!", "ULTRA!", "INSANE!"];
+        const text = labels[Math.min(count, 5)] || `${count}x KILL!`;
+        const id = Date.now() + Math.random();
+        setMultiKills((prev) => [...prev, { id, text, x, y }]);
+        setTimeout(() => setMultiKills((prev) => prev.filter((mk) => mk.id !== id)), 1200);
+    }, []);
+
     const spawnWord = useCallback((): void => {
         if (gameOver || isPaused) return;
 
@@ -147,18 +192,22 @@ const FallingWordsGame: React.FC = () => {
             let wordType: Word["type"] = "normal";
             const random = Math.random();
 
-            const itemChance = Math.min(0.05 + (level - 1) * 0.01, 0.2);
-
-            if (random < itemChance) {
-                const itemTypes: Word["type"][] = [
-                    "life",
-                    "slow",
-                    "clear",
-                    "shield",
-                    "score",
-                ];
-                wordType =
-                    itemTypes[Math.floor(Math.random() * itemTypes.length)];
+            // 골든 워드: 4% 확률 (레벨 3+)
+            if (level >= 3 && random < 0.04) {
+                wordType = "golden";
+            } else {
+                const itemChance = Math.min(0.05 + (level - 1) * 0.01, 0.2);
+                if (random < itemChance + 0.04) {
+                    const itemTypes: Word["type"][] = [
+                        "life",
+                        "slow",
+                        "clear",
+                        "shield",
+                        "score",
+                    ];
+                    wordType =
+                        itemTypes[Math.floor(Math.random() * itemTypes.length)];
+                }
             }
 
             let newLeft = Math.random() * maxLeft + 10;
@@ -181,8 +230,10 @@ const FallingWordsGame: React.FC = () => {
                     top: -40,
                     type: wordType,
                     color:
-                        wordType !== "normal"
-                            ? ITEM_TYPES[wordType].color
+                        wordType === "golden"
+                            ? "text-yellow-400"
+                            : wordType !== "normal"
+                            ? ITEM_TYPES[wordType as keyof typeof ITEM_TYPES].color
                             : undefined,
                     status: "falling",
                     floatDelay: Math.random() * 3,
@@ -351,6 +402,24 @@ const FallingWordsGame: React.FC = () => {
             setLastTypedTime(now);
             totalWordsTypedRef.current += 1;
 
+            // 연쇄 클리어 감지 (1초 이내 연속 매칭)
+            if (now - lastMatchTimeRef.current < 1000) {
+                rapidMatchCountRef.current += 1;
+                if (rapidMatchCountRef.current >= 2) {
+                    showMultiKill(rapidMatchCountRef.current, matchedWord.left, matchedWord.top - 30);
+                }
+            } else {
+                rapidMatchCountRef.current = 1;
+            }
+            lastMatchTimeRef.current = now;
+
+            // 파티클 폭발
+            spawnParticles(matchedWord.text, matchedWord.left, matchedWord.top);
+
+            // 입력 파동 효과
+            setInputRipple(true);
+            setTimeout(() => setInputRipple(false), 400);
+
             setWords((curr) =>
                 curr.map((word) =>
                     word.id === matchedWord.id
@@ -360,7 +429,26 @@ const FallingWordsGame: React.FC = () => {
             );
             clearInput();
 
-            if (matchedWord.type !== "normal") {
+            if (matchedWord.type === "golden") {
+                // 골든 워드: 3배 점수
+                const baseScore = matchedWord.text.length * 10 * 3;
+                playSound("combo");
+                playSound("match");
+                setScore((prev) => {
+                    const newScore = prev + baseScore;
+                    const requirements = getLevelRequirements(level);
+                    if (newScore >= requirements.scoreNeeded) {
+                        setLevel((prevLevel) => prevLevel + 1);
+                        setLevelUp(true);
+                        playSound("win");
+                        setTimeout(() => setLevelUp(false), 1000);
+                    }
+                    return newScore;
+                });
+                showScorePopup(`+${baseScore} ★`, matchedWord.left, matchedWord.top);
+                comboRef.current += 1;
+                setCombo(comboRef.current);
+            } else if (matchedWord.type !== "normal") {
                 handleItemEffect(matchedWord.type);
                 showScorePopup(
                     getItemEmoji(matchedWord.type),
@@ -395,6 +483,9 @@ const FallingWordsGame: React.FC = () => {
                 if (triggeredComboMilestone) {
                     setComboGlow(true);
                     setTimeout(() => setComboGlow(false), 800);
+                    // 콤보 5+ shake 효과
+                    setLifeLostShake(true);
+                    setTimeout(() => setLifeLostShake(false), 200);
                 }
 
                 setScore((prev) => {
@@ -435,9 +526,13 @@ const FallingWordsGame: React.FC = () => {
         setCombo(0);
         comboRef.current = 0;
         setScorePopups([]);
+        setParticles([]);
+        setMultiKills([]);
         setIsPaused(false);
         clearInput();
         setLastTypedTime(0);
+        lastMatchTimeRef.current = 0;
+        rapidMatchCountRef.current = 0;
         claimedWordIdsRef.current.clear();
         if (language === "korean" && koreanWords.length === 0) {
             void fetchKoreanWords();
@@ -523,7 +618,15 @@ const FallingWordsGame: React.FC = () => {
             ref={gameAreaRef}
             className={`relative w-full flex-1 min-h-[340px] sm:min-h-[460px] overflow-hidden ${retroRadiusClass} retro-monitor-bezel bg-[var(--retro-surface-alt)]`}
         >
-            <div className={`absolute inset-0 ${darkMode ? "bg-[var(--retro-game-bg)]" : "bg-[var(--retro-surface-alt)]"} ${lifeLostShake ? "animate-runner-shake" : ""}`}>
+            <div
+                className={`absolute inset-0 ${lifeLostShake ? "animate-runner-shake" : ""}`}
+                style={{
+                    background: darkMode
+                        ? `hsl(${240 - Math.min(level - 1, 10) * 5}, ${20 + Math.min(level - 1, 10) * 2}%, ${10 + Math.min(level - 1, 10)}%)`
+                        : `hsl(${210 - Math.min(level - 1, 10) * 3}, ${8 + Math.min(level - 1, 10)}%, ${79 - Math.min(level - 1, 10) * 2}%)`,
+                    transition: "background 1s ease",
+                }}
+            >
                 <div
                     className="absolute inset-0 pointer-events-none opacity-30"
                     style={{
@@ -592,20 +695,23 @@ const FallingWordsGame: React.FC = () => {
                     />
                 )}
 
-                {/* 콤보 표시 */}
+                {/* 콤보 카운터 (대형) */}
                 {combo >= 3 && (
-                    <div className="absolute top-11 sm:top-14 left-2 sm:left-5 z-10">
-                        <div
-                        className={`text-base sm:text-xl lg:text-2xl font-bold font-mono ${
-                                combo >= 10
-                                    ? "text-[var(--retro-game-warning)]"
-                                    : combo >= 5
-                                    ? "text-[var(--retro-game-info)]"
-                                    : "text-[var(--retro-game-success)]"
-                            }`}
-                        >
-                            {combo} Combo!{" "}
-                            {combo >= 15 ? " 🔥" : combo >= 3 ? " ⚡" : " ✨"}
+                    <div className="absolute top-11 sm:top-16 left-2 sm:left-5 z-10">
+                        <div className="font-pixel" style={{ fontSize: combo >= 10 ? 18 : 12, lineHeight: 1.4 }}>
+                            <span className={
+                                combo >= 15 ? "text-[var(--retro-game-danger)] animate-combo-fire"
+                                : combo >= 10 ? "text-[var(--retro-game-warning)] animate-combo-fire"
+                                : combo >= 5 ? "text-[var(--retro-game-info)]"
+                                : "text-[var(--retro-game-success)]"
+                            }>
+                                {combo}x
+                            </span>
+                        </div>
+                        <div className="text-xs sm:text-sm font-bold font-mono mt-0.5" style={{
+                            color: combo >= 10 ? "var(--retro-game-warning)" : "var(--retro-game-text-dim)",
+                        }}>
+                            COMBO {combo >= 15 ? "🔥" : combo >= 10 ? "⚡" : combo >= 5 ? "✨" : ""}
                         </div>
                     </div>
                 )}
@@ -617,14 +723,15 @@ const FallingWordsGame: React.FC = () => {
                             style={{ background: "rgba(255,224,0,0.15)" }}
                         />
                         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center z-20">
-                            <div className="text-2xl sm:text-4xl font-bold text-[var(--retro-game-warning)] animate-celebration"
-                                style={{ textShadow: "0 0 20px rgba(251,191,36,0.6), 2px 2px 0 rgba(0,0,0,0.3)" }}
+                            <div className="font-pixel animate-celebration"
+                                style={{ fontSize: 18, color: "var(--retro-game-warning)", textShadow: "0 0 20px rgba(251,191,36,0.6), 2px 2px 0 rgba(0,0,0,0.3)" }}
                             >
-                                Level Up!
+                                LEVEL UP!
                             </div>
-                            <div className="text-sm sm:text-lg text-[var(--retro-game-info)] mt-2">
-                                Next goal:{" "}
-                                {getLevelRequirements(level + 1).scoreNeeded} points
+                            <div className="font-pixel mt-3"
+                                style={{ fontSize: 24, color: "var(--retro-game-info)", textShadow: "0 0 10px var(--retro-game-glow)" }}
+                            >
+                                LV.{level}
                             </div>
                         </div>
                     </>
@@ -641,6 +748,34 @@ const FallingWordsGame: React.FC = () => {
                     </div>
                 ))}
 
+                {/* 파티클 폭발 */}
+                {particles.map((p) => (
+                    <div
+                        key={p.id}
+                        className="absolute animate-word-particle z-20 font-pixel text-[var(--retro-game-info)]"
+                        style={{
+                            left: p.x,
+                            top: p.y,
+                            fontSize: 10,
+                            "--px": `${p.dx}px`,
+                            "--py": `${p.dy}px`,
+                        } as React.CSSProperties}
+                    >
+                        {p.char}
+                    </div>
+                ))}
+
+                {/* 연쇄 클리어 텍스트 */}
+                {multiKills.map((mk) => (
+                    <div
+                        key={mk.id}
+                        className="absolute animate-multi-kill z-30 font-pixel text-[var(--retro-game-warning)]"
+                        style={{ left: mk.x, top: mk.y, fontSize: 14, textShadow: "0 0 10px rgba(250,204,21,0.6), 2px 2px 0 #000" }}
+                    >
+                        {mk.text}
+                    </div>
+                ))}
+
                 {/* 떨어지는 단어들 */}
                 {words.map((word) => {
                     const isTarget = targetWord?.id === word.id;
@@ -648,14 +783,18 @@ const FallingWordsGame: React.FC = () => {
                         <div
                             key={word.id}
                             className={`absolute ${getWordSizeClass(word.text)} font-bold font-mono flex items-center gap-1 sm:gap-2 ${getWordAnimClass(word)} ${
-                                word.type === "normal"
+                                word.type === "golden"
+                                    ? "animate-golden-shimmer drop-shadow-[0_0_8px_rgba(250,204,21,0.4)]"
+                                    : word.type === "normal"
                                     ? darkMode
                                         ? "text-[var(--retro-game-text)] drop-shadow-[1px_1px_0_rgba(0,0,0,0.5)]"
                                         : "text-[var(--retro-text)] drop-shadow-[1px_1px_0_rgba(255,255,255,0.5)]"
                                     : word.color
                             } ${
-                                word.type !== "normal"
+                                word.type !== "normal" && word.type !== "golden"
                                     ? `${retroSoftRadiusClass} px-2.5 py-1 border border-[var(--retro-border-mid)] bg-[var(--retro-surface)]`
+                                    : word.type === "golden"
+                                    ? `${retroSoftRadiusClass} px-2.5 py-1 border-2 border-yellow-500/50 bg-yellow-900/30`
                                     : ""
                             } ${isTarget ? "underline decoration-sky-400/50 decoration-2 underline-offset-4" : ""}`}
                             style={{
@@ -664,7 +803,8 @@ const FallingWordsGame: React.FC = () => {
                                 animationDelay: word.status === "falling" ? `${word.floatDelay}s` : undefined,
                             }}
                         >
-                            {word.type !== "normal" && (
+                            {word.type === "golden" && <span>★</span>}
+                            {word.type !== "normal" && word.type !== "golden" && (
                                 <span>{getItemEmoji(word.type)}</span>
                             )}
                             {isTarget && input.length > 0 ? (
@@ -684,12 +824,24 @@ const FallingWordsGame: React.FC = () => {
                             ) : (
                                 <span>{word.text}</span>
                             )}
+                            {/* 타이핑 진행 게이지 */}
+                            {isTarget && input.length > 0 && word.status === "falling" && (
+                                <div className="absolute -bottom-2 left-0 right-0 h-1 bg-[var(--retro-game-panel)]" style={{ opacity: 0.8 }}>
+                                    <div
+                                        className="h-full bg-[var(--retro-game-success)] transition-all duration-100"
+                                        style={{ width: `${Math.min((input.length / word.text.length) * 100, 100)}%` }}
+                                    />
+                                </div>
+                            )}
                         </div>
                     );
                 })}
 
                 {/* 하단 입력 영역 */}
-                <div className="absolute bottom-0 left-0 right-0 p-2.5 sm:p-4 border-t-2 bg-[var(--retro-surface)] border-[var(--retro-border-mid)]">
+                <div className="absolute bottom-0 left-0 right-0 p-2.5 sm:p-4 border-t-2 bg-[var(--retro-surface)] border-[var(--retro-border-mid)] relative">
+                    {inputRipple && (
+                        <div className="absolute top-0 left-0 right-0 h-0.5 bg-[var(--retro-game-info)] animate-input-ripple origin-center" />
+                    )}
                     <GameInput
                         inputRef={inputRef}
                         value={input}

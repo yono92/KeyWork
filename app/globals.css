@@ -480,6 +480,58 @@
         }
     }
 
+    /* 소나기 - 파티클 폭발 */
+    @keyframes wordParticle {
+        0% { opacity: 1; transform: translate(0, 0) scale(1); }
+        100% { opacity: 0; transform: translate(var(--px), var(--py)) scale(0); }
+    }
+    .animate-word-particle {
+        animation: wordParticle 600ms ease-out forwards;
+        pointer-events: none;
+    }
+
+    /* 소나기 - 콤보 불꽃 */
+    @keyframes comboFire {
+        0%, 100% { transform: scaleY(1) translateY(0); opacity: 0.9; }
+        50% { transform: scaleY(1.3) translateY(-2px); opacity: 1; }
+    }
+    .animate-combo-fire {
+        animation: comboFire 300ms ease-in-out infinite;
+    }
+
+    /* 소나기 - 더블 킬 텍스트 */
+    @keyframes multiKill {
+        0% { opacity: 0; transform: translate(-50%, -50%) scale(0.5) rotate(-5deg); }
+        20% { opacity: 1; transform: translate(-50%, -50%) scale(1.3) rotate(3deg); }
+        40% { transform: translate(-50%, -50%) scale(0.95) rotate(-1deg); }
+        70% { opacity: 1; transform: translate(-50%, -50%) scale(1) rotate(0); }
+        100% { opacity: 0; transform: translate(-50%, -50%) scale(0.8) translateY(-20px); }
+    }
+    .animate-multi-kill {
+        animation: multiKill 1.2s ease-out forwards;
+        pointer-events: none;
+    }
+
+    /* 소나기 - 골든 워드 반짝임 */
+    @keyframes goldenShimmer {
+        0%, 100% { text-shadow: 0 0 4px rgba(250,204,21,0.4); }
+        50% { text-shadow: 0 0 12px rgba(250,204,21,0.8), 0 0 20px rgba(250,204,21,0.3); }
+    }
+    .animate-golden-shimmer {
+        animation: goldenShimmer 1.5s ease-in-out infinite;
+        color: #facc15 !important;
+    }
+
+    /* 소나기 - 입력 파동 */
+    @keyframes inputRipple {
+        0% { transform: scaleX(0); opacity: 0.6; }
+        100% { transform: scaleX(1); opacity: 0; }
+    }
+    .animate-input-ripple {
+        animation: inputRipple 400ms ease-out forwards;
+        pointer-events: none;
+    }
+
     /* 소나기 - 단어 놓침 이펙트 */
     @keyframes wordMissed {
         0% {
