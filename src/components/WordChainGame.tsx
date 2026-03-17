@@ -22,40 +22,45 @@ const WordChainGame: React.FC = () => {
                 } : undefined}
             >
                 {/* Top bar */}
-                <div className={`flex justify-between items-center px-2.5 py-2 sm:px-5 sm:py-3 border-b-2 z-10 ${
+                <div className={`border-b-2 z-10 ${
                     darkMode ? "bg-[var(--retro-game-panel)] border-[var(--retro-game-panel-border-lo)]" : "bg-[var(--retro-surface)] border-[var(--retro-border-mid)]"
                 }`}>
-                    <div className={`text-xs sm:text-lg font-bold ${darkMode ? "text-white" : "text-slate-800"}`} aria-live="polite" aria-atomic="true">
-                        Score: <span className="tabular-nums">{game.score}</span>
-                        {game.combo > 0 && (
-                            <span className="ml-1 sm:ml-2 text-[10px] sm:text-sm text-[var(--retro-game-info)]">
-                                x{Math.min(1 + game.combo * 0.2, 2).toFixed(1)}
-                            </span>
-                        )}
-                    </div>
-                    <div className="flex items-center gap-1.5 sm:gap-3">
-                        <div className={`text-xs sm:text-lg font-bold tabular-nums ${
-                            game.timer <= 3
-                                ? "text-rose-400 animate-wordchain-timer-pulse"
-                                : darkMode ? "text-white" : "text-slate-800"
-                        }`}
-                            style={game.timer <= 3 ? {
-                                textShadow: "0 0 8px color-mix(in srgb, var(--retro-game-danger) 50%, transparent)",
-                            } : undefined}
-                        >
-                            ⏱ {game.timer}s
-                        </div>
-                        <div className={`flex gap-0.5 text-sm sm:text-lg ${darkMode ? "text-white" : "text-slate-800"}`} aria-label={`Lives: ${game.lives} / ${game.config.lives}`}>
-                            {Array.from({ length: game.config.lives }, (_, i) => (
-                                <span
-                                    key={i}
-                                    className={`transition-all ${i >= game.lives ? "grayscale opacity-40" : ""}`}
-                                >
-                                    {i < game.lives ? "❤️" : "🖤"}
+                    <div className="flex justify-between items-center px-2.5 py-1.5 sm:px-5 sm:py-2.5">
+                        <div className="font-pixel" style={{ fontSize: "clamp(7px, 1.2vw, 10px)", lineHeight: 1.8 }} aria-live="polite" aria-atomic="true">
+                            <span className="text-[var(--retro-game-text-dim)]">SCORE </span>
+                            <span className="text-[var(--retro-game-warning)] tabular-nums">{game.score.toLocaleString().padStart(5, "0")}</span>
+                            {game.combo > 0 && (
+                                <span className="ml-2 sm:ml-4 text-[var(--retro-game-info)]">
+                                    x{Math.min(1 + game.combo * 0.2, 2).toFixed(1)}
                                 </span>
-                            ))}
+                            )}
+                        </div>
+                        <div className="flex items-center gap-1.5 sm:gap-3">
+                            <div className={`font-pixel tabular-nums ${
+                                game.timer <= 3 ? "text-[var(--retro-game-danger)] animate-wordchain-timer-pulse" : "text-[var(--retro-game-text)]"
+                            }`} style={{ fontSize: "clamp(7px, 1.2vw, 10px)", lineHeight: 1.8 }}>
+                                {game.timer}s
+                            </div>
+                            <div className="flex gap-0.5 text-sm sm:text-lg" aria-label={`Lives: ${game.lives} / ${game.config.lives}`}>
+                                {Array.from({ length: game.config.lives }, (_, i) => (
+                                    <span key={i} className={`transition-all ${i >= game.lives ? "grayscale opacity-40" : ""}`}>
+                                        {i < game.lives ? "❤️" : "🖤"}
+                                    </span>
+                                ))}
+                            </div>
                         </div>
                     </div>
+                    {/* 타이머 프로그레스 바 */}
+                    {game.gameStarted && !game.gameOver && (
+                        <div className="h-1 bg-[var(--retro-game-bg)]">
+                            <div
+                                className={`h-full transition-all duration-1000 linear ${
+                                    game.timer <= 3 ? "bg-[var(--retro-game-danger)]" : "bg-[var(--retro-game-info)]"
+                                }`}
+                                style={{ width: `${(game.timer / game.config.timeLimit) * 100}%` }}
+                            />
+                        </div>
+                    )}
                 </div>
 
                 {/* Current start character hint */}
@@ -130,17 +135,19 @@ const WordChainGame: React.FC = () => {
                     ))}
                     {game.isAiTurn && (
                         <div className="flex justify-start animate-chat-bubble" aria-live="polite">
-                            <div className={`px-4 py-2.5 rounded-2xl rounded-bl-md text-sm ${
-                                darkMode ? "bg-white/[0.08] text-white" : "bg-slate-100 text-slate-800"
+                            <div className={`px-4 py-2.5 border-2 text-sm ${
+                                darkMode
+                                    ? "bg-[var(--retro-game-panel)] text-[var(--retro-game-text)] border-[var(--retro-game-panel-border-hi)]"
+                                    : "bg-[var(--retro-surface-alt)] text-[var(--retro-text)] border-[var(--retro-border-mid)] border-t-[var(--retro-border-light)] border-l-[var(--retro-border-light)] border-r-[var(--retro-border-dark)] border-b-[var(--retro-border-dark)]"
                             }`}>
-                                상대 입력 중{" "}
-                                <span className="inline-flex gap-0.5">
+                                <span className="font-pixel" style={{ fontSize: 8 }}>AI THINKING</span>{" "}
+                                <span className="inline-flex gap-0.5 ml-1">
                                     {[0, 1, 2].map((i) => (
                                         <span
                                             key={i}
-                                            className="inline-block w-1.5 h-1.5 rounded-full bg-current"
+                                            className="inline-block w-1.5 h-1.5 bg-current"
                                             style={{
-                                                animation: `runnerBounce 600ms ease-in-out ${i * 150}ms infinite`,
+                                                animation: `tetris-blink 800ms step-end ${i * 200}ms infinite`,
                                             }}
                                         />
                                     ))}
@@ -196,12 +203,12 @@ const WordChainGame: React.FC = () => {
             {/* Game over overlay */}
             {game.gameOver && (
                 <GameOverModal
-                    title={game.playerWon ? "승리!" : "게임 오버"}
+                    title={game.playerWon ? "YOU WIN!" : "GAME OVER"}
                     badge={game.playerWon ? (
-                        <p className="text-[var(--retro-game-warning)] font-bold text-lg mb-3 animate-celebration"
-                            style={{ textShadow: "0 0 15px rgba(251,191,36,0.6)" }}
+                        <p className="font-pixel text-[var(--retro-game-warning)] mb-3 animate-celebration"
+                            style={{ fontSize: 12, textShadow: "0 0 15px rgba(251,191,36,0.6)" }}
                         >
-                            ★ ★ ★
+                            ★ VICTORY ★
                         </p>
                     ) : undefined}
                     primaryStat={

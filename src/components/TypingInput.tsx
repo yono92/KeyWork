@@ -253,7 +253,7 @@ const TypingInput: React.FC = () => {
                         retroTheme === "mac-classic"
                             ? "rounded-lg border-[var(--retro-border-mid)] border-t-[var(--retro-border-dark)] border-l-[var(--retro-border-dark)] border-r-[var(--retro-border-light)] border-b-[var(--retro-border-light)] bg-[var(--retro-field-bg)] text-[var(--retro-field-text)] placeholder:text-[var(--retro-field-placeholder)]"
                             : "rounded-none border-[var(--retro-border-mid)] border-t-[var(--retro-border-dark)] border-l-[var(--retro-border-dark)] border-r-[var(--retro-border-light)] border-b-[var(--retro-border-light)] bg-[var(--retro-field-bg)] text-[var(--retro-field-text)] placeholder:text-[var(--retro-field-placeholder)]"
-                    } focus:ring-2 focus:ring-[var(--retro-accent)] resize-none overflow-hidden leading-relaxed`}
+                    } focus:ring-2 focus:ring-[var(--retro-accent)] resize-none overflow-hidden leading-relaxed retro-cursor font-mono-typing`}
                     placeholder=""
                     autoFocus
                 />

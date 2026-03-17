@@ -268,16 +268,15 @@ const TypingRunnerGame: React.FC = () => {
                         darkMode ? "bg-[var(--retro-game-panel)] border-[var(--retro-game-panel-border-lo)]" : "bg-[var(--retro-surface)] border-[var(--retro-border-mid)]"
                     }`}
                 >
-                    <div className="flex justify-between items-center px-2.5 py-2 sm:px-5 sm:py-3">
-                        <div className={`text-xs sm:text-lg font-bold ${darkMode ? "text-white" : "text-slate-800"}`}>
-                            <span className="tabular-nums">{engine.score.toLocaleString()}</span>
-                            <span className={`ml-1.5 text-[10px] sm:text-xs font-medium ${darkMode ? "text-slate-500" : "text-slate-400"}`}>
-                                pts
-                            </span>
+                    <div className="flex justify-between items-center px-2.5 py-1.5 sm:px-5 sm:py-2.5">
+                        <div className="font-pixel" style={{ fontSize: "clamp(7px, 1.2vw, 10px)", lineHeight: 1.8 }}>
+                            <span className="text-[var(--retro-game-warning)] tabular-nums">{engine.score.toLocaleString().padStart(6, "0")}</span>
+                            <span className="ml-2 text-[var(--retro-game-text-dim)]">PTS</span>
                         </div>
-                        <div className={`flex items-center gap-2 sm:gap-3 text-[10px] sm:text-xs font-medium ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
-                            <span className="tabular-nums">{Math.round(engine.distance)}m</span>
-                            <span className={`px-1.5 py-0.5 rounded ${darkMode ? "bg-white/5" : "bg-slate-100"}`}>
+                        <div className="font-pixel" style={{ fontSize: "clamp(7px, 1.2vw, 10px)", lineHeight: 1.8 }}>
+                            <span className="text-[var(--retro-game-text-dim)]">DIST </span>
+                            <span className="text-[var(--retro-game-info)] tabular-nums">{Math.round(engine.distance)}m</span>
+                            <span className="ml-2 sm:ml-4 text-[var(--retro-game-success)] tabular-nums">
                                 {engine.speedRef.current.toFixed(1)}x
                             </span>
                         </div>
@@ -593,15 +592,39 @@ const TypingRunnerGame: React.FC = () => {
                     {/* 마일스톤 토스트 */}
                     {engine.milestone !== null && (
                         <div className="absolute inset-0 flex items-center justify-center z-30 pointer-events-none">
-                            <div className="animate-celebration text-3xl sm:text-5xl font-black text-[var(--retro-game-warning)]"
+                            <div className="animate-celebration font-pixel"
                                 style={{
                                     position: "absolute", top: "50%", left: "50%",
-                                    filter: "drop-shadow(0 0 20px rgba(251,191,36,0.5)) drop-shadow(0 0 40px rgba(251,191,36,0.3))",
-                                    textShadow: "0 0 30px rgba(251,191,36,0.8), 2px 2px 0 rgba(0,0,0,0.5)",
+                                    transform: "translate(-50%, -50%)",
+                                    textAlign: "center",
                                 }}
                             >
-                                {engine.milestone}m!
+                                <div style={{ fontSize: 28, color: "var(--retro-game-warning)", textShadow: "0 0 20px rgba(251,191,36,0.6), 2px 2px 0 #000" }}>
+                                    {engine.milestone}m
+                                </div>
+                                <div style={{ fontSize: 10, color: "var(--retro-game-info)", marginTop: 8 }}>
+                                    MILESTONE!
+                                </div>
                             </div>
+                        </div>
+                    )}
+
+                    {/* 스피드 라인 (속도 1.5x 이상) */}
+                    {engine.gameStarted && !engine.gameOver && engine.speedRef.current >= 1.5 && (
+                        <div className="absolute inset-0 pointer-events-none z-5 overflow-hidden">
+                            {[0, 1, 2].map((i) => (
+                                <div
+                                    key={`speed-${i}`}
+                                    className="absolute h-px bg-white/20 animate-speed-line"
+                                    style={{
+                                        top: `${20 + i * 30}%`,
+                                        width: "40%",
+                                        animationDelay: `${i * 130}ms`,
+                                        animationDuration: `${400 - engine.speedRef.current * 50}ms`,
+                                        animationIterationCount: "infinite",
+                                    }}
+                                />
+                            ))}
                         </div>
                     )}
                 </div>

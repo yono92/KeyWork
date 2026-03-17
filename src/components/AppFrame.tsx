@@ -45,7 +45,7 @@ export default function AppFrame({ children }: AppFrameProps) {
 
     return (
         <ToastQueueProvider>
-            <div className="relative h-screen overflow-hidden bg-[var(--retro-app-bg)]">
+            <div className={`relative h-screen overflow-hidden bg-[var(--retro-app-bg)] ${fxEnabled ? "animate-crt-boot" : ""}`}>
                 <GlobalInviteHost />
                 {fxEnabled && <div className="crt-scanlines" aria-hidden="true" />}
                 <div className="relative z-10 h-full box-border p-2.5 md:p-3.5">
