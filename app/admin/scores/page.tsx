@@ -7,8 +7,6 @@ const GAME_MODES = [
     { value: "practice", label: "타이핑 연습" },
     { value: "falling-words", label: "단어 낙하" },
     { value: "word-chain", label: "끝말잇기" },
-    { value: "typing-defense", label: "타이핑 디펜스" },
-    { value: "dictation", label: "받아쓰기" },
     { value: "tetris", label: "테트리스" },
     { value: "typing-runner", label: "타이핑 러너" },
 ];

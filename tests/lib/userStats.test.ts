@@ -65,8 +65,6 @@ describe("aggregateUserStats", () => {
             "word-chain",
             "typing-runner",
             "tetris",
-            "typing-defense",
-            "dictation",
         ]);
 
         expect(stats.totalPlays).toBe(5);

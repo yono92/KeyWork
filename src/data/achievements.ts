@@ -90,7 +90,7 @@ function bestWpm(scores: AchievementCheckContext["allScores"]) {
 }
 
 const ALL_GAME_MODES: GameMode[] = [
-    "practice", "falling-words", "word-chain", "typing-race", "typing-defense", "dictation",
+    "practice", "falling-words", "word-chain", "typing-runner", "tetris",
 ];
 
 export const ACHIEVEMENTS: AchievementDef[] = [
@@ -159,23 +159,6 @@ export const ACHIEVEMENTS: AchievementDef[] = [
         description: { ko: "타이핑 레이스에서 2,000점 달성", en: "Score 2,000 in Typing Race" },
         check: (ctx) => bestScoreByMode(ctx.allScores, "typing-race") >= 2000,
     },
-    {
-        id: "defense-master",
-        category: "mode-master",
-        icon: "🛡️",
-        name: { ko: "디펜스 달인", en: "Defense Master" },
-        description: { ko: "타이핑 디펜스에서 10,000점 달성", en: "Score 10,000 in Typing Defense" },
-        check: (ctx) => bestScoreByMode(ctx.allScores, "typing-defense") >= 10000,
-    },
-    {
-        id: "dictation-master",
-        category: "mode-master",
-        icon: "👂",
-        name: { ko: "받아쓰기 달인", en: "Dictation Master" },
-        description: { ko: "받아쓰기에서 9,000점 달성", en: "Score 9,000 in Dictation" },
-        check: (ctx) => bestScoreByMode(ctx.allScores, "dictation") >= 9000,
-    },
-
     // ── 기록 달성 ──
     {
         id: "speed-demon-50",
@@ -216,14 +199,6 @@ export const ACHIEVEMENTS: AchievementDef[] = [
         name: { ko: "정밀 타자", en: "Precision Typist" },
         description: { ko: "문장연습에서 정확도 95% 이상 달성", en: "95%+ accuracy in Practice" },
         check: (ctx) => bestAccuracyByMode(ctx.allScores, "practice") >= 95,
-    },
-    {
-        id: "dictation-95",
-        category: "record",
-        icon: "✍️",
-        name: { ko: "청취 달인", en: "Sharp Ears" },
-        description: { ko: "받아쓰기 평균 정확도 95% 이상", en: "95%+ accuracy in Dictation" },
-        check: (ctx) => bestAccuracyByMode(ctx.allScores, "dictation") >= 95,
     },
     {
         id: "high-score-10k",
@@ -275,15 +250,6 @@ export const ACHIEVEMENTS: AchievementDef[] = [
         description: { ko: "문장연습 10회 플레이", en: "Play Practice 10 times" },
         check: (ctx) => countByMode(ctx.allScores, "practice") >= 10,
     },
-    {
-        id: "mode-10-defense",
-        category: "grinder",
-        icon: "🏰",
-        name: { ko: "수비대장", en: "Guardian" },
-        description: { ko: "타이핑 디펜스 10회 플레이", en: "Play Typing Defense 10 times" },
-        check: (ctx) => countByMode(ctx.allScores, "typing-defense") >= 10,
-    },
-
     // ── 멀티플레이 ──
     {
         id: "mp-first-win",

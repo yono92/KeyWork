@@ -6,8 +6,8 @@ export type GameMode =
   | "falling-words"
   | "word-chain"
   | "typing-race"
-  | "typing-defense"
-  | "dictation";
+  | "tetris"
+  | "typing-runner";
 
 export type RoomStatus = "waiting" | "playing" | "finished";
 

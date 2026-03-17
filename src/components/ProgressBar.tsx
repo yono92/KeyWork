@@ -14,18 +14,18 @@ const ProgressBar: React.FC<ProgressBarProps> = ({
 
     return (
         <div
-            className={`h-1.5 bg-slate-200/60 dark:bg-white/[0.06] rounded-full overflow-hidden mx-auto ${className}`}
+            className={`h-3 overflow-hidden mx-auto border-2 border-[var(--retro-border-dark)] border-t-[var(--retro-border-dark)] border-l-[var(--retro-border-dark)] border-r-[var(--retro-border-light)] border-b-[var(--retro-border-light)] bg-[var(--retro-field-bg)] dark:bg-[var(--retro-game-bg)] ${className}`}
             style={{ width: trackWidth ? `${trackWidth}px` : "100%" }}
         >
             <div
-                className="h-full rounded-full transition-all duration-300"
+                className="h-full transition-all duration-300"
                 style={{
                     width: `${progress}%`,
-                    background:
-                        "linear-gradient(90deg, #38bdf8 0%, #06b6d4 50%, #8b5cf6 100%)",
-                    boxShadow: progress > 0 ? "0 0 8px rgba(56, 189, 248, 0.4)" : "none",
+                    background: progress > 0
+                        ? "repeating-linear-gradient(90deg, var(--retro-accent) 0px, var(--retro-accent) 4px, var(--retro-accent-2) 4px, var(--retro-accent-2) 8px)"
+                        : "transparent",
                 }}
-            ></div>
+            />
         </div>
     );
 };

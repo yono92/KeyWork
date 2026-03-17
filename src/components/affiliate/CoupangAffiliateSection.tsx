@@ -26,7 +26,7 @@ const AFFILIATE_ITEMS: readonly AffiliateItem[] = [
     {
         id: "headset",
         label: { korean: "헤드셋/마이크", english: "Headset/Mic" },
-        desc: { korean: "받아쓰기 모드에 유용한 장비", english: "Useful gear for dictation mode" },
+        desc: { korean: "타이핑 시 편안한 헤드셋", english: "Comfortable headset for typing" },
         href: "https://link.coupang.com/a/dQ6hGM",
     },
 ] as const;

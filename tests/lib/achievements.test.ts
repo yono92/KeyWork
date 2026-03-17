@@ -72,9 +72,8 @@ describe("achievements definitions", () => {
         const completeContext = createContext({
             allScores: [
                 ...createContext().allScores,
-                { game_mode: "typing-race", score: 2100, wpm: 88, accuracy: 97, is_multiplayer: false, is_win: null },
-                { game_mode: "typing-defense", score: 12000, wpm: null, accuracy: null, is_multiplayer: false, is_win: null },
-                { game_mode: "dictation", score: 9500, wpm: null, accuracy: 96, is_multiplayer: false, is_win: null },
+                { game_mode: "typing-runner", score: 2100, wpm: 88, accuracy: 97, is_multiplayer: false, is_win: null },
+                { game_mode: "tetris", score: 12000, wpm: null, accuracy: null, is_multiplayer: false, is_win: null },
             ],
         });
 

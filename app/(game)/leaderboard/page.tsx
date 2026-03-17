@@ -25,10 +25,9 @@ import {
 } from "@/lib/seasonLeaderboard";
 
 const COMPETITIVE_MODES = [
-    { id: "typing-defense", ko: "타이핑 디펜스", en: "Typing Defense" },
-    { id: "dictation", ko: "받아쓰기", en: "Dictation" },
     { id: "word-chain", ko: "끝말잇기", en: "Word Chain" },
     { id: "tetris", ko: "테트리스", en: "Tetris" },
+    { id: "falling-words", ko: "단어낙하", en: "Falling Words" },
 ] as const;
 
 const PERIODS: { id: LeaderboardPeriod; ko: string; en: string }[] = [
@@ -137,7 +136,7 @@ export default function LeaderboardPage() {
     const ko = language === "korean";
     const rounded = retroTheme === "mac-classic";
 
-    const [selectedMode, setSelectedMode] = useState<string>("typing-defense");
+    const [selectedMode, setSelectedMode] = useState<string>("word-chain");
     const [selectedPeriod, setSelectedPeriod] = useState<LeaderboardPeriod>("week");
     const [tick, setTick] = useState(() => new Date());
 

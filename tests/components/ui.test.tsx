@@ -9,7 +9,6 @@ import LanguageToggle from "../../src/components/LanguageToggle";
 import Logo from "../../src/components/Logo";
 import MuteToggle from "../../src/components/MuteToggle";
 import ProgressBar from "../../src/components/ProgressBar";
-import UserMenu from "../../src/components/auth/UserMenu";
 import useTypingStore from "../../src/store/store";
 
 const authContext = {

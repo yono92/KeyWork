@@ -13,16 +13,6 @@ const DEFAULT_CONFIGS: Record<string, Record<string, unknown>> = {
         normal: { timeLimit: 15, lives: 3 },
         hard: { timeLimit: 10, lives: 3 },
     },
-    "typing-defense": {
-        easy: { speedMul: 0.6, spawnMul: 1.5, lives: 5, scoreMul: 0.7 },
-        normal: { speedMul: 1.0, spawnMul: 1.0, lives: 3, scoreMul: 1.0 },
-        hard: { speedMul: 1.4, spawnMul: 0.7, lives: 2, scoreMul: 1.5 },
-    },
-    dictation: {
-        easy: { rate: 0.8, autoPlays: 3, scoreMul: 0.7 },
-        normal: { rate: 1.0, autoPlays: 2, scoreMul: 1.0 },
-        hard: { rate: 1.2, autoPlays: 1, scoreMul: 1.5 },
-    },
 };
 
 interface GameConfigRow {
