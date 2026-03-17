@@ -705,7 +705,7 @@ const FallingWordsGame: React.FC = () => {
 
             {/* 시작 오버레이 */}
             {!gameStarted && !gameOver && countdown === null && (
-                <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+                <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/50 ">
                     <div className={`text-center px-8 py-8 ${retroRadiusClass} border-2 border-[var(--retro-border-mid)] border-t-[var(--retro-border-light)] border-l-[var(--retro-border-light)] border-r-[var(--retro-border-dark)] border-b-[var(--retro-border-dark)] bg-[var(--retro-surface)] shadow-2xl max-w-xs mx-4`}>
                         <p className="font-pixel text-[var(--retro-game-warning)] mb-3" style={{ fontSize: 10, lineHeight: 1.6, animation: "tetris-blink 1s ease-in-out infinite" }}>
                             INSERT COIN
@@ -737,7 +737,7 @@ const FallingWordsGame: React.FC = () => {
 
             {/* 카운트다운 오버레이 */}
             {countdown !== null && countdown > 0 && (
-                <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+                <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/40 ">
                     <div key={countdown} className="animate-countdown text-7xl sm:text-9xl font-black text-white drop-shadow-[0_0_30px_rgba(56,189,248,0.6)]">
                         {countdown}
                     </div>

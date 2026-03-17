@@ -264,9 +264,9 @@ const TypingRunnerGame: React.FC = () => {
 
                 {/* 상단 스코어바 */}
                 <div
-                    className={`absolute top-0 left-0 right-0 flex flex-col z-20 ${
-                        darkMode ? "bg-white/[0.04] border-b border-white/[0.06]" : "bg-white/70 border-b border-sky-100/50"
-                    } backdrop-blur-sm`}
+                    className={`absolute top-0 left-0 right-0 flex flex-col z-20 border-b-2 ${
+                        darkMode ? "bg-[var(--retro-game-panel)] border-[var(--retro-game-panel-border-lo)]" : "bg-[var(--retro-surface)] border-[var(--retro-border-mid)]"
+                    }`}
                 >
                     <div className="flex justify-between items-center px-2.5 py-2 sm:px-5 sm:py-3">
                         <div className={`text-xs sm:text-lg font-bold ${darkMode ? "text-white" : "text-slate-800"}`}>
@@ -487,7 +487,7 @@ const TypingRunnerGame: React.FC = () => {
                                     <div className={`absolute left-1/2 -translate-x-1/2 whitespace-nowrap transition-all duration-200 ${
                                         isTarget ? "-top-12 sm:-top-14" : "-top-8 sm:-top-10"
                                     }`}>
-                                        <div className={`px-2.5 py-1 rounded-lg border transition-all ${
+                                        <div className={`px-2.5 py-1 border-2 transition-all ${
                                             isTarget
                                                 ? darkMode
                                                     ? "text-sm sm:text-lg font-black text-sky-300 bg-sky-500/15 border-sky-500/30 shadow-lg shadow-sky-500/10"
@@ -608,8 +608,8 @@ const TypingRunnerGame: React.FC = () => {
 
                 {/* 입력 영역 */}
                 <div
-                    className={`absolute bottom-0 left-0 right-0 p-2 sm:p-3 backdrop-blur-sm border-t ${
-                        darkMode ? "bg-white/[0.04] border-white/[0.06]" : "bg-white/70 border-sky-100/50"
+                    className={`absolute bottom-0 left-0 right-0 p-2 sm:p-3 border-t-2 ${
+                        darkMode ? "bg-[var(--retro-game-panel)] border-[var(--retro-game-panel-border-hi)]" : "bg-[var(--retro-surface)] border-[var(--retro-border-mid)]"
                     }`}
                 >
                     <GameInput
@@ -627,10 +627,8 @@ const TypingRunnerGame: React.FC = () => {
 
             {/* 시작 오버레이 */}
             {!engine.gameStarted && !engine.gameOver && engine.countdown === null && (
-                <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-                    <div className={`text-center px-8 py-8 rounded-2xl border ${
-                        darkMode ? "bg-[#162032]/90 border-white/10" : "bg-white/90 border-sky-100"
-                    } shadow-2xl max-w-xs mx-4`}>
+                <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/50">
+                    <div className={`text-center px-8 py-8 retro-panel bg-[var(--retro-surface)] max-w-xs mx-4`}>
                         <div className="flex justify-center mb-3">
                             <PixelCharacter state="running" frame={0} />
                         </div>
@@ -660,7 +658,7 @@ const TypingRunnerGame: React.FC = () => {
 
             {/* 카운트다운 */}
             {engine.countdown !== null && engine.countdown > 0 && (
-                <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+                <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/40">
                     <div
                         key={engine.countdown}
                         className="animate-countdown text-7xl sm:text-9xl font-black text-white drop-shadow-[0_0_30px_rgba(56,189,248,0.6)]"

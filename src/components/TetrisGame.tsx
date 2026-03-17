@@ -383,10 +383,10 @@ export default function TetrisGame() {
                             zIndex: 10,
                         }}
                     >
-                        <p style={{ color: "var(--retro-game-danger)", fontSize: 22, fontWeight: 900, letterSpacing: 4, textShadow: "0 0 20px rgba(255,51,51,0.5), 2px 2px 0 #000" }}>
+                        <p className="font-pixel" style={{ color: "var(--retro-game-danger)", fontSize: 16, letterSpacing: 4, textShadow: "0 0 20px rgba(255,51,51,0.5), 2px 2px 0 #000" }}>
                             GAME OVER
                         </p>
-                        <p style={{ color: "var(--retro-game-text)", fontSize: 13, marginTop: 4 }}>
+                        <p className="font-pixel" style={{ color: "var(--retro-game-text)", fontSize: 10, marginTop: 8 }}>
                             SCORE: {engine.score.toLocaleString()}
                         </p>
                         <button
@@ -412,10 +412,10 @@ export default function TetrisGame() {
                         zIndex: 10,
                     }}
                 >
-                    <p style={{ color: "var(--retro-game-info)", fontSize: 26, fontWeight: 900, letterSpacing: 6, textShadow: "2px 2px 0 #000", marginBottom: 6 }}>
+                    <p className="font-pixel" style={{ color: "var(--retro-game-info)", fontSize: 20, letterSpacing: 6, textShadow: "2px 2px 0 #000, 0 0 10px var(--retro-game-glow)", marginBottom: 6 }}>
                         TETRIS
                     </p>
-                    <p style={{ color: "var(--retro-game-text-dim)", fontSize: 11, marginBottom: 14, animation: "tetris-blink 1.2s step-end infinite" }}>
+                    <p className="font-pixel" style={{ color: "var(--retro-game-text-dim)", fontSize: 8, marginBottom: 14, animation: "tetris-blink 1.2s step-end infinite" }}>
                         PRESS START
                     </p>
                     <button
@@ -444,7 +444,7 @@ export default function TetrisGame() {
                 alignItems: "center",
             }}
         >
-            <span style={{ color: "var(--retro-game-text-dim)", fontSize: spFont(11), textTransform: "uppercase", letterSpacing: 1 }}>{label}</span>
+            <span className="font-pixel" style={{ color: "var(--retro-game-text-dim)", fontSize: spFont(8), textTransform: "uppercase", letterSpacing: 1 }}>{label}</span>
             <span
                 style={{
                     color: "var(--retro-game-warning)",
@@ -466,7 +466,7 @@ export default function TetrisGame() {
         return (
             <div style={{ display: "flex", flexDirection: "column", gap, maxHeight: boardTotalH, overflow: "hidden" }}>
                 <div style={{ ...bevel(), background: "var(--retro-game-panel)", padding: spPad(5) }}>
-                    <p style={{ fontSize: spFont(10), fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", color: "var(--retro-game-text-dim)", textAlign: "center", marginBottom: spPad(3) }}>
+                    <p className="font-pixel" style={{ fontSize: spFont(8), letterSpacing: 2, textTransform: "uppercase", color: "var(--retro-game-text-dim)", textAlign: "center", marginBottom: spPad(3) }}>
                         NEXT
                     </p>
                     {renderMiniPreview(engine.nextPieceType)}
@@ -474,8 +474,8 @@ export default function TetrisGame() {
 
                 <div style={{ ...bevel(), background: "var(--retro-game-panel)", padding: spPad(5) }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: spPad(3) }}>
-                        <p style={{ fontSize: spFont(10), fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", color: "var(--retro-game-text-dim)" }}>
-                            HOLD <span style={{ fontSize: spFont(8), color: "var(--retro-game-text-dim)", fontWeight: 400 }}>[C]</span>
+                        <p className="font-pixel" style={{ fontSize: spFont(8), letterSpacing: 2, textTransform: "uppercase", color: "var(--retro-game-text-dim)" }}>
+                            HOLD <span style={{ fontSize: spFont(6), color: "var(--retro-game-text-dim)" }}>[C]</span>
                         </p>
                         {engine.holdUsedThisTurn && (
                             <span style={{ fontSize: spFont(8), color: "var(--retro-game-danger)", fontWeight: 700 }}>LOCK</span>

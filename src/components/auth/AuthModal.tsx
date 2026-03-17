@@ -71,9 +71,7 @@ export default function AuthModal({ onClose }: AuthModalProps) {
         <div
             className="fixed inset-0 z-[9999] flex items-center justify-center"
             style={{
-                background: "rgba(0,0,0,0.5)",
-                backdropFilter: "blur(8px)",
-                WebkitBackdropFilter: "blur(8px)",
+                background: "rgba(0,0,0,0.6)",
             }}
             onClick={onClose}
         >

@@ -15,15 +15,15 @@ const WordChainGame: React.FC = () => {
     const game = useWordChainGame();
 
     return (
-        <div className="relative w-full flex-1 min-h-[280px] sm:min-h-[400px] rounded-2xl overflow-hidden border border-sky-200/40 dark:border-sky-500/10">
-            <div className={`absolute inset-0 flex flex-col ${darkMode ? "bg-[var(--retro-game-bg)]" : "bg-gradient-to-b from-sky-50/80 to-white"} transition-all duration-300`}
+        <div className="relative w-full flex-1 min-h-[280px] sm:min-h-[400px] overflow-hidden retro-monitor-bezel">
+            <div className={`absolute inset-0 flex flex-col ${darkMode ? "bg-[var(--retro-game-bg)]" : "bg-[var(--retro-surface-alt)]"} transition-all duration-300`}
                 style={game.timer <= 3 && game.gameStarted && !game.gameOver && !game.isAiTurn ? {
-                    boxShadow: "inset 0 0 40px color-mix(in srgb, var(--retro-game-danger) 10%, transparent)",
+                    boxShadow: "inset 0 0 40px rgba(239,68,68,0.1)",
                 } : undefined}
             >
                 {/* Top bar */}
-                <div className={`flex justify-between items-center px-2.5 py-2 sm:px-5 sm:py-3 backdrop-blur-sm border-b z-10 ${
-                    darkMode ? "bg-white/[0.04] border-white/[0.06]" : "bg-white/70 border-sky-100/50"
+                <div className={`flex justify-between items-center px-2.5 py-2 sm:px-5 sm:py-3 border-b-2 z-10 ${
+                    darkMode ? "bg-[var(--retro-game-panel)] border-[var(--retro-game-panel-border-lo)]" : "bg-[var(--retro-surface)] border-[var(--retro-border-mid)]"
                 }`}>
                     <div className={`text-xs sm:text-lg font-bold ${darkMode ? "text-white" : "text-slate-800"}`} aria-live="polite" aria-atomic="true">
                         Score: <span className="tabular-nums">{game.score}</span>
@@ -61,8 +61,8 @@ const WordChainGame: React.FC = () => {
                 {/* Current start character hint */}
                 {game.currentChar && game.gameStarted && !game.gameOver && (
                     <div className="flex justify-center py-2">
-                        <span className={`px-4 py-1.5 rounded-full text-sm font-medium ${
-                            darkMode ? "bg-sky-500/15 text-sky-300 border border-sky-500/20" : "bg-sky-50 text-sky-600 border border-sky-200"
+                        <span className={`px-4 py-1.5 text-sm font-medium border-2 ${
+                            darkMode ? "bg-[var(--retro-game-panel)] text-[var(--retro-game-info)] border-[var(--retro-game-panel-border-hi)]" : "bg-[var(--retro-surface)] text-[var(--retro-accent)] border-[var(--retro-border-mid)] border-t-[var(--retro-border-light)] border-l-[var(--retro-border-light)] border-r-[var(--retro-border-dark)] border-b-[var(--retro-border-dark)]"
                         }`}>
                             {(() => {
                                 const chars = getStartChars(game.currentChar);
@@ -151,8 +151,8 @@ const WordChainGame: React.FC = () => {
                 </div>
 
                 {/* Input area */}
-                <div className={`p-2.5 sm:p-4 backdrop-blur-sm border-t ${
-                    darkMode ? "bg-white/[0.04] border-white/[0.06]" : "bg-white/70 border-sky-100/50"
+                <div className={`p-2.5 sm:p-4 border-t-2 ${
+                    darkMode ? "bg-[var(--retro-game-panel)] border-[var(--retro-game-panel-border-hi)]" : "bg-[var(--retro-surface)] border-[var(--retro-border-mid)]"
                 }`}>
                     <div className="flex gap-2 sm:gap-3">
                         <GameInput
