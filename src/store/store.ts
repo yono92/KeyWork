@@ -52,6 +52,7 @@ interface TypingState {
     retroTheme: RetroTheme;
     fxEnabled: boolean;
     phosphorColor: PhosphorColor;
+    volume: number;
     _hydrate: () => void;
     toggleDarkMode: () => void;
     setProgress: (progress: number) => void;
@@ -68,6 +69,7 @@ interface TypingState {
     toggleFx: () => void;
     setPhosphorColor: (color: PhosphorColor) => void;
     cyclePhosphorColor: () => void;
+    setVolume: (volume: number) => void;
 }
 
 const useTypingStore = create<TypingState>((set) => ({
@@ -85,6 +87,7 @@ const useTypingStore = create<TypingState>((set) => ({
     retroTheme: "win98",
     fxEnabled: true,
     phosphorColor: "cyan",
+    volume: 0.7,
     // 마운트 후 localStorage에서 복원
     _hydrate: () =>
         set(() => {
@@ -92,6 +95,7 @@ const useTypingStore = create<TypingState>((set) => ({
             const themeRaw = getStored("retroTheme");
             const phosphorRaw = getStored("phosphorColor");
             const fxRaw = getStored("fxEnabled");
+            const volumeRaw = getStored("volume");
             return {
                 _hydrated: true,
                 darkMode: getStored("darkMode") === "true",
@@ -102,6 +106,7 @@ const useTypingStore = create<TypingState>((set) => ({
                 retroTheme: isValidRetroTheme(themeRaw) ? themeRaw : detectDefaultRetroTheme(),
                 fxEnabled: fxRaw === null ? true : fxRaw !== "false",
                 phosphorColor: isValidPhosphorColor(phosphorRaw) ? phosphorRaw : "cyan",
+                volume: volumeRaw !== null ? Math.max(0, Math.min(1, Number(volumeRaw))) : 0.7,
             };
         }),
     toggleDarkMode: () =>
@@ -160,6 +165,11 @@ const useTypingStore = create<TypingState>((set) => ({
         if (!isValidPhosphorColor(phosphorColor)) return;
         setStored("phosphorColor", phosphorColor);
         set({ phosphorColor });
+    },
+    setVolume: (volume: number) => {
+        const clamped = Math.max(0, Math.min(1, volume));
+        setStored("volume", String(clamped));
+        set({ volume: clamped });
     },
     cyclePhosphorColor: () =>
         set((state) => {

@@ -19,7 +19,7 @@ export const metadata: Metadata = {
         template: "%s | KeyWork",
     },
     description:
-        "한국어와 영어 타이핑 실력을 게임으로 키워보세요. 문장연습, 단어낙하, 타이핑 디펜스, 타이핑 레이스, 타이핑 러너, 받아쓰기, 끝말잇기까지 7가지 모드를 제공합니다.",
+        "한국어와 영어 타이핑 실력을 게임으로 키워보세요. 문장연습, 단어낙하, 끝말잇기, 타이핑 러너, 테트리스까지 5가지 레트로 게임 모드를 제공합니다.",
     keywords: [
         "타이핑 연습",
         "타이핑 게임",
@@ -28,7 +28,7 @@ export const metadata: Metadata = {
         "typing practice",
         "typing game",
         "끝말잇기",
-        "받아쓰기",
+        "테트리스",
         "KeyWork",
     ],
     authors: [{ name: "yono92", url: "https://github.com/yono92" }],
@@ -36,7 +36,7 @@ export const metadata: Metadata = {
     openGraph: {
         title: "KeyWork - 타이핑 연습 게임",
         description:
-            "한국어와 영어 타이핑 실력을 게임으로 키워보세요. 7가지 게임 모드 제공.",
+            "한국어와 영어 타이핑 실력을 게임으로 키워보세요. 5가지 레트로 게임 모드 제공.",
         url: BASE_URL,
         siteName: "KeyWork",
         images: [
@@ -54,7 +54,7 @@ export const metadata: Metadata = {
         card: "summary_large_image",
         title: "KeyWork - 타이핑 연습 게임",
         description:
-            "한국어와 영어 타이핑 실력을 게임으로 키워보세요. 7가지 게임 모드 제공.",
+            "한국어와 영어 타이핑 실력을 게임으로 키워보세요. 5가지 레트로 게임 모드 제공.",
         images: ["/twitter-image"],
     },
     robots: {

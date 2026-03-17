@@ -104,14 +104,15 @@ const SOUND_PRESETS: Record<SoundType, SoundDef> = {
 export function useGameAudio() {
     const isMuted = useTypingStore((s) => s.isMuted);
     const retroTheme = useTypingStore((s) => s.retroTheme);
+    const volume = useTypingStore((s) => s.volume);
     const audioContextRef = useRef<AudioContext | null>(null);
 
     const playSound = useCallback((type: SoundType) => {
-        if (isMuted) return;
+        if (isMuted || volume === 0) return;
 
         // Mac-classic: 부드러운 사운드 (sine 우선, 볼륨 60%)
         const isMacSoft = retroTheme === "mac-classic";
-        const gainMul = isMacSoft ? 0.6 : 1;
+        const gainMul = volume * (isMacSoft ? 0.6 : 1);
 
         try {
             if (!audioContextRef.current) {
@@ -150,7 +151,7 @@ export function useGameAudio() {
         } catch {
             // AudioContext 생성 실패 시 무시
         }
-    }, [isMuted, retroTheme]);
+    }, [isMuted, retroTheme, volume]);
 
     return { playSound };
 }
