@@ -116,12 +116,13 @@ const FallingWordsGame: React.FC = () => {
             setCountdown(null);
             setGameStarted(true);
             gameStartTimeRef.current = Date.now();
+            playSound("crtOn");
             if (inputRef.current) inputRef.current.focus();
             return;
         }
         const timer = setTimeout(() => setCountdown((c) => (c ?? 1) - 1), 1000);
         return () => clearTimeout(timer);
-    }, [countdown]);
+    }, [countdown, playSound]);
 
     const showScorePopup = (text: string, left: number, top: number) => {
         const id = Date.now() + Math.random();
@@ -271,6 +272,7 @@ const FallingWordsGame: React.FC = () => {
                         const newLives = Math.max(prevLives - 1, 0);
                         if (newLives === 0) {
                             setGameOver(true);
+                            playSound("crtOff");
                             playSound("gameOver");
                         }
                         return newLives;
@@ -401,7 +403,7 @@ const FallingWordsGame: React.FC = () => {
                     if (newScore >= requirements.scoreNeeded) {
                         setLevel((prevLevel) => prevLevel + 1);
                         setLevelUp(true);
-                        playSound("levelUp");
+                        playSound("win");
                         setTimeout(() => setLevelUp(false), 1000);
                     }
                     return newScore;
@@ -519,7 +521,7 @@ const FallingWordsGame: React.FC = () => {
     return (
         <div
             ref={gameAreaRef}
-            className={`relative w-full flex-1 min-h-[340px] sm:min-h-[460px] overflow-hidden ${retroRadiusClass} border-2 border-[var(--retro-border-mid)] border-t-[var(--retro-border-light)] border-l-[var(--retro-border-light)] border-r-[var(--retro-border-dark)] border-b-[var(--retro-border-dark)] bg-[var(--retro-surface-alt)]`}
+            className={`relative w-full flex-1 min-h-[340px] sm:min-h-[460px] overflow-hidden ${retroRadiusClass} retro-monitor-bezel bg-[var(--retro-surface-alt)]`}
         >
             <div className={`absolute inset-0 ${darkMode ? "bg-[var(--retro-game-bg)]" : "bg-[var(--retro-surface-alt)]"} ${lifeLostShake ? "animate-runner-shake" : ""}`}>
                 <div
@@ -529,17 +531,17 @@ const FallingWordsGame: React.FC = () => {
                             "repeating-linear-gradient(to bottom, rgba(255,255,255,0.05) 0px, rgba(255,255,255,0.05) 1px, transparent 1px, transparent 4px)",
                     }}
                 />
-                {/* 상단 스코어바 */}
-                <div className={`absolute top-0 left-0 right-0 flex justify-between items-center px-2.5 py-2 sm:px-5 sm:py-3 border-b-2 z-10 bg-[var(--retro-surface)] border-[var(--retro-border-mid)]`}>
-                    <div className="text-sm sm:text-lg lg:text-xl font-bold font-mono text-[var(--retro-text)]" aria-live="polite" aria-atomic="true">
-                        Score: <span className="tabular-nums">{score}</span>
+                {/* 상단 아케이드 스코어바 */}
+                <div className="absolute top-0 left-0 right-0 flex justify-between items-center px-2.5 py-1.5 sm:px-5 sm:py-2.5 border-b-2 z-10 bg-[var(--retro-game-bg)] border-[var(--retro-game-panel-border-lo)]">
+                    <div className="font-pixel text-[var(--retro-game-text)]" style={{ fontSize: "clamp(7px, 1.2vw, 10px)", lineHeight: 1.8 }} aria-live="polite" aria-atomic="true">
+                        SCORE <span className="text-[var(--retro-game-warning)] tabular-nums">{score.toLocaleString().padStart(6, "0")}</span>
                         {highScore > 0 && (
-                            <span className="ml-1 sm:ml-2 text-xs sm:text-sm font-medium text-[var(--retro-text)]/70">
-                                Best: <span className="tabular-nums">{highScore}</span>
+                            <span className="ml-2 sm:ml-4 text-[var(--retro-game-text-dim)]">
+                                HI <span className="text-[var(--retro-game-danger)] tabular-nums">{highScore.toLocaleString().padStart(6, "0")}</span>
                             </span>
                         )}
                         {combo > 0 && (
-                            <span className="ml-1 sm:ml-2 text-xs sm:text-base text-[var(--retro-game-info)]">
+                            <span className="ml-2 sm:ml-4 text-[var(--retro-game-info)]">
                                 x{Math.min(1 + combo * 0.2, 2).toFixed(1)}
                             </span>
                         )}
@@ -551,8 +553,8 @@ const FallingWordsGame: React.FC = () => {
                     }`}>
                         {difficulty === "easy" ? "Easy" : difficulty === "normal" ? "Normal" : "Hard"}
                     </span>
-                    <div className="text-sm sm:text-lg lg:text-xl font-bold font-mono text-[var(--retro-text)]" aria-live="polite" aria-atomic="true">
-                        Lv.<span className="tabular-nums">{level}</span>
+                    <div className="font-pixel text-[var(--retro-game-text)]" style={{ fontSize: "clamp(7px, 1.2vw, 10px)", lineHeight: 1.8 }} aria-live="polite" aria-atomic="true">
+                        LV.<span className="text-[var(--retro-game-success)] tabular-nums">{level}</span>
                     </div>
                     <div className="flex gap-0.5 text-base sm:text-lg lg:text-xl font-bold" aria-label={`Lives: ${lives} / ${config.lives}`}>
                         {Array.from({ length: config.lives }, (_, i) => (
@@ -705,6 +707,9 @@ const FallingWordsGame: React.FC = () => {
             {!gameStarted && !gameOver && countdown === null && (
                 <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/50 backdrop-blur-sm">
                     <div className={`text-center px-8 py-8 ${retroRadiusClass} border-2 border-[var(--retro-border-mid)] border-t-[var(--retro-border-light)] border-l-[var(--retro-border-light)] border-r-[var(--retro-border-dark)] border-b-[var(--retro-border-dark)] bg-[var(--retro-surface)] shadow-2xl max-w-xs mx-4`}>
+                        <p className="font-pixel text-[var(--retro-game-warning)] mb-3" style={{ fontSize: 10, lineHeight: 1.6, animation: "tetris-blink 1s ease-in-out infinite" }}>
+                            INSERT COIN
+                        </p>
                         <div className="text-5xl mb-3">🌧️</div>
                         <h2 className="text-2xl sm:text-3xl font-black mb-2 text-[var(--retro-text)]">
                             {language === "korean" ? "소나기 모드" : "Falling Words"}
@@ -746,6 +751,7 @@ const FallingWordsGame: React.FC = () => {
             {gameOver && (
                 <GameOverModal
                     title="Game Over!"
+                    isHighScore={isNewHighScore}
                     badge={
                         isNewHighScore ? (
                             <p className="text-amber-400 font-bold text-sm mb-3 animate-bounce">

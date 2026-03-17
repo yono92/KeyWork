@@ -177,7 +177,7 @@ export function useRunnerEngine(callbacks: RunnerCallbacks) {
                 if (nextMilestone > 0 && nextMilestone > lastMilestoneRef.current) {
                     lastMilestoneRef.current = nextMilestone;
                     setMilestone(nextMilestone);
-                    playSound("levelUp");
+                    playSound("win");
                     callbacksRef.current.onMilestone(nextMilestone);
                     setTimeout(() => setMilestone(null), 2000);
                 }

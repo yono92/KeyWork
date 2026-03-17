@@ -68,7 +68,7 @@ const TypingDefenseGame: React.FC = () => {
     const { checkAchievements, newlyUnlocked } = useAchievementChecker();
 
     const [input, setInput] = useState("");
-    const [animEnabled, setAnimEnabled] = useState(true);
+    const animEnabled = useTypingStore((s) => s.fxEnabled);
     const [scorePopups, setScorePopups] = useState<ScorePopup[]>([]);
     const [explosions, setExplosions] = useState<Explosion[]>([]);
     const [hitFlash, setHitFlash] = useState(false);
@@ -106,6 +106,7 @@ const TypingDefenseGame: React.FC = () => {
     // 게임 오버 시 점수 제출 + 업적 검사
     useEffect(() => {
         if (stats.phase === "gameOver" && !scoreSubmitted) {
+            playSound("crtOff");
             playSound("gameOver");
             setScoreSubmitted(true);
             const scoreData = {
@@ -187,8 +188,9 @@ const TypingDefenseGame: React.FC = () => {
     const handleDifficultySelect = useCallback((d: "easy" | "normal" | "hard") => {
         setDifficulty(d);
         setScoreSubmitted(false);
+        playSound("crtOn");
         startGame(d);
-    }, [setDifficulty, startGame]);
+    }, [setDifficulty, startGame, playSound]);
 
     const handleRestart = useCallback(() => {
         setScoreSubmitted(false);
@@ -250,7 +252,7 @@ const TypingDefenseGame: React.FC = () => {
                 <div className="flex items-center gap-2">
                     {/* FX 토글 */}
                     <button
-                        onClick={() => setAnimEnabled((prev) => !prev)}
+                        onClick={() => useTypingStore.getState().toggleFx()}
                         className={`px-2 py-0.5 text-[10px] sm:text-xs font-bold border-2 ${
                             retroTheme === "mac-classic" ? "rounded" : "rounded-none"
                         } ${animEnabled
@@ -275,7 +277,7 @@ const TypingDefenseGame: React.FC = () => {
             {/* 게임 필드 */}
             <div
                 ref={fieldRef}
-                className="relative flex-1 min-h-[300px] sm:min-h-[400px] overflow-hidden"
+                className="relative flex-1 min-h-[300px] sm:min-h-[400px] overflow-hidden retro-monitor-bezel"
                 style={{
                     background: "linear-gradient(180deg, var(--retro-surface-alt) 0%, var(--retro-surface) 100%)",
                 }}

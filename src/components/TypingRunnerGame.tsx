@@ -593,7 +593,7 @@ const TypingRunnerGame: React.FC = () => {
                     {/* 마일스톤 토스트 */}
                     {engine.milestone !== null && (
                         <div className="absolute inset-0 flex items-center justify-center z-30 pointer-events-none">
-                            <div className="animate-level-up text-3xl sm:text-5xl font-black text-[var(--retro-game-warning)]"
+                            <div className="animate-celebration text-3xl sm:text-5xl font-black text-[var(--retro-game-warning)]"
                                 style={{
                                     position: "absolute", top: "50%", left: "50%",
                                     filter: "drop-shadow(0 0 20px rgba(251,191,36,0.5)) drop-shadow(0 0 40px rgba(251,191,36,0.3))",

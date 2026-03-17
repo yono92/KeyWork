@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef } from "react";
 import { useResponsiveTetrisSize } from "@/hooks/useResponsiveTetrisSize";
 import { useTetrisAnimations } from "@/hooks/useTetrisAnimations";
 import { useTetrisEngine, PIECES, CELL_COLORS, BOARD_WIDTH } from "@/hooks/useTetrisEngine";
@@ -27,7 +27,7 @@ export default function TetrisBattle({ room, onFinish }: TetrisBattleProps) {
     const language = useTypingStore((s) => s.language);
     const ko = language === "korean";
     const { sectionRef, cellSize: rawCellSize, isMobile } = useResponsiveTetrisSize();
-    const [animEnabled, setAnimEnabled] = useState(true);
+    const animEnabled = useTypingStore((s) => s.fxEnabled);
     const anim = useTetrisAnimations(animEnabled);
     const broadcastIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const prevPhaseRef = useRef<string | null>(null);
@@ -632,7 +632,7 @@ export default function TetrisBattle({ room, onFinish }: TetrisBattleProps) {
 
                 {/* FX 토글 */}
                 <button
-                    onClick={() => setAnimEnabled((v) => !v)}
+                    onClick={() => useTypingStore.getState().toggleFx()}
                     style={{
                         height: spPad(18),
                         fontSize: spFont(9),
@@ -823,7 +823,7 @@ export default function TetrisBattle({ room, onFinish }: TetrisBattleProps) {
                         DROP
                     </button>
                     <button
-                        onClick={() => setAnimEnabled((v) => !v)}
+                        onClick={() => useTypingStore.getState().toggleFx()}
                         aria-label={`FX ${animEnabled ? "ON" : "OFF"}`}
                         aria-pressed={animEnabled}
                         style={{

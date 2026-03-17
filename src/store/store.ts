@@ -33,6 +33,11 @@ const detectDefaultRetroTheme = (): RetroTheme => {
     return /mac|iphone|ipad|ipod/.test(source) ? "mac-classic" : "win98";
 };
 
+type PhosphorColor = "cyan" | "green" | "amber";
+const VALID_PHOSPHOR_COLORS: readonly PhosphorColor[] = ["cyan", "green", "amber"];
+const isValidPhosphorColor = (value: unknown): value is PhosphorColor =>
+    typeof value === "string" && VALID_PHOSPHOR_COLORS.includes(value as PhosphorColor);
+
 interface TypingState {
     _hydrated: boolean;
     darkMode: boolean;
@@ -45,6 +50,8 @@ interface TypingState {
     difficulty: Difficulty;
     mobileMenuOpen: boolean;
     retroTheme: RetroTheme;
+    fxEnabled: boolean;
+    phosphorColor: PhosphorColor;
     _hydrate: () => void;
     toggleDarkMode: () => void;
     setProgress: (progress: number) => void;
@@ -58,6 +65,9 @@ interface TypingState {
     setMobileMenuOpen: (open: boolean) => void;
     setRetroTheme: (theme: RetroTheme) => void;
     cycleRetroTheme: () => void;
+    toggleFx: () => void;
+    setPhosphorColor: (color: PhosphorColor) => void;
+    cyclePhosphorColor: () => void;
 }
 
 const useTypingStore = create<TypingState>((set) => ({
@@ -73,11 +83,15 @@ const useTypingStore = create<TypingState>((set) => ({
     difficulty: "normal",
     mobileMenuOpen: false,
     retroTheme: "win98",
+    fxEnabled: true,
+    phosphorColor: "cyan",
     // 마운트 후 localStorage에서 복원
     _hydrate: () =>
         set(() => {
             const raw = getStored("difficulty");
             const themeRaw = getStored("retroTheme");
+            const phosphorRaw = getStored("phosphorColor");
+            const fxRaw = getStored("fxEnabled");
             return {
                 _hydrated: true,
                 darkMode: getStored("darkMode") === "true",
@@ -86,6 +100,8 @@ const useTypingStore = create<TypingState>((set) => ({
                 highScore: Number(getStored("highScore")) || 0,
                 difficulty: isValidDifficulty(raw) ? raw : "normal",
                 retroTheme: isValidRetroTheme(themeRaw) ? themeRaw : detectDefaultRetroTheme(),
+                fxEnabled: fxRaw === null ? true : fxRaw !== "false",
+                phosphorColor: isValidPhosphorColor(phosphorRaw) ? phosphorRaw : "cyan",
             };
         }),
     toggleDarkMode: () =>
@@ -133,6 +149,24 @@ const useTypingStore = create<TypingState>((set) => ({
             const retroTheme = state.retroTheme === "win98" ? "mac-classic" : "win98";
             setStored("retroTheme", retroTheme);
             return { retroTheme };
+        }),
+    toggleFx: () =>
+        set((state) => {
+            const fxEnabled = !state.fxEnabled;
+            setStored("fxEnabled", String(fxEnabled));
+            return { fxEnabled };
+        }),
+    setPhosphorColor: (phosphorColor: PhosphorColor) => {
+        if (!isValidPhosphorColor(phosphorColor)) return;
+        setStored("phosphorColor", phosphorColor);
+        set({ phosphorColor });
+    },
+    cyclePhosphorColor: () =>
+        set((state) => {
+            const idx = VALID_PHOSPHOR_COLORS.indexOf(state.phosphorColor);
+            const phosphorColor = VALID_PHOSPHOR_COLORS[(idx + 1) % VALID_PHOSPHOR_COLORS.length];
+            setStored("phosphorColor", phosphorColor);
+            return { phosphorColor };
         }),
 }));
 

@@ -77,26 +77,14 @@ describe("aggregateUserStats", () => {
         expect(stats.activity.activeToday).toBe(true);
         expect(stats.activity.completedMissionCount).toBe(2);
         expect(stats.activity.dailyMissions).toEqual([
-            { id: "plays", current: 2, target: 3, completed: false, rewardXp: 30 },
-            { id: "modes", current: 2, target: 2, completed: true, rewardXp: 40 },
-            { id: "multiplayer", current: 1, target: 1, completed: true, rewardXp: 50 },
+            { id: "plays", current: 2, target: 3, completed: false },
+            { id: "modes", current: 2, target: 2, completed: true },
+            { id: "multiplayer", current: 1, target: 1, completed: true },
         ]);
-        expect(stats.activity.todayMissionXp).toBe(90);
-        expect(stats.activity.todayXp).toBe(160);
         expect(stats.activity.recentDays[6]).toMatchObject({
             key: "2026-03-13",
             played: true,
             playCount: 2,
-        });
-        expect(stats.progression).toMatchObject({
-            level: 2,
-            totalXp: 225,
-            playXp: 135,
-            missionXp: 90,
-            currentLevelXp: 125,
-            nextLevelXp: 150,
-            todayXp: 160,
-            todayMissionXp: 90,
         });
 
         vi.useRealTimers();
@@ -115,21 +103,10 @@ describe("aggregateUserStats", () => {
         expect(stats.activity.activeToday).toBe(false);
         expect(stats.activity.completedMissionCount).toBe(0);
         expect(stats.activity.dailyMissions).toEqual([
-            { id: "plays", current: 0, target: 3, completed: false, rewardXp: 30 },
-            { id: "modes", current: 0, target: 2, completed: false, rewardXp: 40 },
-            { id: "multiplayer", current: 0, target: 1, completed: false, rewardXp: 50 },
+            { id: "plays", current: 0, target: 3, completed: false },
+            { id: "modes", current: 0, target: 2, completed: false },
+            { id: "multiplayer", current: 0, target: 1, completed: false },
         ]);
-        expect(stats.activity.todayXp).toBe(0);
-        expect(stats.progression).toMatchObject({
-            level: 1,
-            totalXp: 0,
-            playXp: 0,
-            missionXp: 0,
-            currentLevelXp: 0,
-            nextLevelXp: 100,
-            todayXp: 0,
-            todayMissionXp: 0,
-        });
 
         vi.useRealTimers();
     });

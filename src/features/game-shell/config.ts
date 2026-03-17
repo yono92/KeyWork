@@ -14,6 +14,7 @@ export interface NavItem {
     icon: "keyboard" | "rain" | "runner" | "chain" | "shield" | "ear";
     label: Record<AppLanguage, string>;
     shortLabel: Record<AppLanguage, string>;
+    accent: string;
 }
 
 export const NAV_ITEMS: readonly NavItem[] = [
@@ -22,42 +23,49 @@ export const NAV_ITEMS: readonly NavItem[] = [
         icon: "keyboard",
         label: { korean: "문장연습", english: "Practice" },
         shortLabel: { korean: "연습", english: "Practice" },
+        accent: "#4a9eff",
     },
     {
         id: "falling-words",
         icon: "rain",
         label: { korean: "단어낙하", english: "Falling Words" },
         shortLabel: { korean: "낙하", english: "Falling" },
+        accent: "#ff6b35",
     },
     {
         id: "word-chain",
         icon: "chain",
         label: { korean: "끝말잇기", english: "Word Chain" },
         shortLabel: { korean: "끝말잇기", english: "Chain" },
+        accent: "#22d3ee",
     },
     {
         id: "typing-runner",
         icon: "runner",
         label: { korean: "타이핑 러너", english: "Typing Runner" },
         shortLabel: { korean: "러너", english: "Runner" },
+        accent: "#a855f7",
     },
     {
         id: "tetris",
         icon: "keyboard",
         label: { korean: "테트리스", english: "Tetris" },
         shortLabel: { korean: "테트리스", english: "Tetris" },
+        accent: "#facc15",
     },
     {
         id: "typing-defense",
         icon: "shield",
         label: { korean: "타이핑 디펜스", english: "Typing Defense" },
         shortLabel: { korean: "디펜스", english: "Defense" },
+        accent: "#ef4444",
     },
     {
         id: "dictation",
         icon: "ear",
         label: { korean: "받아쓰기", english: "Dictation" },
         shortLabel: { korean: "받아쓰기", english: "Dictation" },
+        accent: "#84cc16",
     },
 ];
 

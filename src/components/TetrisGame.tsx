@@ -1,13 +1,14 @@
 "use client";
 
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef } from "react";
 import { useResponsiveTetrisSize } from "../hooks/useResponsiveTetrisSize";
 import { useTetrisAnimations } from "../hooks/useTetrisAnimations";
 import { useTetrisEngine, PIECES, CELL_COLORS, BOARD_WIDTH, BOARD_HEIGHT } from "../hooks/useTetrisEngine";
 import type { PieceType } from "../hooks/useTetrisEngine";
+import useTypingStore from "../store/store";
 
 export default function TetrisGame() {
-    const [animEnabled, setAnimEnabled] = useState(true);
+    const animEnabled = useTypingStore((s) => s.fxEnabled);
 
     const { sectionRef, cellSize, miniCellSize, sidePanelWidth, isMobile } = useResponsiveTetrisSize();
     const anim = useTetrisAnimations(animEnabled);
@@ -550,7 +551,7 @@ export default function TetrisGame() {
                                 ))}
                             </div>
                             <button
-                                onClick={() => setAnimEnabled((v) => !v)}
+                                onClick={() => useTypingStore.getState().toggleFx()}
                                 style={{
                                     width: "100%",
                                     marginTop: spPad(4),
@@ -575,7 +576,7 @@ export default function TetrisGame() {
                 {isMobile && (
                     <div style={{ ...bevel(), background: "var(--retro-game-panel)", padding: spPad(3) }}>
                         <button
-                            onClick={() => setAnimEnabled((v) => !v)}
+                            onClick={() => useTypingStore.getState().toggleFx()}
                             style={{
                                 width: "100%",
                                 height: spPad(20),

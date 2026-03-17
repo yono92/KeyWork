@@ -25,10 +25,10 @@ const Logo: React.FC<{ compact?: boolean }> = ({ compact = false }) => {
 
             {!compact ? (
                 <div className="leading-none">
-                    <p className="text-[12px] font-bold tracking-[0.08em] text-white">
+                    <p className="font-pixel text-white" style={{ fontSize: 9, lineHeight: 1.4, letterSpacing: "0.08em" }}>
                         KEYWORK
                     </p>
-                    <p className="text-[9px] font-semibold tracking-[0.12em] text-slate-100/80">
+                    <p className="text-[8px] font-semibold tracking-[0.12em] text-slate-100/80">
                         TYPING STATION
                     </p>
                 </div>

@@ -15,23 +15,9 @@ const authContext = {
     updateNickname: vi.fn(),
 };
 
-const userStatsState = {
-    stats: null as null | {
-        progression: {
-            level: number;
-            progressPercent: number;
-        };
-    },
-    loading: false,
-};
-
 vi.mock("../../src/components/auth/AuthProvider", () => ({
     useAuthContext: () => authContext,
     AuthProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
-}));
-
-vi.mock("../../src/hooks/useUserStats", () => ({
-    useUserStats: () => userStatsState,
 }));
 
 describe("SideNav", () => {
@@ -43,10 +29,6 @@ describe("SideNav", () => {
             user: null,
             profile: null,
             isLoggedIn: false,
-            loading: false,
-        });
-        Object.assign(userStatsState, {
-            stats: null,
             loading: false,
         });
         useTypingStore.setState({
@@ -93,21 +75,5 @@ describe("SideNav", () => {
 
         expect(screen.getAllByRole("button", { name: "Checking account..." })[0]).toBeDisabled();
         expect(screen.getAllByRole("button", { name: "Leaderboard" })[0]).toBeInTheDocument();
-    });
-
-    it("shows the player level in the account section for logged-in users", () => {
-        Object.assign(authContext, {
-            user: { id: "user-1" },
-            profile: { nickname: "PlayerOne", avatar_config: null },
-            isLoggedIn: true,
-            loading: false,
-        });
-        Object.assign(userStatsState, {
-            stats: { progression: { level: 7, progressPercent: 42 } },
-        });
-
-        render(<SideNav />);
-
-        expect(screen.getByLabelText("Level 7, 42% progress")).toBeInTheDocument();
     });
 });

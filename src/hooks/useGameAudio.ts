@@ -14,11 +14,13 @@ export type SoundType =
     | "combo"
     | "destroy"
     | "lose"
-    | "levelUp"
     | "win"
     | "bossHit"
     | "roundComplete"
-    | "perfect";
+    | "perfect"
+    | "crtOn"
+    | "crtOff"
+    | "keystroke";
 
 interface SingleNote {
     type: OscillatorType;
@@ -58,15 +60,6 @@ const SOUND_PRESETS: Record<SoundType, SoundDef> = {
     destroy:  { type: "sine",     freqStart: 880,  freqEnd: 1200, duration: 0.1,  gain: 0.15 },
     lose:     { type: "sine",     freqStart: 440,  freqEnd: 220,  duration: 0.4,  gain: 0.15 },
 
-    levelUp: {
-        notes: [0, 1, 2].map((i) => ({
-            type: "sine" as OscillatorType,
-            freq: 440 + i * 220,
-            offset: i * 0.1,
-            duration: 0.1,
-            gain: 0.15,
-        })),
-    },
     win: {
         notes: [0, 1, 2, 3].map((i) => ({
             type: "sine" as OscillatorType,
@@ -103,14 +96,22 @@ const SOUND_PRESETS: Record<SoundType, SoundDef> = {
             gain: 0.15,
         })),
     },
+    crtOn: { type: "sine", freqStart: 80, freqEnd: 1200, duration: 0.25, gain: 0.1 },
+    crtOff: { type: "sine", freqStart: 800, freqEnd: 40, duration: 0.3, gain: 0.1 },
+    keystroke: { type: "square", freqStart: 800, freqEnd: 600, duration: 0.02, gain: 0.08 },
 };
 
 export function useGameAudio() {
     const isMuted = useTypingStore((s) => s.isMuted);
+    const retroTheme = useTypingStore((s) => s.retroTheme);
     const audioContextRef = useRef<AudioContext | null>(null);
 
     const playSound = useCallback((type: SoundType) => {
         if (isMuted) return;
+
+        // Mac-classic: 부드러운 사운드 (sine 우선, 볼륨 60%)
+        const isMacSoft = retroTheme === "mac-classic";
+        const gainMul = isMacSoft ? 0.6 : 1;
 
         try {
             if (!audioContextRef.current) {
@@ -126,9 +127,9 @@ export function useGameAudio() {
                 for (const note of def.notes) {
                     const osc = ctx.createOscillator();
                     const gain = ctx.createGain();
-                    osc.type = note.type;
+                    osc.type = isMacSoft ? "sine" : note.type;
                     osc.frequency.setValueAtTime(note.freq, now + note.offset);
-                    gain.gain.setValueAtTime(note.gain, now + note.offset);
+                    gain.gain.setValueAtTime(note.gain * gainMul, now + note.offset);
                     gain.gain.linearRampToValueAtTime(0, now + note.offset + note.duration);
                     osc.connect(gain).connect(ctx.destination);
                     osc.start(now + note.offset);
@@ -137,10 +138,10 @@ export function useGameAudio() {
             } else {
                 const osc = ctx.createOscillator();
                 const gain = ctx.createGain();
-                osc.type = def.type;
+                osc.type = isMacSoft ? "sine" : def.type;
                 osc.frequency.setValueAtTime(def.freqStart, now);
                 osc.frequency.linearRampToValueAtTime(def.freqEnd, now + def.duration);
-                gain.gain.setValueAtTime(def.gain, now);
+                gain.gain.setValueAtTime(def.gain * gainMul, now);
                 gain.gain.linearRampToValueAtTime(0, now + def.duration);
                 osc.connect(gain).connect(ctx.destination);
                 osc.start(now);
@@ -149,7 +150,7 @@ export function useGameAudio() {
         } catch {
             // AudioContext 생성 실패 시 무시
         }
-    }, [isMuted]);
+    }, [isMuted, retroTheme]);
 
     return { playSound };
 }

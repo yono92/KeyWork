@@ -102,20 +102,15 @@ const WordChainGame: React.FC = () => {
                                 }`}>
                                     {msg.sender === "ai" ? "상대" : "나"}
                                 </div>
-                                <div className={`px-4 py-2.5 rounded-2xl text-sm font-medium transition-all ${
+                                <div className={`px-4 py-2.5 text-sm font-medium transition-all border-2 ${
                                     msg.sender === "ai"
                                         ? darkMode
-                                            ? "bg-white/[0.08] text-white rounded-bl-md"
-                                            : "bg-slate-100 text-slate-800 rounded-bl-md"
+                                            ? "bg-white/[0.08] text-white border-[var(--retro-border-mid)] border-t-[var(--retro-border-light)] border-l-[var(--retro-border-light)] border-r-[var(--retro-border-dark)] border-b-[var(--retro-border-dark)]"
+                                            : "bg-slate-100 text-slate-800 border-[var(--retro-border-mid)] border-t-[var(--retro-border-light)] border-l-[var(--retro-border-light)] border-r-[var(--retro-border-dark)] border-b-[var(--retro-border-dark)]"
                                         : msg.isValid
-                                            ? "bg-[var(--retro-game-highlight)] text-white rounded-br-md shadow-[0_0_12px_var(--retro-game-glow)]"
-                                            : "bg-rose-500/80 text-white rounded-br-md line-through animate-wordchain-shake"
-                                }`}
-                                    style={msg.sender === "player" && msg.isValid ? {
-                                        borderColor: "rgba(16,185,129,0.3)",
-                                        borderWidth: "1px",
-                                    } : undefined}
-                                >
+                                            ? "bg-[var(--retro-game-highlight)] text-white border-[var(--retro-game-highlight)] shadow-[0_0_12px_var(--retro-game-glow)]"
+                                            : "bg-rose-500/80 text-white border-rose-600 line-through animate-wordchain-shake"
+                                }`}>
                                     {msg.text}
                                 </div>
                                 {msg.isValid && msg.definition && (

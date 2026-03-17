@@ -6,6 +6,7 @@ import { Menu, Keyboard, CloudRain, Rabbit, Link2, Shield, Ear } from "lucide-re
 import useTypingStore from "../store/store";
 import { Button } from "@/components/ui/button";
 import { getPageTitle, getModeByPathname } from "@/features/game-shell/config";
+import Win98TitleButtons from "@/components/ui/Win98TitleButtons";
 
 export default function Header() {
     const pathname = usePathname();
@@ -14,6 +15,7 @@ export default function Header() {
     const setMobileMenuOpen = useTypingStore((s) => s.setMobileMenuOpen);
     const pageTitle = getPageTitle(language, pathname);
     const mode = getModeByPathname(pathname);
+    const accentColor = mode.accent;
     const Icon = {
         keyboard: Keyboard,
         rain: CloudRain,
@@ -24,7 +26,7 @@ export default function Header() {
     }[mode.icon];
 
     return (
-        <header className="retro-titlebar h-10 sm:h-11 px-2.5 sm:px-3.5 flex items-center gap-2 border-b border-black/25">
+        <header className="retro-titlebar h-10 sm:h-11 px-2.5 sm:px-3.5 flex items-center gap-2 border-b border-black/25 relative">
             <Button
                 onClick={() => setMobileMenuOpen(true)}
                 variant="ghost"
@@ -51,6 +53,18 @@ export default function Header() {
                     </h1>
                 </div>
             </div>
+
+            {retroTheme === "win98" && (
+                <div className="hidden sm:flex">
+                    <Win98TitleButtons />
+                </div>
+            )}
+
+            <span
+                className="absolute bottom-0 left-0 right-0 h-[2px]"
+                style={{ background: accentColor }}
+                aria-hidden="true"
+            />
         </header>
     );
 }

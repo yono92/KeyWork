@@ -6,13 +6,10 @@ import { useRouter } from "next/navigation";
 import { useAuthContext } from "./AuthProvider";
 import { Button } from "@/components/ui/button";
 import useTypingStore from "@/store/store";
-import { useUserStats } from "@/hooks/useUserStats";
-import LevelBadge from "@/components/LevelBadge";
 import { User, LogOut, Trophy } from "lucide-react";
 
 export default function UserMenu() {
     const { profile, signOut } = useAuthContext();
-    const { stats } = useUserStats();
     const language = useTypingStore((s) => s.language);
     const retroTheme = useTypingStore((s) => s.retroTheme);
     const router = useRouter();
@@ -56,11 +53,6 @@ export default function UserMenu() {
             >
                 <User className="h-3.5 w-3.5" />
                 <span className="max-w-[80px] truncate hidden sm:inline">{profile.nickname}</span>
-                {stats && (
-                    <span className="hidden sm:inline text-[10px] font-black uppercase text-[var(--retro-accent)]">
-                        LV.{stats.progression.level}
-                    </span>
-                )}
             </Button>
 
             {open && menuPos && createPortal(
@@ -72,15 +64,6 @@ export default function UserMenu() {
                         <p className="text-xs font-semibold text-[var(--retro-text)] truncate">
                             {profile.nickname}
                         </p>
-                        {stats && (
-                            <div className="mt-2">
-                                <LevelBadge
-                                    level={stats.progression.level}
-                                    progressPercent={stats.progression.progressPercent}
-                                    compact
-                                />
-                            </div>
-                        )}
                     </div>
                     <div className="p-1">
                         <button

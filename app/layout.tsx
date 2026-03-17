@@ -1,7 +1,15 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
+import { Press_Start_2P } from "next/font/google";
 import { getSiteUrl } from "@/utils/siteUrl";
 import "./globals.css";
+
+const pressStart2P = Press_Start_2P({
+    weight: "400",
+    subsets: ["latin"],
+    display: "swap",
+    variable: "--font-pixel",
+});
 
 const BASE_URL = getSiteUrl();
 
@@ -61,7 +69,7 @@ export default function RootLayout({
     children: ReactNode;
 }>) {
     return (
-        <html lang="ko" suppressHydrationWarning>
+        <html lang="ko" suppressHydrationWarning className={pressStart2P.variable}>
             <body>
                 <a
                     href="#main-content"

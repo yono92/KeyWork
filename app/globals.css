@@ -234,6 +234,97 @@
 }
 
 @layer utilities {
+    /* ── CRT 효과 ── */
+
+    /* 스캔라인 오버레이 */
+    .crt-scanlines {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        pointer-events: none;
+        background: repeating-linear-gradient(
+            0deg,
+            transparent 0,
+            transparent 2px,
+            rgba(0, 0, 0, 0.03) 2px,
+            rgba(0, 0, 0, 0.03) 4px
+        );
+    }
+    .dark .crt-scanlines {
+        background: repeating-linear-gradient(
+            0deg,
+            transparent 0,
+            transparent 2px,
+            rgba(0, 0, 0, 0.06) 2px,
+            rgba(0, 0, 0, 0.06) 4px
+        );
+    }
+
+    /* CRT 곡면 + 비네트 (게임 영역) */
+    .crt-screen {
+        box-shadow:
+            inset 0 0 60px rgba(0, 0, 0, 0.15),
+            inset 0 0 120px rgba(0, 0, 0, 0.05);
+        border-radius: 4px;
+    }
+    .dark .crt-screen {
+        box-shadow:
+            inset 0 0 80px rgba(0, 0, 0, 0.3),
+            inset 0 0 160px rgba(0, 0, 0, 0.1);
+    }
+
+    /* CRT 비네트 (다크모드 전용) */
+    .dark .crt-vignette {
+        box-shadow: inset 0 0 100px rgba(0, 0, 0, 0.5);
+    }
+
+    /* ── 인광(Phosphor) 글로우 ── */
+
+    /* Cyan (기본) */
+    :root {
+        --phosphor-color: #00e5ff;
+        --phosphor-glow: 0 0 4px rgba(0, 229, 255, 0.4), 0 0 8px rgba(0, 229, 255, 0.2);
+        --phosphor-glow-strong: 0 0 6px rgba(0, 229, 255, 0.6), 0 0 12px rgba(0, 229, 255, 0.3), 0 0 20px rgba(0, 229, 255, 0.15);
+    }
+    [data-phosphor="green"] {
+        --phosphor-color: #33ff33;
+        --phosphor-glow: 0 0 4px rgba(51, 255, 51, 0.4), 0 0 8px rgba(51, 255, 51, 0.2);
+        --phosphor-glow-strong: 0 0 6px rgba(51, 255, 51, 0.6), 0 0 12px rgba(51, 255, 51, 0.3), 0 0 20px rgba(51, 255, 51, 0.15);
+    }
+    [data-phosphor="amber"] {
+        --phosphor-color: #ffb000;
+        --phosphor-glow: 0 0 4px rgba(255, 176, 0, 0.4), 0 0 8px rgba(255, 176, 0, 0.2);
+        --phosphor-glow-strong: 0 0 6px rgba(255, 176, 0, 0.6), 0 0 12px rgba(255, 176, 0, 0.3), 0 0 20px rgba(255, 176, 0, 0.15);
+    }
+
+    .dark .phosphor-text {
+        color: var(--phosphor-color);
+        text-shadow: var(--phosphor-glow);
+    }
+    .dark .phosphor-glow-strong {
+        text-shadow: var(--phosphor-glow-strong);
+    }
+
+    /* ── 모니터 베젤 (게임 보드) ── */
+    .retro-monitor-bezel {
+        border: 4px solid;
+        border-color: var(--retro-border-light) var(--retro-border-dark) var(--retro-border-dark) var(--retro-border-light);
+        box-shadow:
+            inset 2px 2px 0 var(--retro-border-dark),
+            inset -2px -2px 0 var(--retro-border-light),
+            0 2px 8px rgba(0, 0, 0, 0.3);
+    }
+
+    /* ── 픽셀 폰트 ── */
+    .font-pixel {
+        font-family: var(--font-pixel, "Press Start 2P"), monospace;
+    }
+
+    /* ── 모노스페이스 (타이핑 영역) ── */
+    .font-mono-typing {
+        font-family: "Consolas", "Monaco", "Courier New", monospace;
+    }
+
     .retro-panel {
         border: 2px solid var(--retro-border-mid);
         border-top-color: var(--retro-border-light);
@@ -281,9 +372,12 @@
         border: 1px solid rgba(0, 0, 0, 0.35);
         background: #9a9a9a;
     }
-    .retro-mac-lights > span:nth-child(1) { background: #8f8f8f; }
-    .retro-mac-lights > span:nth-child(2) { background: #b0b0b0; }
-    .retro-mac-lights > span:nth-child(3) { background: #777777; }
+    .retro-mac-lights > span:nth-child(1) { background: #ff5f57; }
+    .retro-mac-lights > span:nth-child(2) { background: #febc2e; }
+    .retro-mac-lights > span:nth-child(3) { background: #28c840; }
+    .dark .retro-mac-lights > span:nth-child(1) { background: #cc4c46; }
+    .dark .retro-mac-lights > span:nth-child(2) { background: #cb9724; }
+    .dark .retro-mac-lights > span:nth-child(3) { background: #20a033; }
 
     /* 배경 부유 파티클 */
     @keyframes bgFloat {
@@ -314,32 +408,6 @@
     }
     .animate-page-in {
         animation: pageIn 250ms ease-out both;
-    }
-
-    /* 레벨업 토스트 */
-    @keyframes levelUp {
-        0% {
-            opacity: 0;
-            transform: translate(-50%, -50%) scale(0.6);
-        }
-        15% {
-            opacity: 1;
-            transform: translate(-50%, -50%) scale(1.1);
-        }
-        30% {
-            transform: translate(-50%, -50%) scale(1);
-        }
-        80% {
-            opacity: 1;
-            transform: translate(-50%, -50%) scale(1);
-        }
-        100% {
-            opacity: 0;
-            transform: translate(-50%, -50%) scale(0.9);
-        }
-    }
-    .animate-level-up {
-        animation: levelUp 2s ease-out forwards;
     }
 
     @keyframes panelIn {

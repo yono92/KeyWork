@@ -217,8 +217,24 @@ const DictationGame: React.FC = () => {
             {/* 메인 영역 */}
             <div className="flex-1 flex flex-col items-center justify-center px-4 py-6 sm:px-8 sm:py-10 gap-6">
 
-                {/* 재생 버튼 */}
+                {/* 카세트 테이프 + 재생 버튼 */}
                 <div className="flex flex-col items-center gap-2">
+                    {/* 카세트 테이프 */}
+                    <svg width="120" height="72" viewBox="0 0 120 72" className="mb-1" aria-hidden="true">
+                        <rect x="2" y="2" width="116" height="68" rx="6" fill="var(--retro-surface-alt)" stroke="var(--retro-border-dark)" strokeWidth="2" />
+                        <rect x="10" y="10" width="100" height="36" rx="2" fill="var(--retro-field-bg)" stroke="var(--retro-border-mid)" strokeWidth="1" />
+                        <circle cx="38" cy="28" r="10" fill="none" stroke="var(--retro-border-mid)" strokeWidth="1.5">
+                            {isSpeaking && <animateTransform attributeName="transform" type="rotate" from="0 38 28" to="360 38 28" dur="2s" repeatCount="indefinite" />}
+                        </circle>
+                        <circle cx="82" cy="28" r="10" fill="none" stroke="var(--retro-border-mid)" strokeWidth="1.5">
+                            {isSpeaking && <animateTransform attributeName="transform" type="rotate" from="0 82 28" to="360 82 28" dur="1.5s" repeatCount="indefinite" />}
+                        </circle>
+                        <circle cx="38" cy="28" r="4" fill="var(--retro-border-dark)" />
+                        <circle cx="82" cy="28" r="4" fill="var(--retro-border-dark)" />
+                        <line x1="48" y1="28" x2="72" y2="28" stroke="var(--retro-border-mid)" strokeWidth="0.5" />
+                        <rect x="30" y="52" width="60" height="8" rx="2" fill="var(--retro-border-mid)" opacity="0.3" />
+                        <text x="60" y="59" textAnchor="middle" fontSize="6" fill="var(--retro-text)" opacity="0.5" fontFamily="monospace">KEYWORK</text>
+                    </svg>
                     <Button
                         onClick={() => void playSentence()}
                         disabled={isSpeaking || phase === "grading"}

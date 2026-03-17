@@ -23,23 +23,10 @@ const authContext = {
     updateNickname: vi.fn(),
 };
 
-const userStatsState = {
-    stats: null as null | {
-        progression: {
-            level: number;
-            progressPercent: number;
-        };
-    },
-    loading: false,
-};
 
 vi.mock("../../src/components/auth/AuthProvider", () => ({
     useAuthContext: () => authContext,
     AuthProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
-}));
-
-vi.mock("../../src/hooks/useUserStats", () => ({
-    useUserStats: () => userStatsState,
 }));
 
 describe("UI components", () => {
@@ -49,10 +36,6 @@ describe("UI components", () => {
             user: null,
             profile: null,
             isLoggedIn: false,
-            loading: false,
-        });
-        Object.assign(userStatsState, {
-            stats: null,
             loading: false,
         });
         useTypingStore.setState({
@@ -125,19 +108,4 @@ describe("UI components", () => {
         expect(screen.getByText("child")).toBeInTheDocument();
     });
 
-    it("shows the current level in the user menu when logged in", () => {
-        Object.assign(authContext, {
-            user: { id: "user-1" },
-            profile: { nickname: "PlayerOne", avatar_config: null },
-            isLoggedIn: true,
-        });
-        Object.assign(userStatsState, {
-            stats: { progression: { level: 7, progressPercent: 42 } },
-        });
-
-        render(<UserMenu />);
-        fireEvent.click(screen.getByRole("button", { name: /PlayerOne/ }));
-
-        expect(screen.getByLabelText("Level 7, 42% progress")).toBeInTheDocument();
-    });
 });

@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import SideNav from "./SideNav";
 import useTypingStore from "../store/store";
 import GlobalInviteHost from "./multiplayer/GlobalInviteHost";
+import { ToastQueueProvider } from "./effects/ToastQueue";
 
 interface AppFrameProps {
     children: ReactNode;
@@ -14,6 +15,8 @@ export default function AppFrame({ children }: AppFrameProps) {
     const darkMode = useTypingStore((state) => state.darkMode);
     const language = useTypingStore((state) => state.language);
     const retroTheme = useTypingStore((state) => state.retroTheme);
+    const fxEnabled = useTypingStore((state) => state.fxEnabled);
+    const phosphorColor = useTypingStore((state) => state.phosphorColor);
     const hydrate = useTypingStore((state) => state._hydrate);
 
     // 마운트 시 localStorage에서 상태 복원
@@ -35,17 +38,25 @@ export default function AppFrame({ children }: AppFrameProps) {
         document.documentElement.setAttribute("data-retro-theme", retroTheme);
     }, [retroTheme]);
 
+    // 인광색 동기화
+    useEffect(() => {
+        document.documentElement.setAttribute("data-phosphor", phosphorColor);
+    }, [phosphorColor]);
+
     return (
-        <div className="relative h-screen overflow-hidden bg-[var(--retro-app-bg)]">
-            <GlobalInviteHost />
-            <div className="relative z-10 h-full box-border p-2.5 md:p-3.5">
-                <div className="flex h-full gap-2.5 md:gap-3.5">
-                    <SideNav />
-                    <main id="main-content" className="flex-1 min-w-0 min-h-0 h-full overflow-hidden">
-                        {children}
-                    </main>
+        <ToastQueueProvider>
+            <div className="relative h-screen overflow-hidden bg-[var(--retro-app-bg)]">
+                <GlobalInviteHost />
+                {fxEnabled && <div className="crt-scanlines" aria-hidden="true" />}
+                <div className="relative z-10 h-full box-border p-2.5 md:p-3.5">
+                    <div className="flex h-full gap-2.5 md:gap-3.5">
+                        <SideNav />
+                        <main id="main-content" className="flex-1 min-w-0 min-h-0 h-full overflow-hidden">
+                            {children}
+                        </main>
+                    </div>
                 </div>
             </div>
-        </div>
+        </ToastQueueProvider>
     );
 }

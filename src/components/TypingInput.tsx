@@ -273,44 +273,44 @@ const TypingInput: React.FC = () => {
             {/* 통계 카드 */}
             <div className={`grid grid-cols-2 md:grid-cols-4 ${lg ? "gap-5" : "gap-3"}`}>
                 <div className={`${retroTheme === "mac-classic" ? "rounded-xl" : "rounded-none"} ${lg ? "px-6 py-5" : "px-4 py-3.5"} transition-all duration-300 border-2 border-[var(--retro-border-mid)] border-t-[var(--retro-border-light)] border-l-[var(--retro-border-light)] border-r-[var(--retro-border-dark)] border-b-[var(--retro-border-dark)] bg-[var(--retro-surface)]`}>
-                    <div className={`${lg ? "text-sm mb-1.5" : "text-xs mb-1"} font-medium ${darkMode ? "text-sky-400" : "text-sky-600"}`}>
+                    <div className={`${lg ? "text-sm mb-1.5" : "text-xs mb-1"} font-medium phosphor-text ${darkMode ? "text-sky-400" : "text-sky-600"}`}>
                         타이핑 속도
                     </div>
                     <div className="flex items-baseline gap-1">
-                        <span className={`${lg ? "text-3xl" : "text-2xl"} font-bold tabular-nums text-[var(--retro-text)]`}>
+                        <span className={`${lg ? "text-3xl" : "text-2xl"} font-bold tabular-nums text-[var(--retro-text)] phosphor-text`}>
                             {typingSpeed}
                         </span>
                         <span className={`${lg ? "text-sm" : "text-xs"} text-[var(--retro-text)]/70`}>{language === "english" ? "WPM" : "타/분"}</span>
                     </div>
                 </div>
                 <div className={`${retroTheme === "mac-classic" ? "rounded-xl" : "rounded-none"} ${lg ? "px-6 py-5" : "px-4 py-3.5"} transition-all duration-300 border-2 border-[var(--retro-border-mid)] border-t-[var(--retro-border-light)] border-l-[var(--retro-border-light)] border-r-[var(--retro-border-dark)] border-b-[var(--retro-border-dark)] bg-[var(--retro-surface)]`}>
-                    <div className={`${lg ? "text-sm mb-1.5" : "text-xs mb-1"} font-medium ${darkMode ? "text-emerald-400" : "text-emerald-600"}`}>
+                    <div className={`${lg ? "text-sm mb-1.5" : "text-xs mb-1"} font-medium phosphor-text ${darkMode ? "text-emerald-400" : "text-emerald-600"}`}>
                         정확도
                     </div>
                     <div className="flex items-baseline gap-1">
-                        <span className={`${lg ? "text-3xl" : "text-2xl"} font-bold tabular-nums text-[var(--retro-text)]`}>
+                        <span className={`${lg ? "text-3xl" : "text-2xl"} font-bold tabular-nums text-[var(--retro-text)] phosphor-text`}>
                             {accuracy}
                         </span>
                         <span className={`${lg ? "text-sm" : "text-xs"} text-[var(--retro-text)]/70`}>%</span>
                     </div>
                 </div>
                 <div className={`${retroTheme === "mac-classic" ? "rounded-xl" : "rounded-none"} ${lg ? "px-6 py-5" : "px-4 py-3.5"} transition-all duration-300 border-2 border-[var(--retro-border-mid)] border-t-[var(--retro-border-light)] border-l-[var(--retro-border-light)] border-r-[var(--retro-border-dark)] border-b-[var(--retro-border-dark)] bg-[var(--retro-surface)]`}>
-                    <div className={`${lg ? "text-sm mb-1.5" : "text-xs mb-1"} font-medium ${darkMode ? "text-violet-400" : "text-violet-600"}`}>
+                    <div className={`${lg ? "text-sm mb-1.5" : "text-xs mb-1"} font-medium phosphor-text ${darkMode ? "text-violet-400" : "text-violet-600"}`}>
                         평균 속도
                     </div>
                     <div className="flex items-baseline gap-1">
-                        <span className={`${lg ? "text-3xl" : "text-2xl"} font-bold tabular-nums text-[var(--retro-text)]`}>
+                        <span className={`${lg ? "text-3xl" : "text-2xl"} font-bold tabular-nums text-[var(--retro-text)] phosphor-text`}>
                             {allSpeeds.length > 0 ? averageSpeed : 0}
                         </span>
                         <span className={`${lg ? "text-sm" : "text-xs"} text-[var(--retro-text)]/70`}>{language === "english" ? "WPM" : "타/분"}</span>
                     </div>
                 </div>
                 <div className={`${retroTheme === "mac-classic" ? "rounded-xl" : "rounded-none"} ${lg ? "px-6 py-5" : "px-4 py-3.5"} transition-all duration-300 border-2 border-[var(--retro-border-mid)] border-t-[var(--retro-border-light)] border-l-[var(--retro-border-light)] border-r-[var(--retro-border-dark)] border-b-[var(--retro-border-dark)] bg-[var(--retro-surface)]`}>
-                    <div className={`${lg ? "text-sm mb-1.5" : "text-xs mb-1"} font-medium ${darkMode ? "text-amber-400" : "text-amber-600"}`}>
+                    <div className={`${lg ? "text-sm mb-1.5" : "text-xs mb-1"} font-medium phosphor-text ${darkMode ? "text-amber-400" : "text-amber-600"}`}>
                         평균 정확도
                     </div>
                     <div className="flex items-baseline gap-1">
-                        <span className={`${lg ? "text-3xl" : "text-2xl"} font-bold tabular-nums text-[var(--retro-text)]`}>
+                        <span className={`${lg ? "text-3xl" : "text-2xl"} font-bold tabular-nums text-[var(--retro-text)] phosphor-text`}>
                             {allAccuracies.length > 0 ? averageAccuracy : 0}
                         </span>
                         <span className={`${lg ? "text-sm" : "text-xs"} text-[var(--retro-text)]/70`}>%</span>
