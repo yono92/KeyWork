@@ -3,7 +3,6 @@
 import React, { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
-import Logo from "./Logo";
 import useTypingStore from "../store/store";
 import { Card } from "@/components/ui/card";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -198,8 +197,8 @@ export default function SideNav() {
                             </div>
                         )}
                         <SheetTitle asChild>
-                            <Link href="/" onClick={() => setMobileMenuOpen(false)}>
-                                <Logo />
+                            <Link href="/" onClick={() => setMobileMenuOpen(false)} className="font-pixel text-current" style={{ fontSize: 9, letterSpacing: 2 }}>
+                                KEYWORK
                             </Link>
                         </SheetTitle>
                     </SheetHeader>
@@ -229,13 +228,9 @@ export default function SideNav() {
                             <span />
                         </div>
                     )}
-                    <Link href="/" className="w-full">
-                        <div className="hidden lg:block">
-                            <Logo />
-                        </div>
-                        <div className="lg:hidden">
-                            <Logo compact />
-                        </div>
+                    <Link href="/" className="font-pixel text-current" style={{ fontSize: 9, letterSpacing: 2 }}>
+                        <span className="hidden lg:inline">KEYWORK</span>
+                        <span className="lg:hidden">KW</span>
                     </Link>
                 </div>
                 <p className="px-4 pt-3 text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--retro-text)]/80">
