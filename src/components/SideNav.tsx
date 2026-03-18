@@ -216,7 +216,7 @@ export default function SideNav() {
             </Sheet>
 
             <Card
-                className="hidden md:flex md:flex-col w-20 lg:w-56 shrink-0 h-full sticky top-0
+                className="hidden md:flex md:flex-col md:w-24 lg:w-56 shrink-0 h-full sticky top-0
                 bg-[var(--retro-surface)] text-inherit
                 animate-panel-in"
             >
@@ -245,10 +245,10 @@ export default function SideNav() {
                 />
                 <AccountSection language={language} pathname={pathname} onNavigate={navigateToPath} variant="compact" />
 
-                <div className="mt-auto p-3 border-t-2 border-t-[var(--retro-border-mid)]">
+                <div className="mt-auto overflow-hidden p-2.5 lg:p-3 border-t-2 border-t-[var(--retro-border-mid)]">
                     <CoupangSidebarRail />
                     <div className="mt-2">
-                        <ControlTray />
+                        <ControlTray variant="compact" />
                     </div>
                 </div>
             </Card>

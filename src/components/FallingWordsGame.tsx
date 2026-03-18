@@ -616,7 +616,7 @@ const FallingWordsGame: React.FC = () => {
     return (
         <div
             ref={gameAreaRef}
-            className={`relative w-full flex-1 min-h-[340px] sm:min-h-[460px] overflow-hidden ${retroRadiusClass} retro-monitor-bezel bg-[var(--retro-surface-alt)]`}
+            className={`relative w-full flex-1 min-h-[360px] sm:min-h-[480px] lg:min-h-[560px] overflow-hidden ${retroRadiusClass} retro-monitor-bezel bg-[var(--retro-surface-alt)]`}
         >
             <div
                 className={`absolute inset-0 ${lifeLostShake ? "animate-runner-shake" : ""}`}
@@ -857,21 +857,21 @@ const FallingWordsGame: React.FC = () => {
 
             {/* 시작 오버레이 */}
             {!gameStarted && !gameOver && countdown === null && (
-                <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/50 ">
-                    <div className={`text-center px-8 py-8 ${retroRadiusClass} border-2 border-[var(--retro-border-mid)] border-t-[var(--retro-border-light)] border-l-[var(--retro-border-light)] border-r-[var(--retro-border-dark)] border-b-[var(--retro-border-dark)] bg-[var(--retro-surface)] shadow-2xl max-w-xs mx-4`}>
+                <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/45 px-4">
+                    <div className={`mx-auto w-full max-w-[18.5rem] text-center px-6 py-7 sm:max-w-sm sm:px-8 sm:py-8 ${retroRadiusClass} border-2 border-[var(--retro-border-mid)] border-t-[var(--retro-border-light)] border-l-[var(--retro-border-light)] border-r-[var(--retro-border-dark)] border-b-[var(--retro-border-dark)] bg-[var(--retro-surface)] shadow-2xl`}>
                         <p className="font-pixel text-[var(--retro-game-warning)] mb-3" style={{ fontSize: 10, lineHeight: 1.6, animation: "tetris-blink 1s ease-in-out infinite" }}>
                             INSERT COIN
                         </p>
-                        <div className="text-5xl mb-3">🌧️</div>
-                        <h2 className="text-2xl sm:text-3xl font-black mb-2 text-[var(--retro-text)]">
+                        <div className="mb-3 text-4xl sm:text-5xl">🌧️</div>
+                        <h2 className="mb-2 text-[clamp(1.9rem,4vw,2.7rem)] font-black text-[var(--retro-text)]">
                             {language === "korean" ? "소나기 모드" : "Falling Words"}
                         </h2>
-                        <p className="text-sm mb-1 text-[var(--retro-text)]/80">
+                        <p className="mb-1 text-sm sm:text-[15px] text-[var(--retro-text)]/80">
                             {language === "korean"
                                 ? "떨어지는 단어를 타이핑하세요!"
                                 : "Type the falling words before they hit the ground!"}
                         </p>
-                        <p className="text-xs mb-5 text-[var(--retro-text)]/70">
+                        <p className="mb-5 text-xs sm:text-sm text-[var(--retro-text)]/70">
                             {language === "korean"
                                 ? "콤보를 쌓아 높은 점수를 노리세요"
                                 : "Build combos for higher scores"}
@@ -879,7 +879,7 @@ const FallingWordsGame: React.FC = () => {
                         <Button
                             onClick={() => restartGame()}
                             variant="secondary"
-                            className={`w-full h-auto px-6 py-3 font-bold text-lg ${retroTheme === "mac-classic" ? "rounded-lg" : "rounded-none"}`}
+                            className={`h-auto w-full px-6 py-3.5 text-lg font-bold sm:py-4 ${retroTheme === "mac-classic" ? "rounded-lg" : "rounded-none"}`}
                         >
                             {language === "korean" ? "시작" : "Start"}
                         </Button>

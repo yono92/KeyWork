@@ -31,7 +31,7 @@ const MuteToggle: React.FC<MuteToggleProps> = ({ className = "" }) => {
     const VolumeIcon = isMuted ? VolumeX : volume < 0.5 ? Volume1 : Volume2;
 
     return (
-        <div ref={wrapperRef} className="relative">
+        <div ref={wrapperRef} className="relative w-full">
             <Button
                 onClick={toggleMute}
                 onContextMenu={(e) => {
