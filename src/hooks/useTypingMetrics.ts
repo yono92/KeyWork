@@ -177,7 +177,7 @@ export function useTypingMetrics() {
 
     /** 현재 세션의 속도/정확도를 기록하고 평균 갱신 */
     const recordSession = useCallback(() => {
-        if (typingSpeed <= 0 || accuracy <= 0) return;
+        if (typingSpeed <= 0) return;
 
         setAllSpeeds((prevSpeeds) => {
             // 최근 윈도우 크기만큼만 유지 (무한 누적 방지)

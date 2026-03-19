@@ -100,6 +100,7 @@ const FallingWordsGame: React.FC = () => {
     const inputRef = useRef<HTMLInputElement>(null);
     const comboRef = useRef(0);
     const claimedWordIdsRef = useRef<Set<number>>(new Set());
+    const wordIdCounterRef = useRef(0);
 
     // 게임 통계 refs
     const totalWordsTypedRef = useRef(0);
@@ -224,7 +225,7 @@ const FallingWordsGame: React.FC = () => {
                 }
 
                 const newWord: Word = {
-                    id: Date.now() + i,
+                    id: ++wordIdCounterRef.current,
                     text: wordText,
                     left: newLeft,
                     top: -40,
