@@ -33,7 +33,7 @@ export const jsonError = (
             errorCode: code,
             source,
         },
-        { status }
+        { status, headers: { "Cache-Control": "no-store" } }
     );
 };
 

@@ -97,6 +97,7 @@ export const calculateHangulAccuracy = (
 
     // 정확도 계산: 비교 기준은 target과 input 중 긴 쪽
     const maxLen = Math.max(totalJamo, inputJamo.length);
+    if (maxLen === 0) return 100;
     const accuracy = ((maxLen - distance) / maxLen) * 100;
 
     // 0~100 사이의 값으로 제한하고 반올림

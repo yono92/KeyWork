@@ -146,13 +146,19 @@ function buildActivitySummary(scores: readonly ScoreStatRow[]): ActivitySummary 
 
     let currentStreak = 0;
     if (sortedKeys.length > 0) {
-        let cursor = new Date(`${sortedKeys[sortedKeys.length - 1]}T00:00:00`);
-        currentStreak = 1;
-
-        for (let i = sortedKeys.length - 2; i >= 0; i -= 1) {
-            cursor = addDays(cursor, -1);
-            if (toDayKey(cursor) !== sortedKeys[i]) break;
-            currentStreak += 1;
+        const lastPlayKey = sortedKeys[sortedKeys.length - 1];
+        const lastPlayDate = new Date(`${lastPlayKey}T00:00:00`);
+        const diffFromToday = Math.round(
+            (today.getTime() - lastPlayDate.getTime()) / 86400000
+        );
+        if (diffFromToday <= 1) {
+            let cursor = lastPlayDate;
+            currentStreak = 1;
+            for (let i = sortedKeys.length - 2; i >= 0; i -= 1) {
+                cursor = addDays(cursor, -1);
+                if (toDayKey(cursor) !== sortedKeys[i]) break;
+                currentStreak += 1;
+            }
         }
     }
 

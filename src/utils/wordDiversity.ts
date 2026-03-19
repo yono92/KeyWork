@@ -127,5 +127,5 @@ export function pickDiverseWord(
         Math.floor(randomValue * topCandidates.length)
     );
 
-    return topCandidates[index]?.word ?? scored[0].word;
+    return topCandidates[index]?.word ?? scored[0]?.word ?? "";
 }

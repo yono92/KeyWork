@@ -69,6 +69,8 @@ export function useMultiplayerRoom(gameMode: string) {
     const disconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const matchStartingRef = useRef(false);
     const myReadyRef = useRef(false);
+    const userIdRef = useRef(user?.id);
+    userIdRef.current = user?.id;
 
     const [state, setState] = useState<RoomState>(INITIAL_ROOM_STATE);
     const [waitingRooms, setWaitingRooms] = useState<WaitingRoom[]>([]);
@@ -213,7 +215,7 @@ export function useMultiplayerRoom(gameMode: string) {
 
             channel
                 .on("presence", { event: "join" }, ({ newPresences }) => {
-                    const opponent = newPresences.find((presence) => (presence as Record<string, unknown>).user_id !== user.id);
+                    const opponent = newPresences.find((presence) => (presence as Record<string, unknown>).user_id !== userIdRef.current);
                     if (!opponent) return;
 
                     if (disconnectTimerRef.current) {
@@ -232,7 +234,7 @@ export function useMultiplayerRoom(gameMode: string) {
                     publishReadyState(myReadyRef.current);
                 })
                 .on("presence", { event: "leave" }, ({ leftPresences }) => {
-                    const opponentLeft = leftPresences.some((presence) => (presence as Record<string, unknown>).user_id !== user.id);
+                    const opponentLeft = leftPresences.some((presence) => (presence as Record<string, unknown>).user_id !== userIdRef.current);
                     if (!opponentLeft) return;
 
                     setState((prev) => {
@@ -246,7 +248,7 @@ export function useMultiplayerRoom(gameMode: string) {
                                 channelRef.current?.send({
                                     type: "broadcast",
                                     event: "game_over",
-                                    payload: { winner_id: user.id, reason: "disconnect" },
+                                    payload: { winner_id: userIdRef.current, reason: "disconnect" },
                                 });
                             }, DISCONNECT_TIMEOUT_MS);
                         }
@@ -262,7 +264,7 @@ export function useMultiplayerRoom(gameMode: string) {
                 })
                 .on("broadcast", { event: "ready_state" }, ({ payload }) => {
                     const data = payload as ReadyPayload;
-                    if (data.userId === user.id) return;
+                    if (data.userId === userIdRef.current) return;
                     setState((prev) => ({
                         ...prev,
                         opponentReady: data.ready,
@@ -277,16 +279,20 @@ export function useMultiplayerRoom(gameMode: string) {
                         clearInterval(countdownRef.current);
                         countdownRef.current = null;
                     }
+                    if (disconnectTimerRef.current) {
+                        clearTimeout(disconnectTimerRef.current);
+                        disconnectTimerRef.current = null;
+                    }
                     matchStartingRef.current = false;
                     setState((prev) => ({
                         ...prev,
                         phase: "finished",
-                        error: (payload as GameOverPayload)?.winner_id === user.id ? "WIN" : "LOSE",
+                        error: (payload as GameOverPayload)?.winner_id === userIdRef.current ? "WIN" : "LOSE",
                     }));
                 })
                 .on("broadcast", { event: "rematch_request" }, ({ payload }) => {
                     const data = payload as { senderId: string };
-                    if (data.senderId === user.id) return;
+                    if (data.senderId === userIdRef.current) return;
                     // 상대가 리매치 요청 → 상대 ready 처리 + waiting 복귀
                     setState((prev) => ({
                         ...prev,

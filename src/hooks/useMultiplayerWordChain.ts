@@ -1,11 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { isOwnBroadcast } from "@/lib/multiplayerRealtime";
-
-// 채널에 등록된 핸들러를 추적하기 위한 WeakSet
-const registeredChannels = new WeakSet<RealtimeChannel>();
 
 interface WordEvent {
     word: string;
@@ -46,13 +43,14 @@ export function useMultiplayerWordChain(
         setMyLives(3);
     }, []);
 
+    const activeRef = useRef(false);
     useEffect(() => {
         const channel = getChannel();
         if (!channel || !isPlaying) return;
-        if (registeredChannels.has(channel)) return;
-        registeredChannels.add(channel);
+        activeRef.current = true;
 
         channel.on("broadcast", { event: "word_submit" }, ({ payload }: { payload: unknown }) => {
+            if (!activeRef.current) return;
             const data = payload as WordEvent;
             if (isOwnBroadcast(data, myUserId)) return;
             if (data.userId !== myUserId) {
@@ -63,16 +61,22 @@ export function useMultiplayerWordChain(
         });
 
         channel.on("broadcast", { event: "word_result" }, ({ payload }: { payload: unknown }) => {
+            if (!activeRef.current) return;
             const data = payload as LivesEvent;
             if (isOwnBroadcast(data, myUserId)) return;
             setOpponentLives(data.lives);
         });
 
         channel.on("broadcast", { event: "turn_change" }, ({ payload }: { payload: unknown }) => {
+            if (!activeRef.current) return;
             const data = payload as TurnEvent;
             if (isOwnBroadcast(data, myUserId)) return;
             setIsMyTurn(data.currentUserId === myUserId);
         });
+
+        return () => {
+            activeRef.current = false;
+        };
     }, [getChannel, isPlaying, myUserId]);
 
     const broadcastWord = useCallback((word: string, nextChar: string) => {

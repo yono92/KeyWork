@@ -6,9 +6,6 @@ import type { Cell } from "./useTetrisEngine";
 import { BOARD_WIDTH, BOARD_HEIGHT } from "./useTetrisEngine";
 import { isOwnBroadcast } from "@/lib/multiplayerRealtime";
 
-// 채널에 등록된 핸들러를 추적하기 위한 WeakMap
-const registeredChannels = new WeakSet<RealtimeChannel>();
-
 export interface OpponentState {
     board: number[][];
     score: number;
@@ -92,22 +89,28 @@ export function useMultiplayerTetris(
         setPendingGarbage(0);
     }, []);
 
-    // 상대 보드 수신 — 채널당 1회만 핸들러 등록
+    // 상대 보드 수신 — ref guard로 stale 핸들러 무시
+    const activeRef = useRef(false);
     useEffect(() => {
         const channel = getChannel();
         if (!channel || !isPlaying) return;
-        if (registeredChannels.has(channel)) return;
-        registeredChannels.add(channel);
+        activeRef.current = true;
 
         channel.on("broadcast", { event: "board_state" }, ({ payload }: { payload: BoardBroadcastPayload }) => {
+            if (!activeRef.current) return;
             if (isOwnBroadcast(payload, myUserId)) return;
             setOpponent(payload);
         });
 
         channel.on("broadcast", { event: "garbage" }, ({ payload }: { payload: GarbageBroadcastPayload }) => {
+            if (!activeRef.current) return;
             if (isOwnBroadcast(payload, myUserId)) return;
             setPendingGarbage((prev) => prev + payload.lines);
         });
+
+        return () => {
+            activeRef.current = false;
+        };
     }, [getChannel, isPlaying, myUserId]);
 
     // 내 보드 브로드캐스트 (300ms 간격)
