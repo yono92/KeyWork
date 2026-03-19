@@ -71,6 +71,7 @@ export function useRunnerEngine(callbacks: RunnerCallbacks) {
     const maxSpeedRef = useRef(INITIAL_SPEED);
     const lastMilestoneRef = useRef(0);
     const clearTimeRef = useRef(0);
+    const animTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
     const callbacksRef = useRef(callbacks);
     callbacksRef.current = callbacks;
 
@@ -146,13 +147,15 @@ export function useRunnerEngine(callbacks: RunnerCallbacks) {
                     invincibleRef.current = true;
                     setIsInvincible(true);
                     callbacksRef.current.onHit();
-                    setTimeout(() => {
+                    const t1 = setTimeout(() => {
                         invincibleRef.current = false;
                         setIsInvincible(false);
                     }, HIT_INVINCIBILITY);
+                    animTimersRef.current.push(t1);
                     playSound("lifeLost");
                     setCharState("hit");
-                    setTimeout(() => setCharState("running"), HIT_DURATION);
+                    const t2 = setTimeout(() => setCharState("running"), HIT_DURATION);
+                    animTimersRef.current.push(t2);
                     setLives((l) => {
                         const newL = Math.max(l - 1, 0);
                         if (newL <= 0) {
@@ -179,7 +182,8 @@ export function useRunnerEngine(callbacks: RunnerCallbacks) {
                     setMilestone(nextMilestone);
                     playSound("win");
                     callbacksRef.current.onMilestone(nextMilestone);
-                    setTimeout(() => setMilestone(null), 2000);
+                    const t3 = setTimeout(() => setMilestone(null), 2000);
+                    animTimersRef.current.push(t3);
                 }
                 return newD;
             });
@@ -205,7 +209,11 @@ export function useRunnerEngine(callbacks: RunnerCallbacks) {
             }
         }, 16);
 
-        return () => clearInterval(gameLoop);
+        return () => {
+            clearInterval(gameLoop);
+            animTimersRef.current.forEach(clearTimeout);
+            animTimersRef.current = [];
+        };
     }, [gameStarted, gameOver, isPaused, playSound, getRandomWord]);
 
     // 단어 매칭
@@ -232,7 +240,8 @@ export function useRunnerEngine(callbacks: RunnerCallbacks) {
 
         setCharState("jumping");
         playSound("match");
-        setTimeout(() => setCharState("running"), JUMP_DURATION);
+        const t4 = setTimeout(() => setCharState("running"), JUMP_DURATION);
+        animTimersRef.current.push(t4);
     }, [targetObstacle, playSound]);
 
     const handleInput = useCallback((val: string) => {
@@ -280,6 +289,8 @@ export function useRunnerEngine(callbacks: RunnerCallbacks) {
         invincibleRef.current = false;
         maxSpeedRef.current = INITIAL_SPEED;
         lastMilestoneRef.current = 0;
+        animTimersRef.current.forEach(clearTimeout);
+        animTimersRef.current = [];
         setInputKey((k) => k + 1);
         setCountdown(3);
     }, []);

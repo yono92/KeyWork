@@ -151,9 +151,11 @@ export function getRandomSentenceUnique(
     usedIndices: Set<number>,
 ): string {
     const sentences = proverbsData[language];
-    const available = sentences.filter((_, i) => !usedIndices.has(i));
-    const pool = available.length > 0 ? available : sentences;
-    const idx = sentences.indexOf(pool[Math.floor(Math.random() * pool.length)]);
+    const availableIndices = sentences
+        .map((_, i) => i)
+        .filter((i) => !usedIndices.has(i));
+    const pool = availableIndices.length > 0 ? availableIndices : sentences.map((_, i) => i);
+    const idx = pool[Math.floor(Math.random() * pool.length)];
     usedIndices.add(idx);
     return normalizePracticePrompt(sentences[idx], language);
 }

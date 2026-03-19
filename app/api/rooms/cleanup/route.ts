@@ -8,7 +8,7 @@ export async function POST() {
         data: { user },
     } = await supabase.auth.getUser();
     if (!user) {
-        return NextResponse.json({ ok: true });
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const cutoff = getRoomCutoffIso();
