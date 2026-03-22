@@ -176,7 +176,7 @@ export default function TetrisBattle({ room, onFinish }: TetrisBattleProps) {
     const showRoomPanel = room.phase === "waiting";
     const showResult = room.phase === "finished";
     const iWon = room.error === "WIN";
-    const controlsDisabled = !engine.running || engine.paused || engine.gameOver || engine.clearing;
+    const controlsDisabled = !engine.running || engine.paused || engine.gameOver || engine.clearing || engine.settling;
     const boardPx = cellSize * BOARD_WIDTH;
 
     const bevel = (inset = false) => ({
