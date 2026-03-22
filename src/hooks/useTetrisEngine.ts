@@ -63,13 +63,13 @@ export const PIECES: Record<PieceType, readonly (readonly [number, number][])[]>
 };
 
 export const CELL_COLORS: Record<PieceType, { face: string; hi: string; lo: string }> = {
-    I: { face: "#00e5ff", hi: "#88ffff", lo: "#008b99" },
-    O: { face: "#ffe000", hi: "#fff176", lo: "#997a00" },
-    T: { face: "#bb44ff", hi: "#dd99ff", lo: "#6a0099" },
-    S: { face: "#44dd44", hi: "#99ff99", lo: "#1a7a1a" },
-    Z: { face: "#ff3333", hi: "#ff8888", lo: "#990000" },
-    J: { face: "#3366ff", hi: "#88aaff", lo: "#002299" },
-    L: { face: "#ff8800", hi: "#ffbb66", lo: "#994400" },
+    I: { face: "#2288ee", hi: "#4499ee", lo: "#0a3366" },    // Water
+    O: { face: "#c4a030", hi: "#ddcc55", lo: "#665510" },    // Sand
+    T: { face: "#8844bb", hi: "#aa66dd", lo: "#331166" },    // Mountain
+    S: { face: "#1a7a2e", hi: "#44bb55", lo: "#0a3312" },    // Forest
+    Z: { face: "#cc2222", hi: "#ee5555", lo: "#550808" },    // Lava
+    J: { face: "#1144aa", hi: "#3366cc", lo: "#061a44" },    // Ocean
+    L: { face: "#cc6622", hi: "#ee8844", lo: "#552200" },    // Clay
 };
 
 const makeEmptyBoard = (): Cell[][] =>

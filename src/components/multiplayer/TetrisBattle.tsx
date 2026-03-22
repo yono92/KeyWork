@@ -5,6 +5,7 @@ import { useResponsiveTetrisSize } from "@/hooks/useResponsiveTetrisSize";
 import { useTetrisAnimations } from "@/hooks/useTetrisAnimations";
 import { useTetrisEngine, PIECES, CELL_COLORS, BOARD_WIDTH } from "@/hooks/useTetrisEngine";
 import type { PieceType } from "@/hooks/useTetrisEngine";
+import { PIECE_TERRAIN_MAP, TERRAIN_BORDERS } from "@/utils/terrainTextures";
 import { useMultiplayerTetris, deserializeBoard } from "@/hooks/useMultiplayerTetris";
 import { useScoreSubmit } from "@/hooks/useScoreSubmit";
 import { useAchievementChecker } from "@/hooks/useAchievementChecker";
@@ -189,15 +190,17 @@ export default function TetrisBattle({ room, onFinish }: TetrisBattleProps) {
 
     const blockStyle = (type: PieceType): React.CSSProperties => {
         const c = CELL_COLORS[type];
+        const terrain = PIECE_TERRAIN_MAP[type];
+        const borders = TERRAIN_BORDERS[terrain];
         return {
             width: cellSize, height: cellSize,
             background: c.face,
             borderStyle: "solid",
-            borderWidth: "2px",
-            borderTopColor: c.hi,
-            borderLeftColor: c.hi,
-            borderBottomColor: c.lo,
-            borderRightColor: c.lo,
+            borderWidth: "1px",
+            borderTopColor: borders.hi,
+            borderLeftColor: borders.hi,
+            borderBottomColor: borders.lo,
+            borderRightColor: borders.lo,
             imageRendering: "pixelated",
         };
     };
