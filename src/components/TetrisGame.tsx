@@ -111,22 +111,21 @@ export default function TetrisGame() {
         background: "transparent",
     };
 
-    /** 모래 알갱이 내부 dot */
+    /** 모래 알갱이 내부 dot — 작은 원형 입자 */
     const sandDotStyle = (type: PieceType, row: number, col: number): React.CSSProperties => {
         const c = CELL_COLORS[type];
         const seed = (row * 31 + col * 17) % 100;
-        const sizeRatio = 0.70 + (seed % 15) * 0.018;
-        const grainSize = Math.round(cellSize * sizeRatio);
-        const brightnessShift = -10 + (seed % 20);
-        const borderRad = Math.max(2, grainSize * 0.3);
+        const sizeRatio = 0.35 + (seed % 15) * 0.012; // 0.35~0.53 — 셀의 절반 이하
+        const grainSize = Math.max(3, Math.round(cellSize * sizeRatio));
+        const brightnessShift = -15 + (seed % 30);
 
         return {
             width: grainSize,
             height: grainSize,
-            borderRadius: borderRad,
+            borderRadius: "50%",
             background: c.face,
             filter: `brightness(${1 + brightnessShift / 100})`,
-            boxShadow: `inset 0 -${Math.max(1, grainSize * 0.12)}px ${Math.max(1, grainSize * 0.2)}px ${c.lo}, inset 0 ${Math.max(1, grainSize * 0.08)}px ${Math.max(1, grainSize * 0.15)}px ${c.hi}`,
+            boxShadow: `0 1px 1px ${c.lo}`,
             imageRendering: "pixelated",
         };
     };
