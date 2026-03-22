@@ -514,6 +514,20 @@ export function useTetrisEngine(callbacks: TetrisCallbacks, isMobile: boolean) {
         return preview;
     }, [activePiece, board]);
 
+    /** 활성 피스가 차지하는 셀 좌표 Set ("row-col") — 모래 렌더링 구분용 */
+    const activePieceCells = useMemo(() => {
+        const cells = new Set<string>();
+        if (!running || gameOver) return cells;
+        for (const [dx, dy] of PIECES[activePiece.type][activePiece.rotation]) {
+            const x = activePiece.x + dx;
+            const y = activePiece.y + dy;
+            if (y >= 0 && y < BOARD_HEIGHT && x >= 0 && x < BOARD_WIDTH) {
+                cells.add(`${y}-${x}`);
+            }
+        }
+        return cells;
+    }, [activePiece, gameOver, running]);
+
     const ghostCells = useMemo(() => {
         if (!running || gameOver || clearing || settling) return new Set<string>();
         let distance = 0;
@@ -549,6 +563,7 @@ export function useTetrisEngine(callbacks: TetrisCallbacks, isMobile: boolean) {
         settling,
         dropIntervalMs,
         renderedBoard,
+        activePieceCells,
         ghostCells,
         resetGame,
         moveHorizontal,

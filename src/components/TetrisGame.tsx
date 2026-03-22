@@ -6,7 +6,7 @@ import { useTetrisAnimations } from "../hooks/useTetrisAnimations";
 import { useTetrisEngine, PIECES, CELL_COLORS, BOARD_WIDTH, BOARD_HEIGHT } from "../hooks/useTetrisEngine";
 import type { PieceType } from "../hooks/useTetrisEngine";
 import useTypingStore from "../store/store";
-import { generateTerrainTexture, clearTerrainCache, PIECE_TERRAIN_MAP, TERRAIN_BORDERS } from "../utils/terrainTextures";
+import { clearTerrainCache, PIECE_TERRAIN_MAP, TERRAIN_BORDERS } from "../utils/terrainTextures";
 
 export default function TetrisGame() {
     const animEnabled = useTypingStore((s) => s.fxEnabled);
@@ -84,35 +84,53 @@ export default function TetrisGame() {
         }
     }, [cellSize]);
 
-    const blockStyle = (type: PieceType, row?: number, col?: number): React.CSSProperties => {
+    /** 활성 피스 블록 스타일 — 일반 테트리스 블록 (사각형, 베벨) */
+    const activeBlockStyle = (type: PieceType): React.CSSProperties => {
         const terrain = PIECE_TERRAIN_MAP[type];
         const borders = TERRAIN_BORDERS[terrain];
-
-        const base: React.CSSProperties = {
+        return {
             width: cellSize, height: cellSize,
+            background: CELL_COLORS[type].face,
             borderStyle: "solid",
-            borderWidth: "1px",
+            borderWidth: "2px",
             borderTopColor: borders.hi,
             borderLeftColor: borders.hi,
             borderBottomColor: borders.lo,
             borderRightColor: borders.lo,
             imageRendering: "pixelated",
+            boxShadow: `inset 0 0 ${Math.max(2, cellSize * 0.15)}px rgba(255,255,255,0.15)`,
         };
-
-        if (row !== undefined && col !== undefined && typeof document !== "undefined") {
-            const texUrl = generateTerrainTexture(terrain, col, row, cellSize);
-            if (texUrl) {
-                base.backgroundImage = `url(${texUrl})`;
-                base.backgroundSize = `${cellSize}px ${cellSize}px`;
-            } else {
-                base.background = CELL_COLORS[type].face;
-            }
-        } else {
-            base.background = CELL_COLORS[type].face;
-        }
-
-        return base;
     };
+
+    /** 보드에 정착한 모래 알갱이 컨테이너 — Sandtris 느낌 */
+    const sandGrainStyle: React.CSSProperties = {
+        width: cellSize, height: cellSize,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        background: "transparent",
+    };
+
+    /** 모래 알갱이 내부 dot */
+    const sandDotStyle = (type: PieceType, row: number, col: number): React.CSSProperties => {
+        const c = CELL_COLORS[type];
+        const seed = (row * 31 + col * 17) % 100;
+        const sizeRatio = 0.70 + (seed % 15) * 0.018;
+        const grainSize = Math.round(cellSize * sizeRatio);
+        const brightnessShift = -10 + (seed % 20);
+        const borderRad = Math.max(2, grainSize * 0.3);
+
+        return {
+            width: grainSize,
+            height: grainSize,
+            borderRadius: borderRad,
+            background: c.face,
+            filter: `brightness(${1 + brightnessShift / 100})`,
+            boxShadow: `inset 0 -${Math.max(1, grainSize * 0.12)}px ${Math.max(1, grainSize * 0.2)}px ${c.lo}, inset 0 ${Math.max(1, grainSize * 0.08)}px ${Math.max(1, grainSize * 0.15)}px ${c.hi}`,
+            imageRendering: "pixelated",
+        };
+    };
+
 
     const renderMiniPreview = (pieceType: PieceType | null) => {
         const sz = miniCellSize;
@@ -216,6 +234,7 @@ export default function TetrisGame() {
                             row.map((cell, ci) => {
                                 const key = `${ri}-${ci}`;
                                 const isFlash = anim.flashRows.includes(ri);
+                                const isActivePiece = engine.activePieceCells.has(`${ri}-${ci}`);
 
                                 if (isFlash && cell) {
                                     const distFromCenter = Math.abs(ci - (BOARD_WIDTH - 1) / 2);
@@ -233,8 +252,18 @@ export default function TetrisGame() {
                                     );
                                 }
 
-                                if (cell) {
-                                    return <div key={key} style={blockStyle(cell, ri, ci)} aria-hidden="true" />;
+                                // 활성 피스 — 일반 테트리스 블록
+                                if (cell && isActivePiece) {
+                                    return <div key={key} style={activeBlockStyle(cell)} aria-hidden="true" />;
+                                }
+
+                                // 보드에 정착한 셀 — 모래 알갱이
+                                if (cell && !isActivePiece) {
+                                    return (
+                                        <div key={key} style={sandGrainStyle} aria-hidden="true">
+                                            <div style={sandDotStyle(cell, ri, ci)} />
+                                        </div>
+                                    );
                                 }
 
                                 if (engine.ghostCells.has(key)) {
