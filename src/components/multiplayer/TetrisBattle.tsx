@@ -3,9 +3,9 @@
 import React, { useCallback, useEffect, useRef } from "react";
 import { useResponsiveTetrisSize } from "@/hooks/useResponsiveTetrisSize";
 import { useTetrisAnimations } from "@/hooks/useTetrisAnimations";
-import { useTetrisEngine, PIECES, CELL_COLORS, BOARD_WIDTH } from "@/hooks/useTetrisEngine";
+import { useTetrisEngine, PIECES, CELL_COLORS, BOARD_WIDTH, BOARD_HEIGHT } from "@/hooks/useTetrisEngine";
 import type { PieceType } from "@/hooks/useTetrisEngine";
-import { PIECE_TERRAIN_MAP, TERRAIN_BORDERS } from "@/utils/terrainTextures";
+import { GRAIN_SCALE, SAND_COLS, SAND_ROWS } from "@/lib/sandPhysics";
 import { useMultiplayerTetris, deserializeBoard } from "@/hooks/useMultiplayerTetris";
 import { useScoreSubmit } from "@/hooks/useScoreSubmit";
 import { useAchievementChecker } from "@/hooks/useAchievementChecker";
@@ -188,49 +188,16 @@ export default function TetrisBattle({ room, onFinish }: TetrisBattleProps) {
         borderRightColor: inset ? "var(--retro-game-panel-border-hi)" : "var(--retro-game-panel-border-lo)",
     });
 
-    /** 활성 피스 블록 스타일 — 일반 테트리스 블록 (사각형, 베벨) */
-    const activeBlockStyle = (type: PieceType): React.CSSProperties => {
-        const terrain = PIECE_TERRAIN_MAP[type];
-        const borders = TERRAIN_BORDERS[terrain];
-        return {
-            width: cellSize, height: cellSize,
-            background: CELL_COLORS[type].face,
-            borderStyle: "solid",
-            borderWidth: "2px",
-            borderTopColor: borders.hi,
-            borderLeftColor: borders.hi,
-            borderBottomColor: borders.lo,
-            borderRightColor: borders.lo,
-            imageRendering: "pixelated",
-            boxShadow: `inset 0 0 ${Math.max(2, cellSize * 0.15)}px rgba(255,255,255,0.15)`,
-        };
-    };
+    const myCanvasRef = useRef<HTMLCanvasElement>(null);
+    const boardH = cellSize * BOARD_HEIGHT;
 
-    /** 보드에 정착한 모래 알갱이 컨테이너 */
-    const sandGrainStyle: React.CSSProperties = {
-        width: cellSize, height: cellSize,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        background: "transparent",
-    };
-
-    const sandDotStyle = (type: PieceType, row: number, col: number): React.CSSProperties => {
-        const c = CELL_COLORS[type];
-        const seed = (row * 31 + col * 17) % 100;
-        const sizeRatio = 0.35 + (seed % 15) * 0.012;
-        const grainSize = Math.max(3, Math.round(cellSize * sizeRatio));
-        const brightnessShift = -15 + (seed % 30);
-        return {
-            width: grainSize,
-            height: grainSize,
-            borderRadius: "50%",
-            background: c.face,
-            filter: `brightness(${1 + brightnessShift / 100})`,
-            boxShadow: `0 1px 1px ${c.lo}`,
-            imageRendering: "pixelated",
-        };
-    };
+    // ─── Canvas 드로잉 유틸 (싱글플레이어와 동일) ───
+    function adjustColor(hex: string, factor: number): string {
+        const r = parseInt(hex.slice(1, 3), 16);
+        const g = parseInt(hex.slice(3, 5), 16);
+        const b = parseInt(hex.slice(5, 7), 16);
+        return `rgb(${Math.min(255, Math.round(r * factor))},${Math.min(255, Math.round(g * factor))},${Math.min(255, Math.round(b * factor))})`;
+    }
 
 
 
@@ -294,7 +261,90 @@ export default function TetrisBattle({ room, onFinish }: TetrisBattleProps) {
                 : "tetris-shake 0.18s ease-out"
         : undefined;
 
-    const ghostType = engine.activePiece.type;
+    // ─── RAF 루프: Canvas 렌더링 ───
+    const tickRef = useRef(engine.tick);
+    const cellSizeRef = useRef(cellSize);
+    tickRef.current = engine.tick;
+    cellSizeRef.current = cellSize;
+
+    useEffect(() => {
+        let frameId = 0;
+        let lastTime = 0;
+        const loop = (time: number) => {
+            const dt = lastTime ? Math.min(time - lastTime, 100) : 16;
+            lastTime = time;
+            tickRef.current(dt);
+            const canvas = myCanvasRef.current;
+            const ctx = canvas?.getContext("2d");
+            if (ctx && canvas) {
+                const cs = cellSizeRef.current;
+                const gp = cs / GRAIN_SCALE;
+                const dpr = window.devicePixelRatio || 1;
+                const w = BOARD_WIDTH * cs;
+                const h = BOARD_HEIGHT * cs;
+                if (canvas.width !== Math.round(w * dpr) || canvas.height !== Math.round(h * dpr)) {
+                    canvas.width = Math.round(w * dpr);
+                    canvas.height = Math.round(h * dpr);
+                    canvas.style.width = `${w}px`;
+                    canvas.style.height = `${h}px`;
+                    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+                }
+                const s = engine.gsRef.current;
+                // 배경
+                ctx.fillStyle = "#0a0a0a";
+                ctx.fillRect(0, 0, w, h);
+                ctx.strokeStyle = "#1a1a1a";
+                ctx.lineWidth = 0.5;
+                for (let x = 1; x < BOARD_WIDTH; x++) { ctx.beginPath(); ctx.moveTo(x * cs, 0); ctx.lineTo(x * cs, h); ctx.stroke(); }
+                for (let y = 1; y < BOARD_HEIGHT; y++) { ctx.beginPath(); ctx.moveTo(0, y * cs); ctx.lineTo(w, y * cs); ctx.stroke(); }
+                // 모래
+                const gap = Math.max(0.3, gp * 0.06);
+                for (let sy = 0; sy < SAND_ROWS; sy++) {
+                    const row = s.sandGrid[sy];
+                    for (let sx = 0; sx < SAND_COLS; sx++) {
+                        const g = row[sx];
+                        if (g === null) continue;
+                        const c = CELL_COLORS[g];
+                        const seed = (sy * 31 + sx * 17) % 20;
+                        ctx.fillStyle = adjustColor(c.face, 0.9 + seed / 100);
+                        ctx.fillRect(sx * gp + gap, sy * gp + gap, gp - gap * 2, gp - gap * 2);
+                    }
+                }
+                // 플래시
+                if (s.flashRows.length > 0) {
+                    ctx.fillStyle = "rgba(255,255,255,0.85)";
+                    for (const fy of s.flashRows) ctx.fillRect(0, fy * gp, SAND_COLS * gp, gp);
+                }
+                // 고스트 + 활성 피스
+                if (s.activePiece && s.running && !s.gameOver) {
+                    if (!s.settling) {
+                        const c = CELL_COLORS[s.activePiece.type];
+                        ctx.strokeStyle = `${c.face}55`;
+                        ctx.lineWidth = 1;
+                        ctx.setLineDash([3, 3]);
+                        for (const [dx, dy] of PIECES[s.activePiece.type][s.activePiece.rotation]) {
+                            ctx.strokeRect((s.activePiece.x + dx) * cs + 0.5, (s.ghostY + dy) * cs + 0.5, cs - 1, cs - 1);
+                        }
+                        ctx.setLineDash([]);
+                    }
+                    const c = CELL_COLORS[s.activePiece.type];
+                    const bw = Math.max(1, Math.floor(cs * 0.08));
+                    for (const [dx, dy] of PIECES[s.activePiece.type][s.activePiece.rotation]) {
+                        const px = (s.activePiece.x + dx) * cs;
+                        const py = (s.activePiece.y + dy) * cs;
+                        if (py + cs < 0) continue;
+                        ctx.fillStyle = c.face; ctx.fillRect(px, py, cs, cs);
+                        ctx.fillStyle = c.hi; ctx.fillRect(px, py, cs, bw); ctx.fillRect(px, py, bw, cs);
+                        ctx.fillStyle = c.lo; ctx.fillRect(px, py + cs - bw, cs, bw); ctx.fillRect(px + cs - bw, py, bw, cs);
+                        ctx.fillStyle = "rgba(255,255,255,0.12)"; ctx.fillRect(px + bw, py + bw, cs - bw * 2, cs - bw * 2);
+                    }
+                }
+            }
+            frameId = requestAnimationFrame(loop);
+        };
+        frameId = requestAnimationFrame(loop);
+        return () => cancelAnimationFrame(frameId);
+    }, [engine.gsRef]);
 
     const renderMyBoard = () => (
         <div
@@ -319,80 +369,15 @@ export default function TetrisBattle({ room, onFinish }: TetrisBattleProps) {
                 }}
             >
                 <div style={{ padding: 1, background: "var(--retro-game-panel-border-lo)", ...bevel(true) }}>
-                    <div
+                    <canvas
+                        ref={myCanvasRef}
                         style={{
-                            display: "grid",
-                            gridTemplateColumns: `repeat(${BOARD_WIDTH}, ${cellSize}px)`,
-                            gap: 0,
+                            display: "block",
                             width: boardPx,
-                            background: "var(--retro-game-bg)",
+                            height: boardH,
+                            imageRendering: "pixelated",
                         }}
-                    >
-                        {engine.renderedBoard.flatMap((row, ri) =>
-                            row.map((cell, ci) => {
-                                const key = `${ri}-${ci}`;
-                                const isFlash = anim.flashRows.includes(ri);
-                                const isActivePiece = engine.activePieceCells.has(`${ri}-${ci}`);
-
-                                if (isFlash && cell) {
-                                    const distFromCenter = Math.abs(ci - (BOARD_WIDTH - 1) / 2);
-                                    const delay = distFromCenter * 40;
-                                    return (
-                                        <div
-                                            key={key}
-                                            style={{
-                                                width: cellSize, height: cellSize,
-                                                background: "#fff",
-                                                animation: `tetris-line-clear 0.5s ${delay}ms ease-out forwards`,
-                                            }}
-                                            aria-hidden="true"
-                                        />
-                                    );
-                                }
-
-                                if (cell && isActivePiece) {
-                                    return <div key={key} style={activeBlockStyle(cell)} aria-hidden="true" />;
-                                }
-
-                                if (cell && !isActivePiece) {
-                                    return (
-                                        <div key={key} style={sandGrainStyle} aria-hidden="true">
-                                            <div style={sandDotStyle(cell, ri, ci)} />
-                                        </div>
-                                    );
-                                }
-
-                                if (engine.ghostCells.has(key)) {
-                                    const gc = CELL_COLORS[ghostType];
-                                    return (
-                                        <div
-                                            key={key}
-                                            style={{
-                                                width: cellSize, height: cellSize,
-                                                background: "transparent",
-                                                boxSizing: "border-box",
-                                                border: `1px dashed ${gc.face}66`,
-                                            }}
-                                            aria-hidden="true"
-                                        />
-                                    );
-                                }
-
-                                return (
-                                    <div
-                                        key={key}
-                                        style={{
-                                            width: cellSize, height: cellSize,
-                                            background: "var(--retro-game-bg)",
-                                            borderRight: "1px solid var(--retro-game-grid)",
-                                            borderBottom: "1px solid var(--retro-game-grid)",
-                                        }}
-                                        aria-hidden="true"
-                                    />
-                                );
-                            }),
-                        )}
-                    </div>
+                    />
                 </div>
 
                 {/* 가비지 대기 표시 */}

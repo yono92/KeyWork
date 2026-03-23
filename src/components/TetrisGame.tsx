@@ -5,39 +5,139 @@ import { useResponsiveTetrisSize } from "../hooks/useResponsiveTetrisSize";
 import { useTetrisAnimations } from "../hooks/useTetrisAnimations";
 import { useTetrisEngine, PIECES, CELL_COLORS, BOARD_WIDTH, BOARD_HEIGHT } from "../hooks/useTetrisEngine";
 import type { PieceType } from "../hooks/useTetrisEngine";
+import { GRAIN_SCALE, SAND_COLS, SAND_ROWS } from "../lib/sandPhysics";
+import type { SandGrid } from "../lib/sandPhysics";
 import useTypingStore from "../store/store";
-import { clearTerrainCache, PIECE_TERRAIN_MAP, TERRAIN_BORDERS } from "../utils/terrainTextures";
+
+// ─── Canvas 드로잉 유틸 ───
+
+function adjustColor(hex: string, factor: number): string {
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    return `rgb(${Math.min(255, Math.round(r * factor))},${Math.min(255, Math.round(g * factor))},${Math.min(255, Math.round(b * factor))})`;
+}
+
+function drawBackground(ctx: CanvasRenderingContext2D, w: number, h: number, cellSize: number) {
+    ctx.fillStyle = "#0a0a0a";
+    ctx.fillRect(0, 0, w, h);
+    // 셀 경계선
+    ctx.strokeStyle = "#1a1a1a";
+    ctx.lineWidth = 0.5;
+    for (let x = 1; x < BOARD_WIDTH; x++) {
+        ctx.beginPath();
+        ctx.moveTo(x * cellSize, 0);
+        ctx.lineTo(x * cellSize, h);
+        ctx.stroke();
+    }
+    for (let y = 1; y < BOARD_HEIGHT; y++) {
+        ctx.beginPath();
+        ctx.moveTo(0, y * cellSize);
+        ctx.lineTo(w, y * cellSize);
+        ctx.stroke();
+    }
+}
+
+function drawSandGrains(ctx: CanvasRenderingContext2D, grid: SandGrid, grainPx: number) {
+    const gap = Math.max(0.3, grainPx * 0.06);
+    for (let y = 0; y < SAND_ROWS; y++) {
+        const row = grid[y];
+        for (let x = 0; x < SAND_COLS; x++) {
+            const g = row[x];
+            if (g === null) continue;
+            const c = CELL_COLORS[g];
+            // 위치 기반 밝기 변화
+            const seed = (y * 31 + x * 17) % 20;
+            const brightness = 0.9 + seed / 100;
+            ctx.fillStyle = adjustColor(c.face, brightness);
+            ctx.fillRect(
+                x * grainPx + gap,
+                y * grainPx + gap,
+                grainPx - gap * 2,
+                grainPx - gap * 2,
+            );
+        }
+    }
+}
+
+function drawFlashRows(ctx: CanvasRenderingContext2D, flashRows: number[], grainPx: number) {
+    if (flashRows.length === 0) return;
+    ctx.fillStyle = "rgba(255, 255, 255, 0.85)";
+    for (const y of flashRows) {
+        ctx.fillRect(0, y * grainPx, SAND_COLS * grainPx, grainPx);
+    }
+}
+
+function drawActivePiece(
+    ctx: CanvasRenderingContext2D,
+    type: PieceType,
+    rotation: number,
+    px: number,
+    py: number,
+    cellSize: number,
+) {
+    const c = CELL_COLORS[type];
+    const bw = Math.max(1, Math.floor(cellSize * 0.08));
+    for (const [dx, dy] of PIECES[type][rotation]) {
+        const x = (px + dx) * cellSize;
+        const y = (py + dy) * cellSize;
+        if (y + cellSize < 0) continue;
+        // 메인 색상
+        ctx.fillStyle = c.face;
+        ctx.fillRect(x, y, cellSize, cellSize);
+        // 하이라이트 (위/왼쪽)
+        ctx.fillStyle = c.hi;
+        ctx.fillRect(x, y, cellSize, bw);
+        ctx.fillRect(x, y, bw, cellSize);
+        // 그림자 (아래/오른쪽)
+        ctx.fillStyle = c.lo;
+        ctx.fillRect(x, y + cellSize - bw, cellSize, bw);
+        ctx.fillRect(x + cellSize - bw, y, bw, cellSize);
+        // 내부 하이라이트
+        ctx.fillStyle = "rgba(255,255,255,0.12)";
+        ctx.fillRect(x + bw, y + bw, cellSize - bw * 2, cellSize - bw * 2);
+    }
+}
+
+function drawGhostPiece(
+    ctx: CanvasRenderingContext2D,
+    type: PieceType,
+    rotation: number,
+    px: number,
+    ghostY: number,
+    cellSize: number,
+) {
+    const c = CELL_COLORS[type];
+    ctx.strokeStyle = `${c.face}55`;
+    ctx.lineWidth = 1;
+    ctx.setLineDash([3, 3]);
+    for (const [dx, dy] of PIECES[type][rotation]) {
+        const x = (px + dx) * cellSize;
+        const y = (ghostY + dy) * cellSize;
+        if (y + cellSize < 0) continue;
+        ctx.strokeRect(x + 0.5, y + 0.5, cellSize - 1, cellSize - 1);
+    }
+    ctx.setLineDash([]);
+}
+
+// ─── 컴포넌트 ───
 
 export default function TetrisGame() {
     const animEnabled = useTypingStore((s) => s.fxEnabled);
-
     const { sectionRef, cellSize, miniCellSize, sidePanelWidth, isMobile } = useResponsiveTetrisSize();
     const anim = useTetrisAnimations(animEnabled);
     const prevLevelRef = useRef(1);
+    const canvasRef = useRef<HTMLCanvasElement>(null);
 
     const onLinesCleared = useCallback((rows: number[], _removed: number, totalGain: number, newCombo: number) => {
-        anim.triggerFlash(rows);
         anim.triggerScorePop();
         anim.addFloatingText(`+${totalGain}`, "var(--retro-game-warning)");
-
-        // Clear type labels
-        const lineCount = rows.length;
-        if (lineCount === 2) {
-            anim.triggerClearLabel("DOUBLE");
-        } else if (lineCount === 3) {
-            anim.triggerClearLabel("TRIPLE");
-        } else if (lineCount >= 4) {
-            anim.triggerClearLabel("TETRIS!");
-            anim.triggerScreenFlash();
-        }
-
-        if (newCombo >= 2) {
-            anim.addFloatingText(`COMBO x${newCombo}`, "var(--retro-game-info)");
-        }
-        // Auto shake on combo 3+
-        if (newCombo >= 3) {
-            anim.triggerShake();
-        }
+        const lineCount = _removed;
+        if (lineCount === 2) anim.triggerClearLabel("DOUBLE");
+        else if (lineCount === 3) anim.triggerClearLabel("TRIPLE");
+        else if (lineCount >= 4) { anim.triggerClearLabel("TETRIS!"); anim.triggerScreenFlash(); }
+        if (newCombo >= 2) anim.addFloatingText(`COMBO x${newCombo}`, "var(--retro-game-info)");
+        if (newCombo >= 3) anim.triggerShake();
     }, [anim]);
 
     const onHardDrop = useCallback((distance: number, landingRow: number) => {
@@ -49,23 +149,80 @@ export default function TetrisGame() {
         }
     }, [anim, animEnabled]);
 
-    const onGameOver = useCallback(() => {
-        // No-op — game over visual is handled in render
-    }, []);
+    const onGameOver = useCallback(() => {}, []);
 
     const engine = useTetrisEngine({ onLinesCleared, onHardDrop, onGameOver }, isMobile);
 
-    // Level-up glow effect
+    // 레벨업 글로우
     useEffect(() => {
-        if (engine.level > prevLevelRef.current && engine.running) {
-            anim.triggerLevelGlow();
-        }
+        if (engine.level > prevLevelRef.current && engine.running) anim.triggerLevelGlow();
         prevLevelRef.current = engine.level;
     }, [engine.level, engine.running, anim]);
 
-    const controlsDisabled = !engine.running || engine.paused || engine.gameOver || engine.clearing || engine.settling;
+    const controlsDisabled = !engine.running || engine.paused || engine.gameOver || engine.settling;
     const boardPx = cellSize * BOARD_WIDTH;
+    const boardH = cellSize * BOARD_HEIGHT;
 
+    // ─── RAF: tick + Canvas 드로잉 ───
+    const tickRef = useRef(engine.tick);
+    const cellSizeRef = useRef(cellSize);
+    tickRef.current = engine.tick;
+    cellSizeRef.current = cellSize;
+
+    useEffect(() => {
+        let frameId = 0;
+        let lastTime = 0;
+
+        const loop = (time: number) => {
+            const dt = lastTime ? Math.min(time - lastTime, 100) : 16;
+            lastTime = time;
+
+            tickRef.current(dt);
+
+            const canvas = canvasRef.current;
+            const ctx = canvas?.getContext("2d");
+            if (ctx && canvas) {
+                const cs = cellSizeRef.current;
+                const gp = cs / GRAIN_SCALE;
+                const dpr = window.devicePixelRatio || 1;
+                const w = BOARD_WIDTH * cs;
+                const h = BOARD_HEIGHT * cs;
+
+                // Canvas 크기 동기화
+                if (canvas.width !== Math.round(w * dpr) || canvas.height !== Math.round(h * dpr)) {
+                    canvas.width = Math.round(w * dpr);
+                    canvas.height = Math.round(h * dpr);
+                    canvas.style.width = `${w}px`;
+                    canvas.style.height = `${h}px`;
+                    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+                }
+
+                const s = engine.gsRef.current;
+
+                // 배경 + 그리드
+                drawBackground(ctx, w, h, cs);
+                // 모래 알갱이
+                drawSandGrains(ctx, s.sandGrid, gp);
+                // 플래시 행
+                drawFlashRows(ctx, s.flashRows, gp);
+                // 고스트 피스
+                if (s.activePiece && s.running && !s.gameOver && !s.settling) {
+                    drawGhostPiece(ctx, s.activePiece.type, s.activePiece.rotation, s.activePiece.x, s.ghostY, cs);
+                }
+                // 활성 피스
+                if (s.activePiece && s.running && !s.gameOver) {
+                    drawActivePiece(ctx, s.activePiece.type, s.activePiece.rotation, s.activePiece.x, s.activePiece.y, cs);
+                }
+            }
+
+            frameId = requestAnimationFrame(loop);
+        };
+
+        frameId = requestAnimationFrame(loop);
+        return () => cancelAnimationFrame(frameId);
+    }, [engine.gsRef]);
+
+    // ─── 베벨 유틸 ───
     const bevel = (inset = false) => ({
         borderStyle: "solid" as const,
         borderWidth: "2px",
@@ -75,62 +232,7 @@ export default function TetrisGame() {
         borderRightColor: inset ? "#666670" : "#1a1a20",
     });
 
-    // Clear terrain cache when cell size changes
-    const prevCellSizeRef = useRef(cellSize);
-    useEffect(() => {
-        if (prevCellSizeRef.current !== cellSize) {
-            clearTerrainCache();
-            prevCellSizeRef.current = cellSize;
-        }
-    }, [cellSize]);
-
-    /** 활성 피스 블록 스타일 — 일반 테트리스 블록 (사각형, 베벨) */
-    const activeBlockStyle = (type: PieceType): React.CSSProperties => {
-        const terrain = PIECE_TERRAIN_MAP[type];
-        const borders = TERRAIN_BORDERS[terrain];
-        return {
-            width: cellSize, height: cellSize,
-            background: CELL_COLORS[type].face,
-            borderStyle: "solid",
-            borderWidth: "2px",
-            borderTopColor: borders.hi,
-            borderLeftColor: borders.hi,
-            borderBottomColor: borders.lo,
-            borderRightColor: borders.lo,
-            imageRendering: "pixelated",
-            boxShadow: `inset 0 0 ${Math.max(2, cellSize * 0.15)}px rgba(255,255,255,0.15)`,
-        };
-    };
-
-    /** 보드에 정착한 모래 알갱이 컨테이너 — Sandtris 느낌 */
-    const sandGrainStyle: React.CSSProperties = {
-        width: cellSize, height: cellSize,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        background: "transparent",
-    };
-
-    /** 모래 알갱이 내부 dot — 작은 원형 입자 */
-    const sandDotStyle = (type: PieceType, row: number, col: number): React.CSSProperties => {
-        const c = CELL_COLORS[type];
-        const seed = (row * 31 + col * 17) % 100;
-        const sizeRatio = 0.35 + (seed % 15) * 0.012; // 0.35~0.53 — 셀의 절반 이하
-        const grainSize = Math.max(3, Math.round(cellSize * sizeRatio));
-        const brightnessShift = -15 + (seed % 30);
-
-        return {
-            width: grainSize,
-            height: grainSize,
-            borderRadius: "50%",
-            background: c.face,
-            filter: `brightness(${1 + brightnessShift / 100})`,
-            boxShadow: `0 1px 1px ${c.lo}`,
-            imageRendering: "pixelated",
-        };
-    };
-
-
+    // ─── 미니 프리뷰 (NEXT / HOLD) ───
     const renderMiniPreview = (pieceType: PieceType | null) => {
         const sz = miniCellSize;
         return (
@@ -149,12 +251,8 @@ export default function TetrisGame() {
                 {Array.from({ length: 16 }).map((_, idx) => {
                     const x = idx % 4;
                     const y = Math.floor(idx / 4);
-                    const filled =
-                        pieceType !== null &&
-                        PIECES[pieceType][0].some(([dx, dy]) => dx === x && dy === y);
+                    const filled = pieceType !== null && PIECES[pieceType][0].some(([dx, dy]) => dx === x && dy === y);
                     if (filled && pieceType) {
-                        const terrain = PIECE_TERRAIN_MAP[pieceType];
-                        const borders = TERRAIN_BORDERS[terrain];
                         const c = CELL_COLORS[pieceType];
                         return (
                             <div
@@ -164,28 +262,23 @@ export default function TetrisGame() {
                                     background: c.face,
                                     borderStyle: "solid",
                                     borderWidth: "1px",
-                                    borderTopColor: borders.hi,
-                                    borderLeftColor: borders.hi,
-                                    borderBottomColor: borders.lo,
-                                    borderRightColor: borders.lo,
+                                    borderTopColor: c.hi,
+                                    borderLeftColor: c.hi,
+                                    borderBottomColor: c.lo,
+                                    borderRightColor: c.lo,
                                     imageRendering: "pixelated",
                                 }}
                                 aria-hidden="true"
                             />
                         );
                     }
-                    return (
-                        <div
-                            key={idx}
-                            style={{ width: sz, height: sz, background: "#111118" }}
-                            aria-hidden="true"
-                        />
-                    );
+                    return <div key={idx} style={{ width: sz, height: sz, background: "#111118" }} aria-hidden="true" />;
                 })}
             </div>
         );
     };
 
+    // ─── 보드 렌더 (Canvas + 오버레이) ───
     const shakeAnim = anim.shaking
         ? anim.hardDropDistance > 6
             ? "tetris-hard-shake 0.25s ease-out"
@@ -194,18 +287,8 @@ export default function TetrisGame() {
                 : "tetris-shake 0.18s ease-out"
         : undefined;
 
-    const ghostType = engine.activePiece.type;
-
     const renderBoard = () => (
-        <div
-            style={{
-                position: "relative",
-                alignSelf: "start",
-                width: "fit-content",
-                margin: "0 auto",
-                animation: shakeAnim,
-            }}
-        >
+        <div style={{ position: "relative", alignSelf: "start", width: "fit-content", margin: "0 auto", animation: shakeAnim }}>
             <div
                 style={{
                     padding: 4,
@@ -220,91 +303,24 @@ export default function TetrisGame() {
                 }}
             >
                 <div style={{ padding: 1, background: "#111115", ...bevel(true) }}>
-                    <div
+                    <canvas
+                        ref={canvasRef}
                         style={{
-                            display: "grid",
-                            gridTemplateColumns: `repeat(${BOARD_WIDTH}, ${cellSize}px)`,
-                            gap: 0,
+                            display: "block",
                             width: boardPx,
-                            background: "#0a0a0a",
+                            height: boardH,
+                            imageRendering: "pixelated",
                         }}
-                    >
-                        {engine.renderedBoard.flatMap((row, ri) =>
-                            row.map((cell, ci) => {
-                                const key = `${ri}-${ci}`;
-                                const isFlash = anim.flashRows.includes(ri);
-                                const isActivePiece = engine.activePieceCells.has(`${ri}-${ci}`);
-
-                                if (isFlash && cell) {
-                                    const distFromCenter = Math.abs(ci - (BOARD_WIDTH - 1) / 2);
-                                    const delay = distFromCenter * 40;
-                                    return (
-                                        <div
-                                            key={key}
-                                            style={{
-                                                width: cellSize, height: cellSize,
-                                                background: "#fff",
-                                                animation: `tetris-line-clear 0.5s ${delay}ms ease-out forwards`,
-                                            }}
-                                            aria-hidden="true"
-                                        />
-                                    );
-                                }
-
-                                // 활성 피스 — 일반 테트리스 블록
-                                if (cell && isActivePiece) {
-                                    return <div key={key} style={activeBlockStyle(cell)} aria-hidden="true" />;
-                                }
-
-                                // 보드에 정착한 셀 — 모래 알갱이
-                                if (cell && !isActivePiece) {
-                                    return (
-                                        <div key={key} style={sandGrainStyle} aria-hidden="true">
-                                            <div style={sandDotStyle(cell, ri, ci)} />
-                                        </div>
-                                    );
-                                }
-
-                                if (engine.ghostCells.has(key)) {
-                                    const gc = CELL_COLORS[ghostType];
-                                    return (
-                                        <div
-                                            key={key}
-                                            style={{
-                                                width: cellSize, height: cellSize,
-                                                background: "transparent",
-                                                boxSizing: "border-box",
-                                                border: `1px dashed ${gc.face}66`,
-                                            }}
-                                            aria-hidden="true"
-                                        />
-                                    );
-                                }
-
-                                return (
-                                    <div
-                                        key={key}
-                                        style={{
-                                            width: cellSize, height: cellSize,
-                                            background: "#0a0a0a",
-                                            borderRight: "1px solid #1a1a1a",
-                                            borderBottom: "1px solid #1a1a1a",
-                                        }}
-                                        aria-hidden="true"
-                                    />
-                                );
-                            }),
-                        )}
-                    </div>
+                    />
                 </div>
             </div>
 
+            {/* 임팩트 라인 */}
             {anim.impactRow !== null && (
                 <div
                     style={{
                         position: "absolute",
-                        left: 7,
-                        right: 7,
+                        left: 7, right: 7,
                         top: 7 + anim.impactRow * cellSize + cellSize / 2 - 1,
                         height: 2,
                         background: "linear-gradient(90deg, transparent, #fff, #ffe000, #fff, transparent)",
@@ -315,6 +331,7 @@ export default function TetrisGame() {
                 />
             )}
 
+            {/* 플로팅 텍스트 */}
             {anim.floatingTexts.map((ft) => {
                 const isCombo = ft.text.startsWith("COMBO");
                 const comboNum = isCombo ? parseInt(ft.text.replace(/\D/g, "")) || 2 : 0;
@@ -323,19 +340,14 @@ export default function TetrisGame() {
                         key={ft.id}
                         style={{
                             position: "absolute",
-                            left: "50%",
-                            top: "40%",
+                            left: "50%", top: "40%",
                             transform: "translateX(-50%)",
                             color: ft.color,
-                            fontSize: isCombo
-                                ? Math.max(16, cellSize * 0.8) + comboNum * 2
-                                : Math.max(14, cellSize * 0.7),
+                            fontSize: isCombo ? Math.max(16, cellSize * 0.8) + comboNum * 2 : Math.max(14, cellSize * 0.7),
                             fontWeight: 900,
                             letterSpacing: 2,
                             textShadow: "2px 2px 0 #000, -1px -1px 0 #000",
-                            animation: isCombo
-                                ? "tetris-combo-pulse 1.2s ease-out forwards"
-                                : "tetris-float-up 1s ease-out forwards",
+                            animation: isCombo ? "tetris-combo-pulse 1.2s ease-out forwards" : "tetris-float-up 1s ease-out forwards",
                             pointerEvents: "none",
                             zIndex: 8,
                             whiteSpace: "nowrap",
@@ -347,13 +359,12 @@ export default function TetrisGame() {
                 );
             })}
 
-            {/* Clear label (DOUBLE / TRIPLE / TETRIS!) */}
+            {/* 클리어 라벨 */}
             {anim.clearLabel && (
                 <div
                     style={{
                         position: "absolute",
-                        left: "50%",
-                        top: "30%",
+                        left: "50%", top: "30%",
                         transform: "translateX(-50%)",
                         color: anim.clearLabel === "TETRIS!" ? "var(--retro-game-warning)" : "var(--retro-game-text)",
                         fontSize: anim.clearLabel === "TETRIS!" ? Math.max(24, cellSize * 1.4) : Math.max(18, cellSize * 1),
@@ -375,12 +386,11 @@ export default function TetrisGame() {
                 </div>
             )}
 
-            {/* Screen flash for TETRIS clear */}
+            {/* 스크린 플래시 */}
             {anim.screenFlash && (
                 <div
                     style={{
-                        position: "absolute",
-                        inset: 0,
+                        position: "absolute", inset: 0,
                         background: "linear-gradient(180deg, rgba(255,255,255,0.7), rgba(255,224,0,0.4))",
                         animation: "game-screen-flash 150ms ease-out forwards",
                         pointerEvents: "none",
@@ -389,15 +399,12 @@ export default function TetrisGame() {
                 />
             )}
 
+            {/* PAUSE 오버레이 */}
             {engine.paused && engine.running && !engine.gameOver && (
                 <div
                     style={{
-                        position: "absolute",
-                        inset: 0,
-                        display: "flex",
-                        flexDirection: "column",
-                        alignItems: "center",
-                        justifyContent: "center",
+                        position: "absolute", inset: 0,
+                        display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
                         background: "rgba(0,0,0,0.82)",
                         animation: "tetris-fade-in 0.2s ease-out",
                         zIndex: 10,
@@ -416,29 +423,11 @@ export default function TetrisGame() {
                 </div>
             )}
 
+            {/* GAME OVER 오버레이 */}
             {engine.gameOver && (
                 <>
-                    <div
-                        style={{
-                            position: "absolute",
-                            inset: 0,
-                            background: "linear-gradient(180deg, rgba(0,0,0,0.9), rgba(20,0,0,0.85))",
-                            animation: "game-over-curtain 0.8s ease-out forwards",
-                            zIndex: 9,
-                        }}
-                    />
-                    <div
-                        style={{
-                            position: "absolute",
-                            inset: 0,
-                            display: "flex",
-                            flexDirection: "column",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            animation: "tetris-fade-in 0.5s 0.3s ease-out both",
-                            zIndex: 10,
-                        }}
-                    >
+                    <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg, rgba(0,0,0,0.9), rgba(20,0,0,0.85))", animation: "game-over-curtain 0.8s ease-out forwards", zIndex: 9 }} />
+                    <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", animation: "tetris-fade-in 0.5s 0.3s ease-out both", zIndex: 10 }}>
                         <p className="font-pixel" style={{ color: "#cc3333", fontSize: 16, letterSpacing: 4, textShadow: "0 0 20px rgba(255,51,51,0.5), 2px 2px 0 #000" }}>
                             GAME OVER
                         </p>
@@ -455,21 +444,11 @@ export default function TetrisGame() {
                 </>
             )}
 
+            {/* START 오버레이 */}
             {!engine.running && !engine.gameOver && (
-                <div
-                    style={{
-                        position: "absolute",
-                        inset: 0,
-                        display: "flex",
-                        flexDirection: "column",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        background: "rgba(0,0,0,0.88)",
-                        zIndex: 10,
-                    }}
-                >
+                <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.88)", zIndex: 10 }}>
                     <p className="font-pixel" style={{ color: "#44ccff", fontSize: 20, letterSpacing: 6, textShadow: "2px 2px 0 #000, 0 0 10px #2288aa", marginBottom: 6 }}>
-                        TETRIS
+                        SANDTRIS
                     </p>
                     <p className="font-pixel" style={{ color: "#666670", fontSize: 8, marginBottom: 14, animation: "tetris-blink 1.2s step-end infinite" }}>
                         PRESS START
@@ -485,32 +464,15 @@ export default function TetrisGame() {
         </div>
     );
 
+    // ─── 사이드 패널 ───
     const sp = Math.max(0.6, cellSize / 22);
     const spFont = (base: number) => Math.round(base * sp);
     const spPad = (base: number) => Math.round(base * sp);
 
     const renderStatRow = (label: string, value: number, pop = false) => (
-        <div
-            style={{
-                ...bevel(true),
-                background: "#1a1a22",
-                padding: `${spPad(4)}px ${spPad(8)}px`,
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-            }}
-        >
+        <div style={{ ...bevel(true), background: "#1a1a22", padding: `${spPad(4)}px ${spPad(8)}px`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <span className="font-pixel" style={{ color: "#888890", fontSize: spFont(8), textTransform: "uppercase", letterSpacing: 1 }}>{label}</span>
-            <span
-                style={{
-                    color: "#e0d080",
-                    fontSize: spFont(16),
-                    fontWeight: 900,
-                    fontVariantNumeric: "tabular-nums",
-                    fontFamily: "monospace",
-                    animation: pop && anim.scorePop ? "tetris-score-pop 0.3s ease-out" : undefined,
-                }}
-            >
+            <span style={{ color: "#e0d080", fontSize: spFont(16), fontWeight: 900, fontVariantNumeric: "tabular-nums", fontFamily: "monospace", animation: pop && anim.scorePop ? "tetris-score-pop 0.3s ease-out" : undefined }}>
                 {value.toLocaleString()}
             </span>
         </div>
@@ -523,9 +485,7 @@ export default function TetrisGame() {
         return (
             <div style={{ display: "flex", flexDirection: "column", gap, maxHeight: boardTotalH, overflow: "hidden" }}>
                 <div style={{ ...bevel(), background: "#2a2a30", padding: spPad(5) }}>
-                    <p className="font-pixel" style={{ fontSize: spFont(8), letterSpacing: 2, textTransform: "uppercase", color: "#888890", textAlign: "center", marginBottom: spPad(3) }}>
-                        NEXT
-                    </p>
+                    <p className="font-pixel" style={{ fontSize: spFont(8), letterSpacing: 2, textTransform: "uppercase", color: "#888890", textAlign: "center", marginBottom: spPad(3) }}>NEXT</p>
                     {renderMiniPreview(engine.nextPieceType)}
                 </div>
 
@@ -534,9 +494,7 @@ export default function TetrisGame() {
                         <p className="font-pixel" style={{ fontSize: spFont(8), letterSpacing: 2, textTransform: "uppercase", color: "#888890" }}>
                             HOLD <span style={{ fontSize: spFont(6), color: "#666670" }}>[C]</span>
                         </p>
-                        {engine.holdUsedThisTurn && (
-                            <span style={{ fontSize: spFont(8), color: "#cc3333", fontWeight: 700 }}>LOCK</span>
-                        )}
+                        {engine.holdUsedThisTurn && <span style={{ fontSize: spFont(8), color: "#cc3333", fontWeight: 700 }}>LOCK</span>}
                     </div>
                     {renderMiniPreview(engine.heldPieceType)}
                 </div>
@@ -551,67 +509,29 @@ export default function TetrisGame() {
                 </div>
 
                 {engine.combo >= 2 && (
-                    <div style={{
-                        ...bevel(),
-                        background: "#1a1a22",
-                        padding: `${spPad(4)}px ${spPad(8)}px`,
-                        textAlign: "center",
-                    }}>
-                        <span style={{
-                            color: "#44ccff",
-                            fontSize: spFont(14),
-                            fontWeight: 900,
-                            letterSpacing: 2,
-                            textShadow: "0 0 6px #2288aa",
-                            fontFamily: "monospace",
-                        }}>
+                    <div style={{ ...bevel(), background: "#1a1a22", padding: `${spPad(4)}px ${spPad(8)}px`, textAlign: "center" }}>
+                        <span style={{ color: "#44ccff", fontSize: spFont(14), fontWeight: 900, letterSpacing: 2, textShadow: "0 0 6px #2288aa", fontFamily: "monospace" }}>
                             COMBO x{engine.combo}
                         </span>
                     </div>
                 )}
 
                 {!isMobile && (
-                    <div
-                        style={{
-                            ...bevel(),
-                            background: "#2a2a30",
-                            padding: 0,
-                        }}
-                    >
-                        <div
-                            style={{
-                                background: "#1a1a22",
-                                ...bevel(true),
-                                padding: `${spPad(4)}px ${spPad(6)}px`,
-                            }}
-                        >
+                    <div style={{ ...bevel(), background: "#2a2a30", padding: 0 }}>
+                        <div style={{ background: "#1a1a22", ...bevel(true), padding: `${spPad(4)}px ${spPad(6)}px` }}>
                             <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: `${spPad(1)}px ${spPad(6)}px`, alignItems: "center" }}>
-                                {[
-                                    ["← →", "이동"],
-                                    ["↑ ↓", "회전/내리기"],
-                                    ["SPC", "드롭"],
-                                    ["C/P", "홀드/정지"],
-                                ].map(([k, v]) => (
+                                {[["← →", "이동"], ["↑ ↓", "회전/내리기"], ["SPC", "드롭"], ["C/P", "홀드/정지"]].map(([k, v]) => (
                                     <React.Fragment key={k}>
-                                        <span style={{ color: "#aabb88", fontSize: spFont(10), fontWeight: 900, fontFamily: "monospace", textAlign: "right", textShadow: "0 0 4px #446622", lineHeight: 1.3 }}>
-                                            {k}
-                                        </span>
-                                        <span style={{ color: "#888890", fontSize: spFont(9), fontFamily: "monospace", lineHeight: 1.3, opacity: 0.6 }}>
-                                            {v}
-                                        </span>
+                                        <span style={{ color: "#aabb88", fontSize: spFont(10), fontWeight: 900, fontFamily: "monospace", textAlign: "right", textShadow: "0 0 4px #446622", lineHeight: 1.3 }}>{k}</span>
+                                        <span style={{ color: "#888890", fontSize: spFont(9), fontFamily: "monospace", lineHeight: 1.3, opacity: 0.6 }}>{v}</span>
                                     </React.Fragment>
                                 ))}
                             </div>
                             <button
                                 onClick={() => useTypingStore.getState().toggleFx()}
                                 style={{
-                                    width: "100%",
-                                    marginTop: spPad(4),
-                                    height: spPad(18),
-                                    fontSize: spFont(9),
-                                    fontWeight: 700,
-                                    letterSpacing: 2,
-                                    fontFamily: "monospace",
+                                    width: "100%", marginTop: spPad(4), height: spPad(18),
+                                    fontSize: spFont(9), fontWeight: 700, letterSpacing: 2, fontFamily: "monospace",
                                     ...bevel(animEnabled),
                                     background: animEnabled ? "#1a2a1a" : "#2a2a30",
                                     color: animEnabled ? "#aabb88" : "#666670",
@@ -630,12 +550,8 @@ export default function TetrisGame() {
                         <button
                             onClick={() => useTypingStore.getState().toggleFx()}
                             style={{
-                                width: "100%",
-                                height: spPad(20),
-                                fontSize: spFont(9),
-                                fontWeight: 700,
-                                letterSpacing: 2,
-                                fontFamily: "monospace",
+                                width: "100%", height: spPad(20),
+                                fontSize: spFont(9), fontWeight: 700, letterSpacing: 2, fontFamily: "monospace",
                                 ...bevel(animEnabled),
                                 background: animEnabled ? "#1a2a1a" : "#2a2a30",
                                 color: animEnabled ? "#aabb88" : "#666670",
@@ -651,17 +567,15 @@ export default function TetrisGame() {
         );
     };
 
+    // ─── 모바일 컨트롤 패드 ───
     const renderControlPad = () => {
         const btnH = 44;
         const dpadStyle = (disabled: boolean): React.CSSProperties => ({
-            height: btnH,
-            fontSize: 20,
-            fontWeight: 900,
+            height: btnH, fontSize: 20, fontWeight: 900,
             cursor: disabled ? "not-allowed" : "pointer",
             background: disabled ? "#1a1a20" : "#2a2a30",
             color: disabled ? "#444448" : "#ccccdd",
-            borderStyle: "solid",
-            borderWidth: "3px",
+            borderStyle: "solid", borderWidth: "3px",
             borderTopColor: disabled ? "#222228" : "#666670",
             borderLeftColor: disabled ? "#222228" : "#666670",
             borderBottomColor: disabled ? "#111115" : "#1a1a20",
@@ -682,19 +596,14 @@ export default function TetrisGame() {
                         onClick={engine.holdPiece}
                         disabled={controlsDisabled || engine.holdUsedThisTurn}
                         style={{
-                            height: btnH,
-                            fontSize: 12,
-                            fontWeight: 900,
-                            letterSpacing: 1,
+                            height: btnH, fontSize: 12, fontWeight: 900, letterSpacing: 1,
                             cursor: (controlsDisabled || engine.holdUsedThisTurn) ? "not-allowed" : "pointer",
                             background: (controlsDisabled || engine.holdUsedThisTurn) ? "#1a1a20" : "#334433",
                             color: (controlsDisabled || engine.holdUsedThisTurn) ? "#444448" : "#ccccdd",
-                            borderStyle: "solid",
-                            borderWidth: "3px",
+                            borderStyle: "solid", borderWidth: "3px",
                             borderTopColor: (controlsDisabled || engine.holdUsedThisTurn) ? "#222228" : "#666670",
                             borderLeftColor: (controlsDisabled || engine.holdUsedThisTurn) ? "#222228" : "#666670",
-                            borderBottomColor: "#1a1a20",
-                            borderRightColor: "#1a1a20",
+                            borderBottomColor: "#1a1a20", borderRightColor: "#1a1a20",
                         }}
                     >
                         HOLD
@@ -703,19 +612,14 @@ export default function TetrisGame() {
                         onClick={engine.hardDrop}
                         disabled={controlsDisabled}
                         style={{
-                            height: btnH,
-                            fontSize: 13,
-                            fontWeight: 900,
-                            letterSpacing: 3,
+                            height: btnH, fontSize: 13, fontWeight: 900, letterSpacing: 3,
                             cursor: controlsDisabled ? "not-allowed" : "pointer",
                             background: controlsDisabled ? "#1a1a20" : "#882222",
                             color: controlsDisabled ? "#444448" : "#ccccdd",
-                            borderStyle: "solid",
-                            borderWidth: "3px",
+                            borderStyle: "solid", borderWidth: "3px",
                             borderTopColor: controlsDisabled ? "#222228" : "#aa4444",
                             borderLeftColor: controlsDisabled ? "#222228" : "#aa4444",
-                            borderBottomColor: "#1a1a20",
-                            borderRightColor: "#1a1a20",
+                            borderBottomColor: "#1a1a20", borderRightColor: "#1a1a20",
                         }}
                     >
                         DROP
@@ -724,18 +628,14 @@ export default function TetrisGame() {
                         onClick={() => { if (engine.running && !engine.gameOver) engine.setPaused((v) => !v); }}
                         disabled={!engine.running || engine.gameOver}
                         style={{
-                            height: btnH,
-                            fontSize: 14,
-                            fontWeight: 900,
+                            height: btnH, fontSize: 14, fontWeight: 900,
                             cursor: (!engine.running || engine.gameOver) ? "not-allowed" : "pointer",
                             background: (!engine.running || engine.gameOver) ? "#1a1a20" : engine.paused ? "#886622" : "#2a2a30",
                             color: (!engine.running || engine.gameOver) ? "#444448" : "#ccccdd",
-                            borderStyle: "solid",
-                            borderWidth: "3px",
+                            borderStyle: "solid", borderWidth: "3px",
                             borderTopColor: (!engine.running || engine.gameOver) ? "#222228" : "#666670",
                             borderLeftColor: (!engine.running || engine.gameOver) ? "#222228" : "#666670",
-                            borderBottomColor: "#1a1a20",
-                            borderRightColor: "#1a1a20",
+                            borderBottomColor: "#1a1a20", borderRightColor: "#1a1a20",
                         }}
                     >
                         {engine.paused ? "▶" : "⏸"}
@@ -754,28 +654,14 @@ export default function TetrisGame() {
             <div className="mx-auto w-fit max-w-full min-h-0 flex-1">
                 {isMobile ? (
                     <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                        <div
-                            style={{
-                                display: "grid",
-                                gridTemplateColumns: `${boardPx + 14}px ${sidePanelWidth}px`,
-                                alignItems: "start",
-                                gap: 8,
-                            }}
-                        >
+                        <div style={{ display: "grid", gridTemplateColumns: `${boardPx + 14}px ${sidePanelWidth}px`, alignItems: "start", gap: 8 }}>
                             {renderBoard()}
                             {renderSidePanel()}
                         </div>
                         {renderControlPad()}
                     </div>
                 ) : (
-                    <div
-                        style={{
-                            display: "grid",
-                            gridTemplateColumns: `${boardPx + 14}px ${sidePanelWidth}px`,
-                            alignItems: "start",
-                            gap: 12,
-                        }}
-                    >
+                    <div style={{ display: "grid", gridTemplateColumns: `${boardPx + 14}px ${sidePanelWidth}px`, alignItems: "start", gap: 12 }}>
                         {renderBoard()}
                         {renderSidePanel()}
                     </div>

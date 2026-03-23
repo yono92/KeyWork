@@ -1,6 +1,19 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from "react";
+import {
+    type PieceType,
+    type SandGrid,
+    GRAIN_SCALE,
+    SAND_COLS,
+    createSandGrid,
+    isCellBlocked,
+    stampCell,
+    simulateStep,
+    findFullRows,
+    removeRows,
+    sandGridToCellBoard,
+} from "../lib/sandPhysics";
 
-export type PieceType = "I" | "O" | "T" | "S" | "Z" | "J" | "L";
+export type { PieceType };
 export type Cell = PieceType | null;
 
 export interface ActivePiece {
@@ -14,8 +27,6 @@ export const BOARD_WIDTH = 10;
 export const BOARD_HEIGHT = 20;
 
 const PIECE_TYPES: readonly PieceType[] = ["I", "O", "T", "S", "Z", "J", "L"];
-const INITIAL_ACTIVE_TYPE: PieceType = "T";
-const INITIAL_NEXT_TYPE: PieceType = "I";
 
 export const PIECES: Record<PieceType, readonly (readonly [number, number][])[]> = {
     I: [
@@ -63,17 +74,17 @@ export const PIECES: Record<PieceType, readonly (readonly [number, number][])[]>
 };
 
 export const CELL_COLORS: Record<PieceType, { face: string; hi: string; lo: string }> = {
-    I: { face: "#2288ee", hi: "#4499ee", lo: "#0a3366" },    // Water
-    O: { face: "#c4a030", hi: "#ddcc55", lo: "#665510" },    // Sand
-    T: { face: "#8844bb", hi: "#aa66dd", lo: "#331166" },    // Mountain
-    S: { face: "#1a7a2e", hi: "#44bb55", lo: "#0a3312" },    // Forest
-    Z: { face: "#cc2222", hi: "#ee5555", lo: "#550808" },    // Lava
-    J: { face: "#1144aa", hi: "#3366cc", lo: "#061a44" },    // Ocean
-    L: { face: "#cc6622", hi: "#ee8844", lo: "#552200" },    // Clay
+    I: { face: "#2288ee", hi: "#4499ee", lo: "#0a3366" },
+    O: { face: "#c4a030", hi: "#ddcc55", lo: "#665510" },
+    T: { face: "#8844bb", hi: "#aa66dd", lo: "#331166" },
+    S: { face: "#1a7a2e", hi: "#44bb55", lo: "#0a3312" },
+    Z: { face: "#cc2222", hi: "#ee5555", lo: "#550808" },
+    J: { face: "#1144aa", hi: "#3366cc", lo: "#061a44" },
+    L: { face: "#cc6622", hi: "#ee8844", lo: "#552200" },
 };
 
-const makeEmptyBoard = (): Cell[][] =>
-    Array.from({ length: BOARD_HEIGHT }, () => Array<Cell>(BOARD_WIDTH).fill(null));
+// re-export for sandPhysics consumers
+export { GRAIN_SCALE, SAND_COLS, SAND_ROWS } from "../lib/sandPhysics";
 
 const randomPieceType = (): PieceType =>
     PIECE_TYPES[Math.floor(Math.random() * PIECE_TYPES.length)];
@@ -85,8 +96,9 @@ const createActivePiece = (type: PieceType): ActivePiece => ({
     y: 0,
 });
 
-const canPlace = (
-    board: Cell[][],
+/** 피스가 모래 그리드 위에 놓일 수 있는지 확인 */
+const canPlaceSand = (
+    grid: SandGrid,
     piece: ActivePiece,
     moveX = 0,
     moveY = 0,
@@ -97,94 +109,9 @@ const canPlace = (
         const x = piece.x + dx + moveX;
         const y = piece.y + dy + moveY;
         if (x < 0 || x >= BOARD_WIDTH || y >= BOARD_HEIGHT) return false;
-        if (y >= 0 && board[y][x] !== null) return false;
-        return true;
+        if (y < 0) return true;
+        return !isCellBlocked(grid, x, y);
     });
-};
-
-const mergePiece = (board: Cell[][], piece: ActivePiece): Cell[][] => {
-    const merged = board.map((row) => [...row]);
-    for (const [dx, dy] of PIECES[piece.type][piece.rotation]) {
-        const x = piece.x + dx;
-        const y = piece.y + dy;
-        if (y >= 0 && y < BOARD_HEIGHT && x >= 0 && x < BOARD_WIDTH) {
-            merged[y][x] = piece.type;
-        }
-    }
-    return merged;
-};
-
-/**
- * 모래 물리: 입자들이 아래로 떨어지고, 대각선으로 미끄러짐.
- * 한 스텝을 실행하고, 변화가 있었는지 반환.
- */
-const sandSettleStep = (board: Cell[][]): { changed: boolean; board: Cell[][] } => {
-    const next = board.map((row) => [...row]);
-    let changed = false;
-
-    // 아래에서 위로 순회 (바닥부터 정착)
-    for (let y = BOARD_HEIGHT - 2; y >= 0; y--) {
-        for (let x = 0; x < BOARD_WIDTH; x++) {
-            const cell = next[y][x];
-            if (cell === null) continue;
-
-            // 1. 바로 아래가 비었으면 떨어짐
-            if (next[y + 1][x] === null) {
-                next[y + 1][x] = cell;
-                next[y][x] = null;
-                changed = true;
-                continue;
-            }
-
-            // 2. 아래가 차있으면 좌하/우하 중 빈 곳으로 미끄러짐
-            const canLeft = x > 0 && next[y + 1][x - 1] === null && next[y][x - 1] === null;
-            const canRight = x < BOARD_WIDTH - 1 && next[y + 1][x + 1] === null && next[y][x + 1] === null;
-
-            if (canLeft && canRight) {
-                // 랜덤으로 한 방향 선택
-                const goLeft = Math.random() < 0.5;
-                const nx = goLeft ? x - 1 : x + 1;
-                next[y + 1][nx] = cell;
-                next[y][x] = null;
-                changed = true;
-            } else if (canLeft) {
-                next[y + 1][x - 1] = cell;
-                next[y][x] = null;
-                changed = true;
-            } else if (canRight) {
-                next[y + 1][x + 1] = cell;
-                next[y][x] = null;
-                changed = true;
-            }
-        }
-    }
-
-    return { changed, board: next };
-};
-
-/**
- * 모래 물리 시뮬레이션을 안정될 때까지 실행.
- * 최대 maxSteps 스텝까지만 실행 (무한루프 방지).
- */
-export const sandSettleFull = (board: Cell[][], maxSteps = 200): Cell[][] => {
-    let current = board;
-    for (let i = 0; i < maxSteps; i++) {
-        const result = sandSettleStep(current);
-        if (!result.changed) break;
-        current = result.board;
-    }
-    return current;
-};
-
-const clearFullLines = (board: Cell[][]): { nextBoard: Cell[][]; removed: number; clearedRows: number[] } => {
-    const clearedRows: number[] = [];
-    board.forEach((row, idx) => {
-        if (row.every((cell) => cell !== null)) clearedRows.push(idx);
-    });
-    const remaining = board.filter((row) => row.some((cell) => cell === null));
-    const removed = BOARD_HEIGHT - remaining.length;
-    const filler = Array.from({ length: removed }, () => Array<Cell>(BOARD_WIDTH).fill(null));
-    return { nextBoard: [...filler, ...remaining], removed, clearedRows };
 };
 
 const getLineScore = (removed: number, level: number): number => {
@@ -195,11 +122,33 @@ const getLineScore = (removed: number, level: number): number => {
     return 800 * level;
 };
 
-/** 라인 클리어 애니메이션 지속 시간 (ms) — flash 후 보드 갱신 */
-const LINE_CLEAR_DELAY = 500;
+// ─── 게임 상태 (Ref) ───
 
-/** 모래 정착 애니메이션 간격 (ms) */
-const SAND_SETTLE_INTERVAL = 30;
+interface GameState {
+    sandGrid: SandGrid;
+    activePiece: ActivePiece | null;
+    ghostY: number;
+    nextType: PieceType;
+    heldType: PieceType | null;
+    holdUsed: boolean;
+    score: number;
+    lines: number;
+    combo: number;
+    running: boolean;
+    paused: boolean;
+    gameOver: boolean;
+    settling: boolean;
+    gravityAcc: number;
+    stepToggle: boolean;
+    // 라인 클리어 플래시
+    flashRows: number[];
+    flashTimer: number;
+    phaseClears: number;
+    totalSandRows: number;
+}
+
+const FLASH_FRAMES = 12;
+const STEPS_PER_FRAME = 3;
 
 export interface TetrisCallbacks {
     onLinesCleared: (rows: number[], removed: number, totalGain: number, combo: number) => void;
@@ -207,382 +156,378 @@ export interface TetrisCallbacks {
     onGameOver: () => void;
 }
 
-/**
- * Tetris 핵심 게임 엔진 — 모래 물리 + 보드, 피스, 충돌, 점수, 콤보, gravity, 키보드 입력
- */
 export function useTetrisEngine(callbacks: TetrisCallbacks, isMobile: boolean) {
-    const [board, setBoard] = useState<Cell[][]>(() => makeEmptyBoard());
-    const [activePiece, setActivePiece] = useState<ActivePiece>(() => createActivePiece(INITIAL_ACTIVE_TYPE));
-    const [nextPieceType, setNextPieceType] = useState<PieceType>(INITIAL_NEXT_TYPE);
-    const [heldPieceType, setHeldPieceType] = useState<PieceType | null>(null);
-    const [holdUsedThisTurn, setHoldUsedThisTurn] = useState(false);
-    const [score, setScore] = useState(0);
-    const [lines, setLines] = useState(0);
-    const [running, setRunning] = useState(false);
-    const [paused, setPaused] = useState(false);
-    const [gameOver, setGameOver] = useState(false);
-    const [combo, setCombo] = useState(0);
-    const [clearing, setClearing] = useState(false);
-    const [settling, setSettling] = useState(false);
-
     const callbacksRef = useRef(callbacks);
     callbacksRef.current = callbacks;
-    const clearTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const settleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const softDropRef = useRef<() => void>(() => {});
+
+    // ─── Ref 기반 게임 상태 ───
+    const gs = useRef<GameState>({
+        sandGrid: createSandGrid(),
+        activePiece: null,
+        ghostY: 0,
+        nextType: randomPieceType(),
+        heldType: null,
+        holdUsed: false,
+        score: 0,
+        lines: 0,
+        combo: 0,
+        running: false,
+        paused: false,
+        gameOver: false,
+        settling: false,
+        gravityAcc: 0,
+        stepToggle: false,
+        flashRows: [],
+        flashTimer: 0,
+        phaseClears: 0,
+        totalSandRows: 0,
+    });
+
+    // ─── UI용 React state ───
+    const [score, setScore] = useState(0);
+    const [lines, setLines] = useState(0);
+    const [combo, setCombo] = useState(0);
+    const [running, setRunning] = useState(false);
+    const [paused, setPausedState] = useState(false);
+    const [gameOver, setGameOver] = useState(false);
+    const [nextPieceType, setNextPieceType] = useState<PieceType>(gs.current.nextType);
+    const [heldPieceType, setHeldPieceType] = useState<PieceType | null>(null);
+    const [holdUsedThisTurn, setHoldUsedThisTurn] = useState(false);
+    const [boardVersion, setBoardVersion] = useState(0);
 
     const level = Math.min(10, Math.floor(lines / 10) + 1);
     const dropIntervalMs = isMobile
         ? Math.max(100, 460 - (level - 1) * 50)
         : Math.max(140, 620 - (level - 1) * 45);
+    const dropIntervalRef = useRef(dropIntervalMs);
+    const levelRef = useRef(level);
+    useEffect(() => { dropIntervalRef.current = dropIntervalMs; }, [dropIntervalMs]);
+    useEffect(() => { levelRef.current = level; }, [level]);
 
-    const resetGame = useCallback(() => {
-        if (clearTimerRef.current) clearTimeout(clearTimerRef.current);
-        if (settleTimerRef.current) clearTimeout(settleTimerRef.current);
-        const firstType = randomPieceType();
-        setBoard(makeEmptyBoard());
-        setActivePiece(createActivePiece(firstType));
-        setNextPieceType(randomPieceType());
-        setHeldPieceType(null);
-        setHoldUsedThisTurn(false);
-        setScore(0);
-        setLines(0);
-        setGameOver(false);
-        setPaused(false);
-        setRunning(true);
-        setCombo(0);
-        setClearing(false);
-        setSettling(false);
+    const syncUI = useCallback(() => {
+        const s = gs.current;
+        setScore(s.score);
+        setLines(s.lines);
+        setCombo(s.combo);
+        setRunning(s.running);
+        setPausedState(s.paused);
+        setGameOver(s.gameOver);
+        setNextPieceType(s.nextType);
+        setHeldPieceType(s.heldType);
+        setHoldUsedThisTurn(s.holdUsed);
+        setBoardVersion((v) => v + 1);
     }, []);
 
-    const spawnFromQueue = useCallback(
-        (baseBoard: Cell[][]) => {
-            const spawned = createActivePiece(nextPieceType);
-            const queued = randomPieceType();
-            setNextPieceType(queued);
-            if (!canPlace(baseBoard, spawned)) {
-                setGameOver(true);
-                setRunning(false);
-                setPaused(false);
-                callbacksRef.current.onGameOver();
-                return;
-            }
-            setActivePiece(spawned);
-            setHoldUsedThisTurn(false);
-        },
-        [nextPieceType],
-    );
-
-    /**
-     * 모래 정착 시뮬레이션을 애니메이션으로 실행.
-     * 각 스텝마다 보드를 업데이트해서 모래가 흘러내리는 걸 보여줌.
-     * 완료 후 라인 클리어 체크.
-     */
-    const runSandSettle = useCallback((startBoard: Cell[][], afterSettle: (finalBoard: Cell[][]) => void) => {
-        setSettling(true);
-        let current = startBoard;
-        let stepCount = 0;
-
-        const doStep = () => {
-            const result = sandSettleStep(current);
-            stepCount++;
-            if (result.changed && stepCount < 200) {
-                current = result.board;
-                setBoard(current);
-                settleTimerRef.current = setTimeout(doStep, SAND_SETTLE_INTERVAL);
-            } else {
-                setSettling(false);
-                afterSettle(current);
-            }
-        };
-
-        // 첫 스텝은 즉시 실행
-        doStep();
+    const computeGhost = useCallback(() => {
+        const s = gs.current;
+        if (!s.activePiece) { s.ghostY = 0; return; }
+        let gy = 0;
+        while (canPlaceSand(s.sandGrid, s.activePiece, 0, gy + 1)) gy++;
+        s.ghostY = s.activePiece.y + gy;
     }, []);
 
-    const finishLock = useCallback((merged: Cell[][], comboVal: number, lvl: number, spawnFn: (b: Cell[][]) => void) => {
-        // 모래 정착 후 라인 클리어 처리
-        runSandSettle(merged, (settledBoard) => {
-            const { nextBoard, removed, clearedRows } = clearFullLines(settledBoard);
+    const spawnPiece = useCallback(() => {
+        const s = gs.current;
+        const newPiece = createActivePiece(s.nextType);
+        if (!canPlaceSand(s.sandGrid, newPiece)) {
+            s.gameOver = true;
+            s.running = false;
+            s.paused = false;
+            s.activePiece = null;
+            callbacksRef.current.onGameOver();
+            syncUI();
+            return;
+        }
+        s.activePiece = newPiece;
+        s.nextType = randomPieceType();
+        s.holdUsed = false;
+        s.gravityAcc = 0;
+        computeGhost();
+        syncUI();
+    }, [computeGhost, syncUI]);
 
-            if (removed > 0) {
-                const newCombo = comboVal + 1;
-                setCombo(newCombo);
-                const lineScore = getLineScore(removed, lvl);
-                const comboBonus = newCombo >= 1 ? 50 * newCombo * lvl : 0;
-                const totalGain = lineScore + comboBonus;
-                setLines((prev) => prev + removed);
-                setScore((prev) => prev + totalGain);
+    const finishSettling = useCallback(() => {
+        const s = gs.current;
+        s.settling = false;
+        const clearedSandRows = s.phaseClears;
+        s.totalSandRows += clearedSandRows;
+        const newTetrisLines = Math.floor(s.totalSandRows / GRAIN_SCALE);
+        const linesThisPhase = newTetrisLines - s.lines;
 
-                // Phase 1: 플래시 애니메이션
-                setBoard(settledBoard);
-                setClearing(true);
-                setActivePiece((prev) => ({ ...prev, y: -10 }));
-                callbacksRef.current.onLinesCleared(clearedRows, removed, totalGain, newCombo);
+        if (linesThisPhase > 0) {
+            s.combo += 1;
+            s.lines = newTetrisLines;
+            const lineScore = getLineScore(linesThisPhase, levelRef.current);
+            const comboBonus = s.combo >= 1 ? 50 * s.combo * levelRef.current : 0;
+            const totalGain = lineScore + comboBonus;
+            s.score += totalGain;
+            callbacksRef.current.onLinesCleared([], linesThisPhase, totalGain, s.combo);
+        } else {
+            s.combo = 0;
+        }
 
-                // Phase 2: 행 제거 후 다시 모래 정착
-                clearTimerRef.current = setTimeout(() => {
-                    setClearing(false);
-                    // 라인 클리어 후 또 모래가 흘러내림
-                    runSandSettle(nextBoard, (finalBoard) => {
-                        setBoard(finalBoard);
-                        // 추가 라인 클리어 체크 (연쇄 클리어)
-                        const chain = clearFullLines(finalBoard);
-                        if (chain.removed > 0) {
-                            const chainCombo = newCombo + 1;
-                            setCombo(chainCombo);
-                            const chainScore = getLineScore(chain.removed, lvl);
-                            const chainBonus = chainCombo >= 1 ? 50 * chainCombo * lvl : 0;
-                            const chainTotal = chainScore + chainBonus;
-                            setLines((prev) => prev + chain.removed);
-                            setScore((prev) => prev + chainTotal);
-                            callbacksRef.current.onLinesCleared(chain.clearedRows, chain.removed, chainTotal, chainCombo);
-                            setBoard(chain.nextBoard);
-                            // 한 번 더 모래 정착
-                            runSandSettle(chain.nextBoard, (finalBoard2) => {
-                                setBoard(finalBoard2);
-                                spawnFn(finalBoard2);
-                            });
-                        } else {
-                            spawnFn(finalBoard);
-                        }
-                    });
-                }, LINE_CLEAR_DELAY);
-            } else {
-                setCombo(0);
-                setBoard(settledBoard);
-                spawnFn(settledBoard);
-            }
-        });
-    }, [runSandSettle]);
+        s.phaseClears = 0;
+        spawnPiece();
+    }, [spawnPiece]);
 
     const lockPiece = useCallback(() => {
-        const merged = mergePiece(board, activePiece);
-        // 활성 피스를 화면 밖으로
-        setActivePiece((prev) => ({ ...prev, y: -10 }));
-        setBoard(merged);
-        finishLock(merged, combo, level, spawnFromQueue);
-    }, [activePiece, board, combo, finishLock, level, spawnFromQueue]);
+        const s = gs.current;
+        if (!s.activePiece) return;
+        const piece = s.activePiece;
+        for (const [dx, dy] of PIECES[piece.type][piece.rotation]) {
+            stampCell(s.sandGrid, piece.x + dx, piece.y + dy, piece.type);
+        }
+        s.activePiece = null;
+        s.settling = true;
+        s.phaseClears = 0;
+        s.gravityAcc = 0;
+    }, []);
 
-    const moveHorizontal = useCallback(
-        (deltaX: number) => {
-            if (!running || paused || gameOver || clearing || settling) return;
-            if (!canPlace(board, activePiece, deltaX, 0)) return;
-            setActivePiece((prev) => ({ ...prev, x: prev.x + deltaX }));
-        },
-        [activePiece, board, clearing, gameOver, paused, running, settling],
-    );
+    // ─── tick ───
+    const tick = useCallback((dt: number) => {
+        const s = gs.current;
+        if (!s.running || s.paused || s.gameOver) return;
+
+        // 플래시 처리
+        if (s.flashRows.length > 0) {
+            s.flashTimer--;
+            if (s.flashTimer <= 0) {
+                removeRows(s.sandGrid, s.flashRows);
+                s.phaseClears += s.flashRows.length;
+                s.flashRows = [];
+            }
+            return;
+        }
+
+        // 모래 물리
+        let anyMoved = false;
+        for (let i = 0; i < STEPS_PER_FRAME; i++) {
+            if (simulateStep(s.sandGrid, s.stepToggle)) anyMoved = true;
+            s.stepToggle = !s.stepToggle;
+        }
+
+        // 가득 찬 행 → 플래시
+        const fullRows = findFullRows(s.sandGrid);
+        if (fullRows.length > 0) {
+            s.flashRows = fullRows;
+            s.flashTimer = FLASH_FRAMES;
+            return;
+        }
+
+        // 정착 완료
+        if (s.settling && !anyMoved) {
+            finishSettling();
+            return;
+        }
+
+        // 중력
+        if (!s.settling && s.activePiece) {
+            s.gravityAcc += dt;
+            while (s.gravityAcc >= dropIntervalRef.current) {
+                s.gravityAcc -= dropIntervalRef.current;
+                if (canPlaceSand(s.sandGrid, s.activePiece, 0, 1)) {
+                    s.activePiece = { ...s.activePiece, y: s.activePiece.y + 1 };
+                } else {
+                    lockPiece();
+                    return;
+                }
+            }
+            computeGhost();
+        }
+    }, [computeGhost, finishSettling, lockPiece]);
+
+    // ─── 액션 ───
+    const moveHorizontal = useCallback((deltaX: number) => {
+        const s = gs.current;
+        if (!s.running || s.paused || s.gameOver || s.settling || !s.activePiece) return;
+        if (!canPlaceSand(s.sandGrid, s.activePiece, deltaX, 0)) return;
+        s.activePiece = { ...s.activePiece, x: s.activePiece.x + deltaX };
+        computeGhost();
+    }, [computeGhost]);
 
     const rotatePiece = useCallback(() => {
-        if (!running || paused || gameOver || clearing || settling) return;
-        const nextRotation = (activePiece.rotation + 1) % PIECES[activePiece.type].length;
+        const s = gs.current;
+        if (!s.running || s.paused || s.gameOver || s.settling || !s.activePiece) return;
+        const nextRot = (s.activePiece.rotation + 1) % PIECES[s.activePiece.type].length;
         const kicks = [0, -1, 1, -2, 2];
-        const kickX = kicks.find((offset) => canPlace(board, activePiece, offset, 0, nextRotation));
+        const kickX = kicks.find((offset) => canPlaceSand(s.sandGrid, s.activePiece!, offset, 0, nextRot));
         if (kickX === undefined) return;
-
-        setActivePiece((prev) => ({
-            ...prev,
-            x: prev.x + kickX,
-            rotation: nextRotation,
-        }));
-    }, [activePiece, board, clearing, gameOver, paused, running, settling]);
+        s.activePiece = { ...s.activePiece, x: s.activePiece.x + kickX, rotation: nextRot };
+        computeGhost();
+    }, [computeGhost]);
 
     const softDrop = useCallback(() => {
-        if (!running || paused || gameOver || clearing || settling) return;
-        if (canPlace(board, activePiece, 0, 1)) {
-            setActivePiece((prev) => ({ ...prev, y: prev.y + 1 }));
+        const s = gs.current;
+        if (!s.running || s.paused || s.gameOver || s.settling || !s.activePiece) return;
+        if (canPlaceSand(s.sandGrid, s.activePiece, 0, 1)) {
+            s.activePiece = { ...s.activePiece, y: s.activePiece.y + 1 };
+            computeGhost();
             return;
         }
         lockPiece();
-    }, [activePiece, board, clearing, gameOver, lockPiece, paused, running, settling]);
-
-    useEffect(() => {
-        softDropRef.current = softDrop;
-    }, [softDrop]);
+    }, [computeGhost, lockPiece]);
 
     const hardDrop = useCallback(() => {
-        if (!running || paused || gameOver || clearing || settling) return;
+        const s = gs.current;
+        if (!s.running || s.paused || s.gameOver || s.settling || !s.activePiece) return;
         let distance = 0;
-        while (canPlace(board, activePiece, 0, distance + 1)) {
-            distance += 1;
-        }
-        const droppedPiece = { ...activePiece, y: activePiece.y + distance };
-        const merged = mergePiece(board, droppedPiece);
-
-        const landingRow = Math.max(...PIECES[activePiece.type][activePiece.rotation].map(([, dy]) => droppedPiece.y + dy));
+        while (canPlaceSand(s.sandGrid, s.activePiece, 0, distance + 1)) distance++;
+        const landingRow = Math.max(
+            ...PIECES[s.activePiece.type][s.activePiece.rotation].map(([, dy]) => s.activePiece!.y + distance + dy),
+        );
+        s.activePiece = { ...s.activePiece, y: s.activePiece.y + distance };
         callbacksRef.current.onHardDrop(distance, landingRow);
-
-        // 활성 피스를 화면 밖으로
-        setActivePiece((prev) => ({ ...prev, y: -10 }));
-        setBoard(merged);
-        finishLock(merged, combo, level, spawnFromQueue);
-    }, [activePiece, board, clearing, combo, finishLock, gameOver, level, paused, running, settling, spawnFromQueue]);
+        lockPiece();
+    }, [lockPiece]);
 
     const holdPiece = useCallback(() => {
-        if (!running || paused || gameOver || clearing || settling || holdUsedThisTurn) return;
-
-        if (heldPieceType === null) {
-            setHeldPieceType(activePiece.type);
-            setHoldUsedThisTurn(true);
-            spawnFromQueue(board);
+        const s = gs.current;
+        if (!s.running || s.paused || s.gameOver || s.settling || s.holdUsed || !s.activePiece) return;
+        if (s.heldType === null) {
+            s.heldType = s.activePiece.type;
+            s.holdUsed = true;
+            s.activePiece = null;
+            spawnPiece();
             return;
         }
+        const swapped = createActivePiece(s.heldType);
+        if (!canPlaceSand(s.sandGrid, swapped)) return;
+        s.heldType = s.activePiece.type;
+        s.activePiece = swapped;
+        s.holdUsed = true;
+        computeGhost();
+        syncUI();
+    }, [computeGhost, spawnPiece, syncUI]);
 
-        const swappedPiece = createActivePiece(heldPieceType);
-        if (!canPlace(board, swappedPiece)) return;
+    const setPaused = useCallback((v: boolean | ((prev: boolean) => boolean)) => {
+        const s = gs.current;
+        const newVal = typeof v === "function" ? v(s.paused) : v;
+        s.paused = newVal;
+        syncUI();
+    }, [syncUI]);
 
-        setHeldPieceType(activePiece.type);
-        setActivePiece(swappedPiece);
-        setHoldUsedThisTurn(true);
-    }, [activePiece, board, clearing, gameOver, heldPieceType, holdUsedThisTurn, paused, running, settling, spawnFromQueue]);
+    const resetGame = useCallback(() => {
+        const s = gs.current;
+        s.sandGrid = createSandGrid();
+        s.activePiece = null;
+        s.ghostY = 0;
+        s.nextType = randomPieceType();
+        s.heldType = null;
+        s.holdUsed = false;
+        s.score = 0;
+        s.lines = 0;
+        s.combo = 0;
+        s.running = true;
+        s.paused = false;
+        s.gameOver = false;
+        s.settling = false;
+        s.gravityAcc = 0;
+        s.stepToggle = false;
+        s.flashRows = [];
+        s.flashTimer = 0;
+        s.phaseClears = 0;
+        s.totalSandRows = 0;
+        spawnPiece();
+    }, [spawnPiece]);
 
-    // Gravity loop — RAF 누적으로 비활성 탭 복귀/저사양 환경의 setInterval 오차를 줄임
+    // ─── 키보드 ───
     useEffect(() => {
-        if (!running || paused || gameOver || clearing || settling) return;
-
-        let frameId = 0;
-        let lastTimestamp = 0;
-        let accumulated = 0;
-
-        const tick = (timestamp: number) => {
-            if (!lastTimestamp) {
-                lastTimestamp = timestamp;
-                frameId = window.requestAnimationFrame(tick);
+        const handleKeyDown = (e: KeyboardEvent) => {
+            const s = gs.current;
+            if (!s.running || s.gameOver) return;
+            if (e.key === "p" || e.key === "P") {
+                s.paused = !s.paused;
+                syncUI();
                 return;
             }
-
-            const delta = Math.min(timestamp - lastTimestamp, 250);
-            lastTimestamp = timestamp;
-            accumulated += delta;
-
-            while (accumulated >= dropIntervalMs) {
-                softDropRef.current();
-                accumulated -= dropIntervalMs;
-            }
-
-            frameId = window.requestAnimationFrame(tick);
-        };
-
-        frameId = window.requestAnimationFrame(tick);
-        return () => window.cancelAnimationFrame(frameId);
-    }, [clearing, dropIntervalMs, gameOver, paused, running, settling]);
-
-    // Keyboard input
-    useEffect(() => {
-        const handleKeyDown = (event: KeyboardEvent) => {
-            if (!running || gameOver) return;
-            if (event.key === "p" || event.key === "P") {
-                setPaused((prev) => !prev);
-                return;
-            }
-            if (paused) return;
-
-            if (event.key === "ArrowLeft") {
-                event.preventDefault();
-                moveHorizontal(-1);
-            } else if (event.key === "ArrowRight") {
-                event.preventDefault();
-                moveHorizontal(1);
-            } else if (event.key === "ArrowDown") {
-                event.preventDefault();
-                softDrop();
-            } else if (event.key === "ArrowUp") {
-                event.preventDefault();
-                rotatePiece();
-            } else if (event.key === " ") {
-                event.preventDefault();
-                hardDrop();
-            } else if (event.key === "c" || event.key === "C") {
-                event.preventDefault();
-                holdPiece();
+            if (s.paused) return;
+            switch (e.key) {
+                case "ArrowLeft": e.preventDefault(); moveHorizontal(-1); break;
+                case "ArrowRight": e.preventDefault(); moveHorizontal(1); break;
+                case "ArrowDown": e.preventDefault(); softDrop(); break;
+                case "ArrowUp": e.preventDefault(); rotatePiece(); break;
+                case " ": e.preventDefault(); hardDrop(); break;
+                case "c": case "C": e.preventDefault(); holdPiece(); break;
             }
         };
-
         window.addEventListener("keydown", handleKeyDown);
         return () => window.removeEventListener("keydown", handleKeyDown);
-    }, [gameOver, hardDrop, holdPiece, moveHorizontal, paused, rotatePiece, running, softDrop]);
+    }, [hardDrop, holdPiece, moveHorizontal, rotatePiece, softDrop, syncUI]);
 
+    // ─── 하위호환 ───
     const renderedBoard = useMemo(() => {
-        const preview = board.map((row) => [...row]);
-        for (const [dx, dy] of PIECES[activePiece.type][activePiece.rotation]) {
-            const x = activePiece.x + dx;
-            const y = activePiece.y + dy;
-            if (y >= 0 && y < BOARD_HEIGHT && x >= 0 && x < BOARD_WIDTH) {
-                preview[y][x] = activePiece.type;
+        void boardVersion;
+        const board = sandGridToCellBoard(gs.current.sandGrid);
+        const piece = gs.current.activePiece;
+        if (piece) {
+            for (const [dx, dy] of PIECES[piece.type][piece.rotation]) {
+                const x = piece.x + dx;
+                const y = piece.y + dy;
+                if (y >= 0 && y < BOARD_HEIGHT && x >= 0 && x < BOARD_WIDTH) {
+                    board[y][x] = piece.type;
+                }
             }
         }
-        return preview;
-    }, [activePiece, board]);
+        return board;
+    }, [boardVersion]);
 
-    /** 활성 피스가 차지하는 셀 좌표 Set ("row-col") — 모래 렌더링 구분용 */
     const activePieceCells = useMemo(() => {
+        void boardVersion;
         const cells = new Set<string>();
-        if (!running || gameOver) return cells;
-        for (const [dx, dy] of PIECES[activePiece.type][activePiece.rotation]) {
-            const x = activePiece.x + dx;
-            const y = activePiece.y + dy;
-            if (y >= 0 && y < BOARD_HEIGHT && x >= 0 && x < BOARD_WIDTH) {
-                cells.add(`${y}-${x}`);
-            }
+        const piece = gs.current.activePiece;
+        if (!piece) return cells;
+        for (const [dx, dy] of PIECES[piece.type][piece.rotation]) {
+            cells.add(`${piece.y + dy}-${piece.x + dx}`);
         }
         return cells;
-    }, [activePiece, gameOver, running]);
+    }, [boardVersion]);
 
     const ghostCells = useMemo(() => {
-        if (!running || gameOver || clearing || settling) return new Set<string>();
-        let distance = 0;
-        while (canPlace(board, activePiece, 0, distance + 1)) {
-            distance += 1;
-        }
-        const ghostY = activePiece.y + distance;
+        void boardVersion;
         const cells = new Set<string>();
-        for (const [dx, dy] of PIECES[activePiece.type][activePiece.rotation]) {
-            const x = activePiece.x + dx;
-            const y = ghostY + dy;
-            if (y >= 0 && y < BOARD_HEIGHT && x >= 0 && x < BOARD_WIDTH && board[y][x] === null) {
-                cells.add(`${y}-${x}`);
-            }
+        const piece = gs.current.activePiece;
+        if (!piece) return cells;
+        const gy = gs.current.ghostY;
+        for (const [dx, dy] of PIECES[piece.type][piece.rotation]) {
+            cells.add(`${gy + dy}-${piece.x + dx}`);
         }
         return cells;
-    }, [activePiece, board, clearing, gameOver, running, settling]);
+    }, [boardVersion]);
+
+    const applyGarbage = useCallback((garbageLines: Cell[][]) => {
+        const s = gs.current;
+        for (const line of garbageLines) {
+            for (let i = 0; i < GRAIN_SCALE; i++) s.sandGrid.shift();
+            for (let i = 0; i < GRAIN_SCALE; i++) {
+                const sandRow = new Array<PieceType | null>(SAND_COLS).fill(null);
+                for (let cx = 0; cx < BOARD_WIDTH; cx++) {
+                    if (line[cx] !== null) {
+                        for (let dx = 0; dx < GRAIN_SCALE; dx++) {
+                            sandRow[cx * GRAIN_SCALE + dx] = line[cx];
+                        }
+                    }
+                }
+                s.sandGrid.push(sandRow);
+            }
+        }
+        if (s.activePiece) {
+            s.activePiece = { ...s.activePiece, y: Math.max(0, s.activePiece.y - garbageLines.length) };
+        }
+        computeGhost();
+    }, [computeGhost]);
 
     return {
-        board,
-        activePiece,
-        nextPieceType,
-        heldPieceType,
-        holdUsedThisTurn,
-        score,
-        lines,
-        level,
-        combo,
-        running,
-        paused,
-        gameOver,
-        clearing,
-        settling,
+        gsRef: gs,
+        score, lines, level, combo,
+        running, paused, gameOver,
+        settling: gs.current.settling,
+        clearing: gs.current.settling,
+        nextPieceType, heldPieceType, holdUsedThisTurn,
         dropIntervalMs,
-        renderedBoard,
-        activePieceCells,
-        ghostCells,
-        resetGame,
-        moveHorizontal,
-        rotatePiece,
-        softDrop,
-        hardDrop,
-        holdPiece,
-        setPaused,
-        // 외부에서 가비지 라인을 보드에 적용할 때 사용
-        applyGarbage: useCallback((garbageLines: Cell[][]) => {
-            setBoard((prev) => {
-                const newBoard = [...prev.slice(garbageLines.length), ...garbageLines];
-                return newBoard;
-            });
-            // 가비지로 인해 활성 피스가 위로 밀림
-            setActivePiece((prev) => ({
-                ...prev,
-                y: Math.max(0, prev.y - garbageLines.length),
-            }));
-        }, []),
+        board: renderedBoard, renderedBoard,
+        activePiece: gs.current.activePiece || createActivePiece("T"),
+        activePieceCells, ghostCells,
+        resetGame, moveHorizontal, rotatePiece, softDrop, hardDrop,
+        holdPiece, setPaused, tick, applyGarbage,
     };
 }
