@@ -92,25 +92,19 @@ export function simulateStep(grid: SandGrid, leftToRight: boolean): boolean {
 }
 
 /**
- * 가득 찬 밴드(GRAIN_SCALE개 연속 full row) 찾기.
- * 테트리스 1줄 높이에 해당하는 밴드가 완전히 차야 클리어됨.
- * 개별 행이 아닌 밴드 단위로 클리어하여 모래가 너무 빨리 사라지는 것 방지.
+ * 같은 색 모래로만 가득 찬 행을 찾아 클리어.
+ * 한 행의 모든 알갱이가 동일한 PieceType이어야 클리어됨.
+ * 다른 색이 섞인 행은 클리어되지 않음.
  */
 export function findFullRows(grid: SandGrid): number[] {
     const rows: number[] = [];
-    // 밴드 단위 (GRAIN_SCALE행씩) 체크
-    for (let bandStart = 0; bandStart < SAND_ROWS; bandStart += GRAIN_SCALE) {
-        let allFull = true;
-        for (let dy = 0; dy < GRAIN_SCALE && bandStart + dy < SAND_ROWS; dy++) {
-            if (!grid[bandStart + dy].every((g) => g !== null)) {
-                allFull = false;
-                break;
-            }
-        }
-        if (allFull) {
-            for (let dy = 0; dy < GRAIN_SCALE && bandStart + dy < SAND_ROWS; dy++) {
-                rows.push(bandStart + dy);
-            }
+    for (let y = 0; y < SAND_ROWS; y++) {
+        const row = grid[y];
+        const first = row[0];
+        if (first === null) continue;
+        // 모든 알갱이가 같은 색인지 확인
+        if (row.every((g) => g === first)) {
+            rows.push(y);
         }
     }
     return rows;
