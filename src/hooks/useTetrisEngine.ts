@@ -8,8 +8,9 @@ import {
     isCellBlocked,
     stampCell,
     simulateStep,
-    findFullRows,
-    removeRows,
+    findConnectedGroups,
+    removeMarkedGrains,
+    MIN_GROUP_SIZE,
     sandGridToCellBoard,
 } from "../lib/sandPhysics";
 
@@ -140,11 +141,11 @@ interface GameState {
     settling: boolean;
     gravityAcc: number;
     stepToggle: boolean;
-    // 라인 클리어 플래시
-    flashRows: number[];
+    // 연결 그룹 클리어 플래시
+    flashGrid: Uint8Array | null;
     flashTimer: number;
-    phaseClears: number;
-    totalSandRows: number;
+    phaseClears: number; // 이번 정착에서 클리어된 알갱이 수
+    totalCleared: number; // 게임 전체 클리어된 알갱이 수
 }
 
 const FLASH_FRAMES = 12;
@@ -177,10 +178,10 @@ export function useTetrisEngine(callbacks: TetrisCallbacks, isMobile: boolean) {
         settling: false,
         gravityAcc: 0,
         stepToggle: false,
-        flashRows: [],
+        flashGrid: null,
         flashTimer: 0,
         phaseClears: 0,
-        totalSandRows: 0,
+        totalCleared: 0,
     });
 
     // ─── UI용 React state ───
@@ -249,9 +250,12 @@ export function useTetrisEngine(callbacks: TetrisCallbacks, isMobile: boolean) {
     const finishSettling = useCallback(() => {
         const s = gs.current;
         s.settling = false;
-        const clearedSandRows = s.phaseClears;
-        s.totalSandRows += clearedSandRows;
-        const newTetrisLines = Math.floor(s.totalSandRows / GRAIN_SCALE);
+        const clearedGrains = s.phaseClears;
+        s.totalCleared += clearedGrains;
+
+        // 알갱이 수 → 테트리스 라인 변환 (셀 1개 = GRAIN_SCALE^2 알갱이, 라인 = 10셀)
+        const grainsPerLine = GRAIN_SCALE * GRAIN_SCALE * 10;
+        const newTetrisLines = Math.floor(s.totalCleared / grainsPerLine);
         const linesThisPhase = newTetrisLines - s.lines;
 
         if (linesThisPhase > 0) {
@@ -262,6 +266,13 @@ export function useTetrisEngine(callbacks: TetrisCallbacks, isMobile: boolean) {
             const totalGain = lineScore + comboBonus;
             s.score += totalGain;
             callbacksRef.current.onLinesCleared([], linesThisPhase, totalGain, s.combo);
+        } else if (clearedGrains > 0) {
+            // 라인 미달이어도 점수는 부여 (알갱이당 소량)
+            const grainScore = Math.floor(clearedGrains / 100) * levelRef.current;
+            if (grainScore > 0) {
+                s.score += grainScore;
+                callbacksRef.current.onLinesCleared([], 0, grainScore, s.combo);
+            }
         } else {
             s.combo = 0;
         }
@@ -288,13 +299,13 @@ export function useTetrisEngine(callbacks: TetrisCallbacks, isMobile: boolean) {
         const s = gs.current;
         if (!s.running || s.paused || s.gameOver) return;
 
-        // 플래시 처리
-        if (s.flashRows.length > 0) {
+        // 플래시 처리 (연결 그룹 클리어 애니메이션)
+        if (s.flashGrid !== null) {
             s.flashTimer--;
             if (s.flashTimer <= 0) {
-                removeRows(s.sandGrid, s.flashRows);
-                s.phaseClears += s.flashRows.length;
-                s.flashRows = [];
+                removeMarkedGrains(s.sandGrid, s.flashGrid);
+                s.flashGrid = null;
+                // 클리어 후 다시 정착 (연쇄 반응)
             }
             return;
         }
@@ -306,11 +317,17 @@ export function useTetrisEngine(callbacks: TetrisCallbacks, isMobile: boolean) {
             s.stepToggle = !s.stepToggle;
         }
 
-        // 가득 찬 행 → 플래시
-        const fullRows = findFullRows(s.sandGrid);
-        if (fullRows.length > 0) {
-            s.flashRows = fullRows;
-            s.flashTimer = FLASH_FRAMES;
+        // 정착 후 연결 그룹 탐색
+        if (s.settling && !anyMoved) {
+            const result = findConnectedGroups(s.sandGrid, MIN_GROUP_SIZE);
+            if (result) {
+                s.flashGrid = result.flashGrid;
+                s.flashTimer = FLASH_FRAMES;
+                s.phaseClears += result.count;
+                return;
+            }
+            // 더 이상 클리어할 그룹 없음 → 정착 완료
+            finishSettling();
             return;
         }
 
@@ -423,10 +440,10 @@ export function useTetrisEngine(callbacks: TetrisCallbacks, isMobile: boolean) {
         s.settling = false;
         s.gravityAcc = 0;
         s.stepToggle = false;
-        s.flashRows = [];
+        s.flashGrid = null;
         s.flashTimer = 0;
         s.phaseClears = 0;
-        s.totalSandRows = 0;
+        s.totalCleared = 0;
         spawnPiece();
     }, [spawnPiece]);
 

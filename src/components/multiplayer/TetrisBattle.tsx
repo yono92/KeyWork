@@ -312,9 +312,15 @@ export default function TetrisBattle({ room, onFinish }: TetrisBattleProps) {
                     }
                 }
                 // 플래시
-                if (s.flashRows.length > 0) {
+                if (s.flashGrid) {
                     ctx.fillStyle = "rgba(255,255,255,0.85)";
-                    for (const fy of s.flashRows) ctx.fillRect(0, fy * gp, SAND_COLS * gp, gp);
+                    for (let fy = 0; fy < SAND_ROWS; fy++) {
+                        for (let fx = 0; fx < SAND_COLS; fx++) {
+                            if (s.flashGrid[fy * SAND_COLS + fx]) {
+                                ctx.fillRect(fx * gp, fy * gp, gp, gp);
+                            }
+                        }
+                    }
                 }
                 // 고스트 + 활성 피스
                 if (s.activePiece && s.running && !s.gameOver) {
