@@ -91,13 +91,11 @@ export function simulateStep(grid: SandGrid, leftToRight: boolean): boolean {
     return moved;
 }
 
-/** 같은 색으로 가득 찬 가로줄 찾기. 모든 알갱이가 같은 PieceType이어야 함. */
+/** 가득 찬 가로줄 찾기 (색상 무관 — 모든 알갱이가 non-null이면 클리어) */
 export function findFullRows(grid: SandGrid): number[] {
     const rows: number[] = [];
     for (let y = 0; y < SAND_ROWS; y++) {
-        const first = grid[y][0];
-        if (first === null) continue;
-        if (grid[y].every((g) => g === first)) {
+        if (grid[y].every((g) => g !== null)) {
             rows.push(y);
         }
     }
