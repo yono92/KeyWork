@@ -298,16 +298,22 @@ export default function TetrisBattle({ room, onFinish }: TetrisBattleProps) {
                 for (let x = 1; x < BOARD_WIDTH; x++) { ctx.beginPath(); ctx.moveTo(x * cs, 0); ctx.lineTo(x * cs, h); ctx.stroke(); }
                 for (let y = 1; y < BOARD_HEIGHT; y++) { ctx.beginPath(); ctx.moveTo(0, y * cs); ctx.lineTo(w, y * cs); ctx.stroke(); }
                 // 모래
-                const gap = Math.max(0.3, gp * 0.06);
                 for (let sy = 0; sy < SAND_ROWS; sy++) {
                     const row = s.sandGrid[sy];
                     for (let sx = 0; sx < SAND_COLS; sx++) {
                         const g = row[sx];
                         if (g === null) continue;
                         const c = CELL_COLORS[g];
-                        const seed = (sy * 31 + sx * 17) % 20;
-                        ctx.fillStyle = adjustColor(c.face, 0.9 + seed / 100);
-                        ctx.fillRect(sx * gp + gap, sy * gp + gap, gp - gap * 2, gp - gap * 2);
+                        const hash = (sy * 31 + sx * 17 + sy * sx * 7) & 0xff;
+                        const brightness = 0.75 + (hash % 40) / 100;
+                        const sizeRatio = 0.70 + (hash % 25) / 100;
+                        const sz = gp * sizeRatio;
+                        const offX = ((hash * 3) % 7 - 3) * gp * 0.04;
+                        const offY = ((hash * 5) % 7 - 3) * gp * 0.04;
+                        ctx.fillStyle = adjustColor(c.face, brightness);
+                        ctx.beginPath();
+                        ctx.arc(sx * gp + gp / 2 + offX, sy * gp + gp / 2 + offY, sz / 2, 0, Math.PI * 2);
+                        ctx.fill();
                     }
                 }
                 // 플래시
