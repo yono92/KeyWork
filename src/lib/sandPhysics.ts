@@ -91,25 +91,61 @@ export function simulateStep(grid: SandGrid, leftToRight: boolean): boolean {
     return moved;
 }
 
-/** 같은 색으로 가득 찬 가로줄 찾기 (모든 알갱이가 동일한 색이면 클리어) */
-export function findFullRows(grid: SandGrid): number[] {
-    const rows: number[] = [];
+/**
+ * 같은 색 연결 그룹(BFS 4방향) 중 가로 폭을 완전히 관통하는 그룹 탐색.
+ * 연결된 같은 색 덩어리가 왼쪽 벽(x=0)부터 오른쪽 벽(x=SAND_COLS-1)까지
+ * 닿아있으면 해당 그룹 전체를 클리어.
+ */
+export function findConnectedGroups(grid: SandGrid): { flashGrid: Uint8Array; count: number } | null {
+    const total = SAND_ROWS * SAND_COLS;
+    const visited = new Uint8Array(total);
+    const result = new Uint8Array(total);
+    let totalCount = 0;
+
+    const queue: number[] = [];
+
     for (let y = 0; y < SAND_ROWS; y++) {
-        const first = grid[y][0];
-        if (first === null) continue;
-        if (grid[y].every((g) => g === first)) {
-            rows.push(y);
+        for (let x = 0; x < SAND_COLS; x++) {
+            const idx = y * SAND_COLS + x;
+            if (visited[idx] || grid[y][x] === null) continue;
+
+            const type = grid[y][x];
+            let head = 0;
+            queue.length = 0;
+            queue.push(y, x);
+            visited[idx] = 1;
+            const groupIndices: number[] = [idx];
+            let minX = x;
+            let maxX = x;
+
+            while (head < queue.length) {
+                const cy = queue[head++];
+                const cx = queue[head++];
+                if (cx < minX) minX = cx;
+                if (cx > maxX) maxX = cx;
+                // 4방향
+                if (cy > 0) { const ni = (cy-1)*SAND_COLS+cx; if (!visited[ni] && grid[cy-1][cx] === type) { visited[ni]=1; queue.push(cy-1,cx); groupIndices.push(ni); } }
+                if (cy < SAND_ROWS-1) { const ni = (cy+1)*SAND_COLS+cx; if (!visited[ni] && grid[cy+1][cx] === type) { visited[ni]=1; queue.push(cy+1,cx); groupIndices.push(ni); } }
+                if (cx > 0) { const ni = cy*SAND_COLS+cx-1; if (!visited[ni] && grid[cy][cx-1] === type) { visited[ni]=1; queue.push(cy,cx-1); groupIndices.push(ni); } }
+                if (cx < SAND_COLS-1) { const ni = cy*SAND_COLS+cx+1; if (!visited[ni] && grid[cy][cx+1] === type) { visited[ni]=1; queue.push(cy,cx+1); groupIndices.push(ni); } }
+            }
+
+            // 왼쪽 벽(0)부터 오른쪽 벽(SAND_COLS-1)까지 관통하면 클리어
+            if (minX === 0 && maxX === SAND_COLS - 1) {
+                for (const gi of groupIndices) result[gi] = 1;
+                totalCount += groupIndices.length;
+            }
         }
     }
-    return rows;
+    return totalCount > 0 ? { flashGrid: result, count: totalCount } : null;
 }
 
-/** 행 제거 후 위에 빈 행 추가 */
-export function removeRows(grid: SandGrid, rows: number[]): void {
-    const sorted = [...rows].sort((a, b) => b - a);
-    for (const y of sorted) {
-        grid.splice(y, 1);
-        grid.unshift(new Array<Grain>(SAND_COLS).fill(null));
+/** flashGrid에 표시된 알갱이를 그리드에서 제거 */
+export function removeMarkedGrains(grid: SandGrid, flashGrid: Uint8Array): void {
+    for (let y = 0; y < SAND_ROWS; y++) {
+        for (let x = 0; x < SAND_COLS; x++) {
+            if (flashGrid[y * SAND_COLS + x]) grid[y][x] = null;
+        }
     }
 }
 

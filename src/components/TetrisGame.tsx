@@ -45,11 +45,15 @@ function drawSandGrains(ctx: CanvasRenderingContext2D, grid: SandGrid, grainPx: 
     }
 }
 
-function drawFlashRows(ctx: CanvasRenderingContext2D, flashRows: number[], grainPx: number) {
-    if (flashRows.length === 0) return;
+function drawFlashGrid(ctx: CanvasRenderingContext2D, flashGrid: Uint8Array | null, grainPx: number) {
+    if (!flashGrid) return;
     ctx.fillStyle = "rgba(255, 255, 255, 0.85)";
-    for (const y of flashRows) {
-        ctx.fillRect(0, y * grainPx, SAND_COLS * grainPx, grainPx);
+    for (let y = 0; y < SAND_ROWS; y++) {
+        for (let x = 0; x < SAND_COLS; x++) {
+            if (flashGrid[y * SAND_COLS + x]) {
+                ctx.fillRect(x * grainPx, y * grainPx, grainPx, grainPx);
+            }
+        }
     }
 }
 
@@ -189,7 +193,7 @@ export default function TetrisGame() {
                 // 모래 알갱이
                 drawSandGrains(ctx, s.sandGrid, gp);
                 // 플래시 행
-                drawFlashRows(ctx, s.flashRows, gp);
+                drawFlashGrid(ctx, s.flashGrid, gp);
                 // 고스트 피스
                 if (s.activePiece && s.running && !s.gameOver && !s.settling) {
                     drawGhostPiece(ctx, s.activePiece.type, s.activePiece.rotation, s.activePiece.x, s.ghostY, cs);

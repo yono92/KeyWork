@@ -8,8 +8,8 @@ import {
     isCellBlocked,
     stampCell,
     simulateStep,
-    findFullRows,
-    removeRows,
+    findConnectedGroups,
+    removeMarkedGrains,
     sandGridToCellBoard,
 } from "../lib/sandPhysics";
 
@@ -140,8 +140,8 @@ interface GameState {
     settling: boolean;
     gravityAcc: number;
     stepToggle: boolean;
-    // 같은색 가로줄 클리어 플래시
-    flashRows: number[];
+    // 연결 그룹 클리어 플래시
+    flashGrid: Uint8Array | null;
     flashTimer: number;
     phaseClears: number;
     totalSandRows: number;
@@ -177,7 +177,7 @@ export function useTetrisEngine(callbacks: TetrisCallbacks, isMobile: boolean) {
         settling: false,
         gravityAcc: 0,
         stepToggle: false,
-        flashRows: [],
+        flashGrid: null,
         flashTimer: 0,
         phaseClears: 0,
         totalSandRows: 0,
@@ -288,13 +288,13 @@ export function useTetrisEngine(callbacks: TetrisCallbacks, isMobile: boolean) {
         const s = gs.current;
         if (!s.running || s.paused || s.gameOver) return;
 
-        // 플래시 처리
-        if (s.flashRows.length > 0) {
+        // 플래시 처리 (연결 그룹 클리어)
+        if (s.flashGrid !== null) {
             s.flashTimer--;
             if (s.flashTimer <= 0) {
-                removeRows(s.sandGrid, s.flashRows);
-                s.phaseClears += s.flashRows.length;
-                s.flashRows = [];
+                removeMarkedGrains(s.sandGrid, s.flashGrid);
+                s.flashGrid = null;
+                // 클리어 후 다시 정착 (연쇄 반응 가능)
             }
             return;
         }
@@ -306,16 +306,15 @@ export function useTetrisEngine(callbacks: TetrisCallbacks, isMobile: boolean) {
             s.stepToggle = !s.stepToggle;
         }
 
-        // 같은 색 가로줄 → 플래시
-        const fullRows = findFullRows(s.sandGrid);
-        if (fullRows.length > 0) {
-            s.flashRows = fullRows;
-            s.flashTimer = FLASH_FRAMES;
-            return;
-        }
-
-        // 정착 완료
+        // 정착 후 연결 그룹 탐색
         if (s.settling && !anyMoved) {
+            const result = findConnectedGroups(s.sandGrid);
+            if (result) {
+                s.flashGrid = result.flashGrid;
+                s.flashTimer = FLASH_FRAMES;
+                s.phaseClears += result.count;
+                return;
+            }
             finishSettling();
             return;
         }
@@ -429,7 +428,7 @@ export function useTetrisEngine(callbacks: TetrisCallbacks, isMobile: boolean) {
         s.settling = false;
         s.gravityAcc = 0;
         s.stepToggle = false;
-        s.flashRows = [];
+        s.flashGrid = null;
         s.flashTimer = 0;
         s.phaseClears = 0;
         s.totalSandRows = 0;
