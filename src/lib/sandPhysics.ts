@@ -91,8 +91,8 @@ export function simulateStep(grid: SandGrid, leftToRight: boolean): boolean {
     return moved;
 }
 
-/** 연결된 그룹 최소 크기 (이 이상이면 클리어) — 테트로미노 1개분 */
-export const MIN_GROUP_SIZE = GRAIN_SCALE * GRAIN_SCALE * 4;
+/** 연결된 그룹 최소 크기 — 테트로미노 3개분 이상이어야 클리어 */
+export const MIN_GROUP_SIZE = GRAIN_SCALE * GRAIN_SCALE * 12;
 
 /**
  * 같은 색 모래가 연결된 덩어리(connected component)를 BFS로 탐색.
