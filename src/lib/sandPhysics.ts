@@ -91,78 +91,25 @@ export function simulateStep(grid: SandGrid, leftToRight: boolean): boolean {
     return moved;
 }
 
-/** 연결된 그룹 최소 크기 — 테트로미노 3개분 이상이어야 클리어 */
-export const MIN_GROUP_SIZE = GRAIN_SCALE * GRAIN_SCALE * 12;
-
-/**
- * 같은 색 모래가 연결된 덩어리(connected component)를 BFS로 탐색.
- * minSize 이상인 그룹만 반환. 4방향(상하좌우) 연결.
- * 반환: Uint8Array (flashGrid) — 1이면 클리어 대상, 0이면 유지.
- * 클리어할 알갱이 총 수도 함께 반환.
- */
-export function findConnectedGroups(grid: SandGrid, minSize: number): { flashGrid: Uint8Array; count: number } | null {
-    const total = SAND_ROWS * SAND_COLS;
-    const visited = new Uint8Array(total);
-    const result = new Uint8Array(total);
-    let totalCount = 0;
-
-    // BFS 큐 (재사용)
-    const queue = new Int32Array(total * 2);
-
+/** 같은 색으로 가득 찬 가로줄 찾기. 모든 알갱이가 같은 PieceType이어야 함. */
+export function findFullRows(grid: SandGrid): number[] {
+    const rows: number[] = [];
     for (let y = 0; y < SAND_ROWS; y++) {
-        for (let x = 0; x < SAND_COLS; x++) {
-            const idx = y * SAND_COLS + x;
-            if (visited[idx] || grid[y][x] === null) continue;
-
-            const type = grid[y][x];
-            let head = 0;
-            let tail = 0;
-            queue[tail++] = y;
-            queue[tail++] = x;
-            visited[idx] = 1;
-
-            // groupIndices: 이 그룹에 속한 flat index 목록
-            const groupIndices: number[] = [idx];
-
-            while (head < tail) {
-                const cy = queue[head++];
-                const cx = queue[head++];
-
-                // 4방향
-                const neighbors = [
-                    [cy - 1, cx], [cy + 1, cx], [cy, cx - 1], [cy, cx + 1],
-                ];
-                for (const [ny, nx] of neighbors) {
-                    if (ny < 0 || ny >= SAND_ROWS || nx < 0 || nx >= SAND_COLS) continue;
-                    const nidx = ny * SAND_COLS + nx;
-                    if (visited[nidx] || grid[ny][nx] !== type) continue;
-                    visited[nidx] = 1;
-                    queue[tail++] = ny;
-                    queue[tail++] = nx;
-                    groupIndices.push(nidx);
-                }
-            }
-
-            if (groupIndices.length >= minSize) {
-                for (const gi of groupIndices) {
-                    result[gi] = 1;
-                }
-                totalCount += groupIndices.length;
-            }
+        const first = grid[y][0];
+        if (first === null) continue;
+        if (grid[y].every((g) => g === first)) {
+            rows.push(y);
         }
     }
-
-    return totalCount > 0 ? { flashGrid: result, count: totalCount } : null;
+    return rows;
 }
 
-/** flashGrid에 표시된 알갱이를 그리드에서 제거 */
-export function removeMarkedGrains(grid: SandGrid, flashGrid: Uint8Array): void {
-    for (let y = 0; y < SAND_ROWS; y++) {
-        for (let x = 0; x < SAND_COLS; x++) {
-            if (flashGrid[y * SAND_COLS + x]) {
-                grid[y][x] = null;
-            }
-        }
+/** 행 제거 후 위에 빈 행 추가 */
+export function removeRows(grid: SandGrid, rows: number[]): void {
+    const sorted = [...rows].sort((a, b) => b - a);
+    for (const y of sorted) {
+        grid.splice(y, 1);
+        grid.unshift(new Array<Grain>(SAND_COLS).fill(null));
     }
 }
 
