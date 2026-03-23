@@ -1,145 +1,157 @@
 /**
  * WebGL2 물 셰이더 렌더러.
- * 모래 그리드를 GPU 텍스처로 올려 fragment shader에서 물 효과 적용.
+ * 그리드를 RGBA 텍스처로 올려 색상 보간 + 물 효과 적용.
  */
 import { SAND_COLS, SAND_ROWS, GRAIN_SCALE } from "./sandPhysics";
-import type { SandGrid, PieceType } from "./sandPhysics";
+import type { SandGrid } from "./sandPhysics";
 import { PIECES, CELL_COLORS } from "../hooks/useTetrisEngine";
-import type { ActivePiece } from "../hooks/useTetrisEngine";
-
-// ─── 셰이더 소스 ───
+import type { ActivePiece, PieceType } from "../hooks/useTetrisEngine";
 
 const VERT_SRC = `#version 300 es
 in vec2 a_pos;
 out vec2 v_uv;
 void main() {
     v_uv = a_pos * 0.5 + 0.5;
-    v_uv.y = 1.0 - v_uv.y; // 상하 반전
+    v_uv.y = 1.0 - v_uv.y;
     gl_Position = vec4(a_pos, 0.0, 1.0);
 }`;
 
 const FRAG_SRC = `#version 300 es
 precision highp float;
-
 in vec2 v_uv;
 out vec4 fragColor;
 
-uniform sampler2D u_grid;        // 그리드 텍스처 (R = type 0-8)
+uniform sampler2D u_grid;
 uniform float u_time;
-uniform vec2 u_resolution;       // canvas 픽셀 크기
-uniform vec2 u_gridSize;         // SAND_COLS, SAND_ROWS
-uniform vec3 u_colors[8];       // type 1-7 색상 + type 8 (flash=white)
-uniform float u_grainScale;     // GRAIN_SCALE
+uniform vec2 u_resolution;
+uniform vec2 u_gridSize;
+
+// 노이즈 함수
+float hash(vec2 p) {
+    return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+}
+
+float noise(vec2 p) {
+    vec2 i = floor(p);
+    vec2 f = fract(p);
+    f = f * f * (3.0 - 2.0 * f);
+    float a = hash(i);
+    float b = hash(i + vec2(1.0, 0.0));
+    float c = hash(i + vec2(0.0, 1.0));
+    float d = hash(i + vec2(1.0, 1.0));
+    return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+}
 
 // 물결 왜곡
 vec2 waterDistort(vec2 uv, float t) {
-    float strength = 0.003;
-    float freq = 12.0;
-    float dx = sin(uv.y * freq + t * 2.0) * strength;
-    float dy = cos(uv.x * freq * 1.3 + t * 1.7) * strength * 0.7;
+    float s = 0.006;
+    float dx = sin(uv.y * 15.0 + t * 2.5) * s + sin(uv.y * 7.0 - t * 1.8) * s * 0.5;
+    float dy = cos(uv.x * 12.0 + t * 2.0) * s * 0.6 + cos(uv.x * 20.0 - t * 3.0) * s * 0.3;
     return uv + vec2(dx, dy);
 }
 
-// 코스틱 패턴
-float caustics(vec2 uv, float t) {
-    vec2 p = uv * 8.0;
-    float c = 0.0;
-    c += sin(p.x * 3.1 + t * 1.2) * sin(p.y * 2.7 + t * 0.9);
-    c += sin(p.x * 1.7 - t * 0.8) * sin(p.y * 3.3 + t * 1.1);
-    return c * 0.5 + 0.5;
-}
-
-// 스페큘러 하이라이트
-float specular(vec2 uv, float t) {
-    vec2 lightPos = vec2(0.3 + sin(t * 0.5) * 0.2, 0.2 + cos(t * 0.3) * 0.1);
-    float d = distance(uv, lightPos);
-    return smoothstep(0.15, 0.0, d) * 0.4;
-}
-
 void main() {
+    float t = u_time;
     vec2 uv = v_uv;
-
-    // 물결 왜곡 적용
-    vec2 distorted = waterDistort(uv, u_time);
-
-    // 그리드 좌표 → 텍스처 샘플
-    float typeVal = texture(u_grid, distorted).r * 255.0;
-    int typeInt = int(typeVal + 0.5);
-
-    if (typeInt == 0) {
-        // 빈칸 — 어두운 배경 + 미세한 코스틱
-        float c = caustics(uv, u_time) * 0.03;
-        fragColor = vec4(0.01 + c, 0.03 + c, 0.06 + c * 1.5, 1.0);
-        return;
-    }
-
-    // 색상 가져오기
-    vec3 baseColor;
-    if (typeInt == 9) {
-        // 고스트 피스
-        baseColor = vec3(0.3, 0.5, 0.7);
-        fragColor = vec4(baseColor, 0.15);
-        return;
-    }
-    if (typeInt >= 1 && typeInt <= 8) {
-        baseColor = u_colors[typeInt - 1];
-    } else {
-        baseColor = vec3(1.0);
-    }
-
-    // 인접 알갱이 색상 보간 (부드러운 물 느낌)
     vec2 texel = 1.0 / u_gridSize;
-    float tL = texture(u_grid, distorted + vec2(-texel.x, 0.0)).r * 255.0;
-    float tR = texture(u_grid, distorted + vec2(texel.x, 0.0)).r * 255.0;
-    float tU = texture(u_grid, distorted + vec2(0.0, -texel.y)).r * 255.0;
-    float tD = texture(u_grid, distorted + vec2(0.0, texel.y)).r * 255.0;
 
-    // 가장자리 감지 (빈칸과 인접하면 표면)
-    bool isSurface = (int(tL + 0.5) == 0 || int(tR + 0.5) == 0 ||
-                      int(tU + 0.5) == 0 || int(tD + 0.5) == 0);
+    // 물결 왜곡
+    vec2 distUv = waterDistort(uv, t);
 
-    // 물 효과
-    float depth = uv.y; // 위=0, 아래=1
-    float alpha = 0.7 + depth * 0.3; // 위쪽 투명, 아래쪽 불투명
+    // 현재 픽셀 색상 (LINEAR 보간으로 이미 부드러움)
+    vec4 center = texture(u_grid, distUv);
 
-    // 코스틱 (물 내부)
-    float caust = caustics(uv, u_time);
-    vec3 color = baseColor * (0.85 + caust * 0.2);
+    // 추가 블러 (3x3 가우시안)
+    vec4 blurred = center * 0.25;
+    blurred += texture(u_grid, distUv + vec2(-texel.x, 0.0)) * 0.125;
+    blurred += texture(u_grid, distUv + vec2(texel.x, 0.0)) * 0.125;
+    blurred += texture(u_grid, distUv + vec2(0.0, -texel.y)) * 0.125;
+    blurred += texture(u_grid, distUv + vec2(0.0, texel.y)) * 0.125;
+    blurred += texture(u_grid, distUv + vec2(-texel.x, -texel.y)) * 0.0625;
+    blurred += texture(u_grid, distUv + vec2(texel.x, -texel.y)) * 0.0625;
+    blurred += texture(u_grid, distUv + vec2(-texel.x, texel.y)) * 0.0625;
+    blurred += texture(u_grid, distUv + vec2(texel.x, texel.y)) * 0.0625;
 
-    // 표면 하이라이트 (빈칸과 접하는 부분)
-    if (isSurface) {
-        float highlight = 0.15 + sin(uv.x * 30.0 + u_time * 3.0) * 0.08;
-        color += vec3(highlight);
-        alpha = max(alpha - 0.1, 0.5);
+    float alpha = blurred.a;
+
+    if (alpha < 0.01) {
+        // 빈 공간 — 어두운 물속 배경 + 코스틱
+        float n = noise(uv * 6.0 + vec2(t * 0.3, t * 0.2));
+        float caust = noise(uv * 10.0 + vec2(sin(t * 0.5) * 2.0, cos(t * 0.4) * 2.0));
+        float bg = 0.02 + n * 0.015 + caust * 0.01;
+        fragColor = vec4(bg * 0.5, bg * 0.8, bg * 1.5, 1.0);
+        return;
     }
 
-    // 스페큘러
-    float spec = specular(uv, u_time);
+    vec3 color = blurred.rgb / max(alpha, 0.01);
+
+    // 물 깊이 기반 밝기
+    float depth = uv.y;
+    color *= 0.85 + depth * 0.15;
+
+    // 코스틱 (물 내부 빛 패턴)
+    float caust = noise(uv * 8.0 + vec2(t * 0.6, -t * 0.4)) * 0.15;
+    color += vec3(caust * 0.5, caust * 0.7, caust);
+
+    // 물 표면 감지 (위쪽이 빈 공간이면 표면)
+    float above = texture(u_grid, uv + vec2(0.0, -texel.y * 3.0)).a;
+    if (above < 0.1 && alpha > 0.3) {
+        // 표면 하이라이트 — 물 반사
+        float wave = sin(uv.x * 40.0 + t * 4.0) * 0.5 + 0.5;
+        float highlight = wave * 0.35;
+        color += vec3(highlight * 0.8, highlight * 0.9, highlight);
+        // 프레넬 (표면 가장자리 밝게)
+        color += vec3(0.08, 0.12, 0.18);
+    }
+
+    // 스페큘러 하이라이트 (이동하는 빛)
+    vec2 lightPos = vec2(0.35 + sin(t * 0.4) * 0.25, 0.15 + cos(t * 0.3) * 0.1);
+    float specDist = distance(uv, lightPos);
+    float spec = smoothstep(0.2, 0.0, specDist) * 0.25 * alpha;
     color += vec3(spec);
 
-    // 플래시 (type 8)
-    if (typeInt == 8) {
-        color = vec3(1.0);
-        alpha = 0.9;
+    // 물 투명도
+    float waterAlpha = 0.75 + alpha * 0.25;
+
+    // 고스트 피스 처리 (alpha < 0.5인 영역)
+    if (center.a > 0.01 && center.a < 0.3) {
+        color = center.rgb / max(center.a, 0.01);
+        waterAlpha = 0.12;
     }
 
-    fragColor = vec4(color, alpha);
+    // 플래시 (흰색)
+    if (center.r > 0.95 && center.g > 0.95 && center.b > 0.95 && center.a > 0.9) {
+        color = vec3(1.0);
+        waterAlpha = 0.95;
+    }
+
+    fragColor = vec4(color, waterAlpha);
 }`;
 
-// ─── WebGL 상태 ───
+// ─── 색상 캐시 ───
+const PIECE_RGB: Record<string, [number, number, number]> = {};
+function getPieceRGB(type: PieceType): [number, number, number] {
+    if (!PIECE_RGB[type]) {
+        const c = CELL_COLORS[type];
+        PIECE_RGB[type] = [
+            parseInt(c.face.slice(1, 3), 16),
+            parseInt(c.face.slice(3, 5), 16),
+            parseInt(c.face.slice(5, 7), 16),
+        ];
+    }
+    return PIECE_RGB[type];
+}
 
 export interface WaterGL {
     gl: WebGL2RenderingContext;
     program: WebGLProgram;
     gridTex: WebGLTexture;
-    gridData: Uint8Array;
+    gridData: Uint8Array; // RGBA
     locs: {
         u_grid: WebGLUniformLocation;
         u_time: WebGLUniformLocation;
         u_resolution: WebGLUniformLocation;
         u_gridSize: WebGLUniformLocation;
-        u_colors: WebGLUniformLocation;
-        u_grainScale: WebGLUniformLocation;
     };
 }
 
@@ -150,13 +162,13 @@ function compileShader(gl: WebGL2RenderingContext, type: number, src: string): W
     if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
         const log = gl.getShaderInfoLog(s);
         gl.deleteShader(s);
-        throw new Error(`Shader compile error: ${log}`);
+        throw new Error(`Shader compile: ${log}`);
     }
     return s;
 }
 
 export function initWaterGL(canvas: HTMLCanvasElement): WaterGL | null {
-    const gl = canvas.getContext("webgl2", { alpha: false, antialias: false, premultipliedAlpha: false });
+    const gl = canvas.getContext("webgl2", { alpha: true, antialias: false, premultipliedAlpha: false });
     if (!gl) return null;
 
     const vs = compileShader(gl, gl.VERTEX_SHADER, VERT_SRC);
@@ -166,7 +178,7 @@ export function initWaterGL(canvas: HTMLCanvasElement): WaterGL | null {
     gl.attachShader(program, fs);
     gl.linkProgram(program);
     if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-        throw new Error(`Program link error: ${gl.getProgramInfoLog(program)}`);
+        throw new Error(`Program link: ${gl.getProgramInfoLog(program)}`);
     }
     gl.useProgram(program);
 
@@ -178,7 +190,7 @@ export function initWaterGL(canvas: HTMLCanvasElement): WaterGL | null {
     gl.enableVertexAttribArray(aPos);
     gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
 
-    // 그리드 텍스처
+    // RGBA 텍스처 (색상 보간 가능)
     const gridTex = gl.createTexture()!;
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, gridTex);
@@ -187,37 +199,16 @@ export function initWaterGL(canvas: HTMLCanvasElement): WaterGL | null {
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
 
-    const gridData = new Uint8Array(SAND_COLS * SAND_ROWS);
+    const gridData = new Uint8Array(SAND_COLS * SAND_ROWS * 4);
 
-    // Uniforms
     const locs = {
         u_grid: gl.getUniformLocation(program, "u_grid")!,
         u_time: gl.getUniformLocation(program, "u_time")!,
         u_resolution: gl.getUniformLocation(program, "u_resolution")!,
         u_gridSize: gl.getUniformLocation(program, "u_gridSize")!,
-        u_colors: gl.getUniformLocation(program, "u_colors")!,
-        u_grainScale: gl.getUniformLocation(program, "u_grainScale")!,
     };
-
     gl.uniform1i(locs.u_grid, 0);
     gl.uniform2f(locs.u_gridSize, SAND_COLS, SAND_ROWS);
-    gl.uniform1f(locs.u_grainScale, GRAIN_SCALE);
-
-    // 색상 업로드 (7 piece colors + 1 flash white)
-    const PIECE_ORDER: PieceType[] = ["I", "O", "T", "S", "Z", "J", "L"];
-    const colorArr = new Float32Array(24); // 8 * 3
-    PIECE_ORDER.forEach((p, i) => {
-        const c = CELL_COLORS[p];
-        const r = parseInt(c.face.slice(1, 3), 16) / 255;
-        const g = parseInt(c.face.slice(3, 5), 16) / 255;
-        const b = parseInt(c.face.slice(5, 7), 16) / 255;
-        colorArr[i * 3] = r;
-        colorArr[i * 3 + 1] = g;
-        colorArr[i * 3 + 2] = b;
-    });
-    // flash = white
-    colorArr[21] = 1; colorArr[22] = 1; colorArr[23] = 1;
-    gl.uniform3fv(locs.u_colors, colorArr);
 
     gl.enable(gl.BLEND);
     gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
@@ -225,7 +216,13 @@ export function initWaterGL(canvas: HTMLCanvasElement): WaterGL | null {
     return { gl, program, gridTex, gridData, locs };
 }
 
-const PIECE_MAP: Record<string, number> = { I: 1, O: 2, T: 3, S: 4, Z: 5, J: 6, L: 7 };
+function writeCell(data: Uint8Array, idx: number, r: number, g: number, b: number, a: number) {
+    const off = idx * 4;
+    data[off] = r;
+    data[off + 1] = g;
+    data[off + 2] = b;
+    data[off + 3] = a;
+}
 
 export function updateAndRender(
     wgl: WaterGL,
@@ -242,41 +239,44 @@ export function updateAndRender(
 ) {
     const { gl, gridTex, gridData, locs } = wgl;
 
-    // 그리드 → Uint8Array 인코딩
+    // 그리드 → RGBA 인코딩
+    gridData.fill(0);
+
     for (let y = 0; y < SAND_ROWS; y++) {
         const row = grid[y];
-        const offset = y * SAND_COLS;
+        const rowOff = y * SAND_COLS;
         for (let x = 0; x < SAND_COLS; x++) {
             const g = row[x];
-            gridData[offset + x] = g ? PIECE_MAP[g] : 0;
+            if (g === null) continue;
+            const [r, gr, b] = getPieceRGB(g);
+            writeCell(gridData, rowOff + x, r, gr, b, 255);
         }
     }
 
-    // 플래시 그리드 오버레이
+    // 플래시 오버레이
     if (flashGrid) {
-        for (let i = 0; i < gridData.length; i++) {
-            if (flashGrid[i]) gridData[i] = 8; // flash type
+        for (let i = 0; i < SAND_COLS * SAND_ROWS; i++) {
+            if (flashGrid[i]) writeCell(gridData, i, 255, 255, 255, 240);
         }
     }
 
-    // 활성 피스 오버레이
+    // 활성 피스
     if (activePiece && running && !gameOver) {
-        const typeNum = PIECE_MAP[activePiece.type];
+        const [pr, pg, pb] = getPieceRGB(activePiece.type);
         for (const [dx, dy] of PIECES[activePiece.type][activePiece.rotation]) {
             const cx = activePiece.x + dx;
             const cy = activePiece.y + dy;
-            // 셀 영역을 그리드에 씀
             for (let gy = 0; gy < GRAIN_SCALE; gy++) {
                 for (let gx = 0; gx < GRAIN_SCALE; gx++) {
                     const sy = cy * GRAIN_SCALE + gy;
                     const sx = cx * GRAIN_SCALE + gx;
                     if (sy >= 0 && sy < SAND_ROWS && sx >= 0 && sx < SAND_COLS) {
-                        gridData[sy * SAND_COLS + sx] = typeNum;
+                        writeCell(gridData, sy * SAND_COLS + sx, pr, pg, pb, 255);
                     }
                 }
             }
         }
-        // 고스트 피스
+        // 고스트
         if (!settling) {
             for (const [dx, dy] of PIECES[activePiece.type][activePiece.rotation]) {
                 const cx = activePiece.x + dx;
@@ -285,8 +285,11 @@ export function updateAndRender(
                     for (let gx = 0; gx < GRAIN_SCALE; gx++) {
                         const sy = cy * GRAIN_SCALE + gy;
                         const sx = cx * GRAIN_SCALE + gx;
-                        if (sy >= 0 && sy < SAND_ROWS && sx >= 0 && sx < SAND_COLS && gridData[sy * SAND_COLS + sx] === 0) {
-                            gridData[sy * SAND_COLS + sx] = 9; // ghost
+                        if (sy >= 0 && sy < SAND_ROWS && sx >= 0 && sx < SAND_COLS) {
+                            const idx = sy * SAND_COLS + sx;
+                            if (gridData[idx * 4 + 3] === 0) {
+                                writeCell(gridData, idx, pr, pg, pb, 40);
+                            }
                         }
                     }
                 }
@@ -297,13 +300,13 @@ export function updateAndRender(
     // 텍스처 업로드
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, gridTex);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.LUMINANCE, SAND_COLS, SAND_ROWS, 0, gl.LUMINANCE, gl.UNSIGNED_BYTE, gridData);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, SAND_COLS, SAND_ROWS, 0, gl.RGBA, gl.UNSIGNED_BYTE, gridData);
 
-    // Uniforms
     gl.uniform1f(locs.u_time, time / 1000);
     gl.uniform2f(locs.u_resolution, canvasW, canvasH);
 
-    // Viewport + draw
     gl.viewport(0, 0, canvasW, canvasH);
+    gl.clearColor(0.01, 0.02, 0.04, 1.0);
+    gl.clear(gl.COLOR_BUFFER_BIT);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 }
