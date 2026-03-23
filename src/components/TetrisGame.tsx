@@ -19,7 +19,7 @@ function adjustColor(hex: string, factor: number): string {
 }
 
 function drawBackground(ctx: CanvasRenderingContext2D, w: number, h: number) {
-    ctx.fillStyle = "#050505";
+    ctx.fillStyle = "#020810";
     ctx.fillRect(0, 0, w, h);
 }
 
@@ -437,7 +437,7 @@ export default function TetrisGame() {
             {!engine.running && !engine.gameOver && (
                 <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.88)", zIndex: 10 }}>
                     <p className="font-pixel" style={{ color: "#44ccff", fontSize: 20, letterSpacing: 6, textShadow: "2px 2px 0 #000, 0 0 10px #2288aa", marginBottom: 6 }}>
-                        SANDTRIS
+                        WATERTRIS
                     </p>
                     <p className="font-pixel" style={{ color: "#666670", fontSize: 8, marginBottom: 14, animation: "tetris-blink 1.2s step-end infinite" }}>
                         PRESS START

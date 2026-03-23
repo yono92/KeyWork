@@ -291,7 +291,7 @@ export default function TetrisBattle({ room, onFinish }: TetrisBattleProps) {
                 }
                 const s = engine.gsRef.current;
                 // 배경
-                ctx.fillStyle = "#050505";
+                ctx.fillStyle = "#020810";
                 ctx.fillRect(0, 0, w, h);
                 // 모래
                 const shrink = gp * 0.15;

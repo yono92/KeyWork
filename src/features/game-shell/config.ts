@@ -47,9 +47,9 @@ export const NAV_ITEMS: readonly NavItem[] = [
     {
         id: "tetris",
         icon: "keyboard",
-        label: { korean: "테트리스", english: "Tetris" },
-        shortLabel: { korean: "테트리스", english: "Tetris" },
-        accent: "#facc15",
+        label: { korean: "워터트리스", english: "Watertris" },
+        shortLabel: { korean: "워터트리스", english: "Watertris" },
+        accent: "#5bc0eb",
     },
 ];
 
@@ -58,14 +58,14 @@ export const PAGE_TITLES: Record<AppLanguage, Record<string, string>> = {
         ...Object.fromEntries(NAV_ITEMS.map((item) => [`/${item.id}`, item.label.korean])),
         "/leaderboard": "랭킹",
         "/profile": "프로필",
-        "/tetris/battle": "테트리스 대전",
+        "/tetris/battle": "워터트리스 대전",
         "/word-chain/battle": "끝말잇기 대전",
     },
     english: {
         ...Object.fromEntries(NAV_ITEMS.map((item) => [`/${item.id}`, item.label.english])),
         "/leaderboard": "Leaderboard",
         "/profile": "Profile",
-        "/tetris/battle": "Tetris Battle",
+        "/tetris/battle": "Watertris Battle",
         "/word-chain/battle": "Word Chain Battle",
     },
 };
