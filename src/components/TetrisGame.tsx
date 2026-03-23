@@ -18,24 +18,9 @@ function adjustColor(hex: string, factor: number): string {
     return `rgb(${Math.min(255, Math.round(r * factor))},${Math.min(255, Math.round(g * factor))},${Math.min(255, Math.round(b * factor))})`;
 }
 
-function drawBackground(ctx: CanvasRenderingContext2D, w: number, h: number, cellSize: number) {
-    ctx.fillStyle = "#0a0a0a";
+function drawBackground(ctx: CanvasRenderingContext2D, w: number, h: number) {
+    ctx.fillStyle = "#050505";
     ctx.fillRect(0, 0, w, h);
-    // 셀 경계선
-    ctx.strokeStyle = "#1a1a1a";
-    ctx.lineWidth = 0.5;
-    for (let x = 1; x < BOARD_WIDTH; x++) {
-        ctx.beginPath();
-        ctx.moveTo(x * cellSize, 0);
-        ctx.lineTo(x * cellSize, h);
-        ctx.stroke();
-    }
-    for (let y = 1; y < BOARD_HEIGHT; y++) {
-        ctx.beginPath();
-        ctx.moveTo(0, y * cellSize);
-        ctx.lineTo(w, y * cellSize);
-        ctx.stroke();
-    }
 }
 
 function drawSandGrains(ctx: CanvasRenderingContext2D, grid: SandGrid, grainPx: number) {
@@ -200,7 +185,7 @@ export default function TetrisGame() {
                 const s = engine.gsRef.current;
 
                 // 배경 + 그리드
-                drawBackground(ctx, w, h, cs);
+                drawBackground(ctx, w, h);
                 // 모래 알갱이
                 drawSandGrains(ctx, s.sandGrid, gp);
                 // 플래시 행

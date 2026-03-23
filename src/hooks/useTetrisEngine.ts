@@ -148,7 +148,7 @@ interface GameState {
 }
 
 const FLASH_FRAMES = 12;
-const STEPS_PER_FRAME = 8;
+const STEPS_PER_FRAME = 10;
 
 export interface TetrisCallbacks {
     onLinesCleared: (rows: number[], removed: number, totalGain: number, combo: number) => void;

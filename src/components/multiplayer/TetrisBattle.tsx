@@ -291,12 +291,8 @@ export default function TetrisBattle({ room, onFinish }: TetrisBattleProps) {
                 }
                 const s = engine.gsRef.current;
                 // 배경
-                ctx.fillStyle = "#0a0a0a";
+                ctx.fillStyle = "#050505";
                 ctx.fillRect(0, 0, w, h);
-                ctx.strokeStyle = "#1a1a1a";
-                ctx.lineWidth = 0.5;
-                for (let x = 1; x < BOARD_WIDTH; x++) { ctx.beginPath(); ctx.moveTo(x * cs, 0); ctx.lineTo(x * cs, h); ctx.stroke(); }
-                for (let y = 1; y < BOARD_HEIGHT; y++) { ctx.beginPath(); ctx.moveTo(0, y * cs); ctx.lineTo(w, y * cs); ctx.stroke(); }
                 // 모래
                 const shrink = gp * 0.15;
                 for (let sy = 0; sy < SAND_ROWS; sy++) {
