@@ -39,30 +39,23 @@ function drawBackground(ctx: CanvasRenderingContext2D, w: number, h: number, cel
 }
 
 function drawSandGrains(ctx: CanvasRenderingContext2D, grid: SandGrid, grainPx: number) {
+    // 고해상도 모래: fillRect로 빠르게 렌더링 (arc는 51K+ 호출 시 느림)
+    const shrink = grainPx * 0.15; // 알갱이 간 미세 틈
     for (let y = 0; y < SAND_ROWS; y++) {
         const row = grid[y];
         for (let x = 0; x < SAND_COLS; x++) {
             const g = row[x];
             if (g === null) continue;
             const c = CELL_COLORS[g];
-            // 위치 기반 해시로 랜덤 효과
             const hash = (y * 31 + x * 17 + y * x * 7) & 0xff;
-            // 밝기 변화 (0.75~1.15)
             const brightness = 0.75 + (hash % 40) / 100;
-            // 크기 변화 (70~95%)
-            const sizeRatio = 0.70 + (hash % 25) / 100;
-            const sz = grainPx * sizeRatio;
-            // 위치 오프셋 (격자감 제거)
-            const offX = ((hash * 3) % 7 - 3) * grainPx * 0.04;
-            const offY = ((hash * 5) % 7 - 3) * grainPx * 0.04;
-
             ctx.fillStyle = adjustColor(c.face, brightness);
-            ctx.beginPath();
-            const cx = x * grainPx + grainPx / 2 + offX;
-            const cy = y * grainPx + grainPx / 2 + offY;
-            const r = sz / 2;
-            ctx.arc(cx, cy, r, 0, Math.PI * 2);
-            ctx.fill();
+            ctx.fillRect(
+                x * grainPx + shrink,
+                y * grainPx + shrink,
+                grainPx - shrink * 2,
+                grainPx - shrink * 2,
+            );
         }
     }
 }
