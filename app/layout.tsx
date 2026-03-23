@@ -19,7 +19,7 @@ export const metadata: Metadata = {
         template: "%s | KeyWork",
     },
     description:
-        "한국어와 영어 타이핑 실력을 게임으로 키워보세요. 문장연습, 단어낙하, 끝말잇기, 타이핑 러너, 워터트리스까지 5가지 레트로 게임 모드를 제공합니다.",
+        "한국어와 영어 타이핑 실력을 게임으로 키워보세요. 문장연습, 단어낙하, 끝말잇기, 타이핑 러너, 샌드트리스까지 5가지 레트로 게임 모드를 제공합니다.",
     keywords: [
         "타이핑 연습",
         "타이핑 게임",
@@ -28,7 +28,7 @@ export const metadata: Metadata = {
         "typing practice",
         "typing game",
         "끝말잇기",
-        "워터트리스",
+        "샌드트리스",
         "KeyWork",
     ],
     authors: [{ name: "yono92", url: "https://github.com/yono92" }],

@@ -74,13 +74,13 @@ export const PIECES: Record<PieceType, readonly (readonly [number, number][])[]>
 };
 
 export const CELL_COLORS: Record<PieceType, { face: string; hi: string; lo: string }> = {
-    I: { face: "#5bc0eb", hi: "#7dd4f5", lo: "#2a7aaa" },  // 하늘물
-    O: { face: "#3ddc97", hi: "#6aedb5", lo: "#1a8a58" },  // 에메랄드
-    T: { face: "#2660a4", hi: "#4080c8", lo: "#143860" },  // 깊은 바다
-    S: { face: "#20b2aa", hi: "#50d0c8", lo: "#0a6a64" },  // 청록
-    Z: { face: "#7b68ee", hi: "#9988ff", lo: "#4a38aa" },  // 보라 물결
-    J: { face: "#1a3a5c", hi: "#2e5a80", lo: "#0c1e30" },  // 진한 남색
-    L: { face: "#f07167", hi: "#ff9590", lo: "#aa3830" },  // 산호
+    I: { face: "#d4b896", hi: "#e8d0b0", lo: "#a08060" },  // 밝은 모래
+    O: { face: "#c9a94e", hi: "#e0c468", lo: "#8a7430" },  // 황금 모래
+    T: { face: "#a07850", hi: "#c09870", lo: "#705030" },  // 갈색 흙
+    S: { face: "#8a7a5a", hi: "#a89878", lo: "#5a5035" },  // 젖은 모래
+    Z: { face: "#b06840", hi: "#d08860", lo: "#784020" },  // 붉은 흙
+    J: { face: "#6b5a3a", hi: "#8a7858", lo: "#403018" },  // 진한 흙
+    L: { face: "#c08040", hi: "#daa060", lo: "#885520" },  // 주황 흙
 };
 
 // re-export for sandPhysics consumers

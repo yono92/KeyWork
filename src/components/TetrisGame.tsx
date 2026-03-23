@@ -5,8 +5,76 @@ import { useResponsiveTetrisSize } from "../hooks/useResponsiveTetrisSize";
 import { useTetrisAnimations } from "../hooks/useTetrisAnimations";
 import { useTetrisEngine, PIECES, CELL_COLORS, BOARD_WIDTH, BOARD_HEIGHT } from "../hooks/useTetrisEngine";
 import type { PieceType } from "../hooks/useTetrisEngine";
+import { GRAIN_SCALE, SAND_COLS, SAND_ROWS } from "../lib/sandPhysics";
+import type { SandGrid } from "../lib/sandPhysics";
 import useTypingStore from "../store/store";
-import { initWaterGL, updateAndRender, type WaterGL } from "../lib/waterShader";
+
+// ─── Canvas 2D 드로잉 ───
+
+function adjustColor(hex: string, factor: number): string {
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    return `rgb(${Math.min(255, Math.round(r * factor))},${Math.min(255, Math.round(g * factor))},${Math.min(255, Math.round(b * factor))})`;
+}
+
+function drawBackground(ctx: CanvasRenderingContext2D, w: number, h: number) {
+    ctx.fillStyle = "#050505";
+    ctx.fillRect(0, 0, w, h);
+}
+
+function drawSandGrains(ctx: CanvasRenderingContext2D, grid: SandGrid, grainPx: number) {
+    const shrink = grainPx * 0.12;
+    for (let y = 0; y < SAND_ROWS; y++) {
+        const row = grid[y];
+        for (let x = 0; x < SAND_COLS; x++) {
+            const g = row[x];
+            if (g === null) continue;
+            const c = CELL_COLORS[g];
+            const hash = (y * 31 + x * 17 + y * x * 7) & 0xff;
+            const brightness = 0.8 + (hash % 40) / 100;
+            ctx.fillStyle = adjustColor(c.face, brightness);
+            ctx.fillRect(x * grainPx + shrink, y * grainPx + shrink, grainPx - shrink * 2, grainPx - shrink * 2);
+        }
+    }
+}
+
+function drawFlashGrid(ctx: CanvasRenderingContext2D, flashGrid: Uint8Array | null, grainPx: number) {
+    if (!flashGrid) return;
+    ctx.fillStyle = "rgba(255, 255, 255, 0.85)";
+    for (let y = 0; y < SAND_ROWS; y++) {
+        for (let x = 0; x < SAND_COLS; x++) {
+            if (flashGrid[y * SAND_COLS + x]) {
+                ctx.fillRect(x * grainPx, y * grainPx, grainPx, grainPx);
+            }
+        }
+    }
+}
+
+function drawActivePiece(ctx: CanvasRenderingContext2D, type: PieceType, rotation: number, px: number, py: number, cellSize: number) {
+    const c = CELL_COLORS[type];
+    const bw = Math.max(1, Math.floor(cellSize * 0.08));
+    for (const [dx, dy] of PIECES[type][rotation]) {
+        const x = (px + dx) * cellSize;
+        const y = (py + dy) * cellSize;
+        if (y + cellSize < 0) continue;
+        ctx.fillStyle = c.face; ctx.fillRect(x, y, cellSize, cellSize);
+        ctx.fillStyle = c.hi; ctx.fillRect(x, y, cellSize, bw); ctx.fillRect(x, y, bw, cellSize);
+        ctx.fillStyle = c.lo; ctx.fillRect(x, y + cellSize - bw, cellSize, bw); ctx.fillRect(x + cellSize - bw, y, bw, cellSize);
+        ctx.fillStyle = "rgba(255,255,255,0.12)"; ctx.fillRect(x + bw, y + bw, cellSize - bw * 2, cellSize - bw * 2);
+    }
+}
+
+function drawGhostPiece(ctx: CanvasRenderingContext2D, type: PieceType, rotation: number, px: number, ghostY: number, cellSize: number) {
+    const c = CELL_COLORS[type];
+    ctx.strokeStyle = `${c.face}55`; ctx.lineWidth = 1; ctx.setLineDash([3, 3]);
+    for (const [dx, dy] of PIECES[type][rotation]) {
+        const x = (px + dx) * cellSize; const y = (ghostY + dy) * cellSize;
+        if (y + cellSize < 0) continue;
+        ctx.strokeRect(x + 0.5, y + 0.5, cellSize - 1, cellSize - 1);
+    }
+    ctx.setLineDash([]);
+}
 
 // ─── 컴포넌트 ───
 
@@ -57,8 +125,6 @@ export default function TetrisGame() {
     tickRef.current = engine.tick;
     cellSizeRef.current = cellSize;
 
-    const wglRef = useRef<WaterGL | null>(null);
-
     useEffect(() => {
         let frameId = 0;
         let lastTime = 0;
@@ -66,38 +132,34 @@ export default function TetrisGame() {
         const loop = (time: number) => {
             const dt = lastTime ? Math.min(time - lastTime, 100) : 16;
             lastTime = time;
-
             tickRef.current(dt);
 
             const canvas = canvasRef.current;
-            if (canvas) {
+            const ctx = canvas?.getContext("2d");
+            if (ctx && canvas) {
                 const cs = cellSizeRef.current;
+                const gp = cs / GRAIN_SCALE;
                 const dpr = window.devicePixelRatio || 1;
-                const w = Math.round(BOARD_WIDTH * cs * dpr);
-                const h = Math.round(BOARD_HEIGHT * cs * dpr);
+                const w = BOARD_WIDTH * cs;
+                const h = BOARD_HEIGHT * cs;
 
-                // Canvas 크기 동기화 + WebGL 초기화
-                if (canvas.width !== w || canvas.height !== h) {
-                    canvas.width = w;
-                    canvas.height = h;
-                    canvas.style.width = `${BOARD_WIDTH * cs}px`;
-                    canvas.style.height = `${BOARD_HEIGHT * cs}px`;
-                    wglRef.current = null; // 크기 변경 시 재초기화
+                if (canvas.width !== Math.round(w * dpr) || canvas.height !== Math.round(h * dpr)) {
+                    canvas.width = Math.round(w * dpr);
+                    canvas.height = Math.round(h * dpr);
+                    canvas.style.width = `${w}px`;
+                    canvas.style.height = `${h}px`;
+                    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
                 }
 
-                if (!wglRef.current) {
-                    wglRef.current = initWaterGL(canvas);
+                const s = engine.gsRef.current;
+                drawBackground(ctx, w, h);
+                drawSandGrains(ctx, s.sandGrid, gp);
+                drawFlashGrid(ctx, s.flashGrid, gp);
+                if (s.activePiece && s.running && !s.gameOver && !s.settling) {
+                    drawGhostPiece(ctx, s.activePiece.type, s.activePiece.rotation, s.activePiece.x, s.ghostY, cs);
                 }
-
-                const wgl = wglRef.current;
-                if (wgl) {
-                    const s = engine.gsRef.current;
-                    updateAndRender(
-                        wgl, s.sandGrid,
-                        s.activePiece, s.ghostY, s.flashGrid,
-                        s.running, s.gameOver, s.settling,
-                        time, w, h,
-                    );
+                if (s.activePiece && s.running && !s.gameOver) {
+                    drawActivePiece(ctx, s.activePiece.type, s.activePiece.rotation, s.activePiece.x, s.activePiece.y, cs);
                 }
             }
 
@@ -334,7 +396,7 @@ export default function TetrisGame() {
             {!engine.running && !engine.gameOver && (
                 <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.88)", zIndex: 10 }}>
                     <p className="font-pixel" style={{ color: "#44ccff", fontSize: 20, letterSpacing: 6, textShadow: "2px 2px 0 #000, 0 0 10px #2288aa", marginBottom: 6 }}>
-                        WATERTRIS
+                        SANDTRIS
                     </p>
                     <p className="font-pixel" style={{ color: "#666670", fontSize: 8, marginBottom: 14, animation: "tetris-blink 1.2s step-end infinite" }}>
                         PRESS START
