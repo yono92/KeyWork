@@ -8,9 +8,9 @@ export type PieceType = "I" | "O" | "T" | "S" | "Z" | "J" | "L";
 export type Grain = PieceType | null;
 export type SandGrid = Grain[][];
 
-export const GRAIN_SCALE = 24;
-export const SAND_COLS = 10 * GRAIN_SCALE; // 240
-export const SAND_ROWS = 20 * GRAIN_SCALE; // 480
+export const GRAIN_SCALE = 8;
+export const SAND_COLS = 10 * GRAIN_SCALE; // 80
+export const SAND_ROWS = 20 * GRAIN_SCALE; // 160
 
 export function createSandGrid(): SandGrid {
     return Array.from({ length: SAND_ROWS }, () => new Array<Grain>(SAND_COLS).fill(null));
