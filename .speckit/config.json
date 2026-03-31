@@ -1,0 +1,5 @@
+{
+  "project": "KeyWork",
+  "language": "ko",
+  "phases": ["constitution", "specify", "plan", "tasks", "implement", "verify"]
+}

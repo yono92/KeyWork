@@ -38,8 +38,6 @@ KeyWork 저장소에서 작업하는 코딩 에이전트 공통 실행 지침이
 - `app/(game)/typing-runner/page.tsx`
 - `app/(game)/tetris/page.tsx`
 - `app/(game)/tetris/battle/page.tsx`
-- `app/(game)/typing-defense/page.tsx`
-- `app/(game)/dictation/page.tsx`
 - `app/(game)/leaderboard/page.tsx`
 - `app/(game)/profile/page.tsx`
 - 공통 UI 셸: `src/components/AppFrame.tsx`
@@ -73,21 +71,19 @@ KeyWork 저장소에서 작업하는 코딩 에이전트 공통 실행 지침이
 3. 변경 후 검증 명령을 실행한다.
 4. 요약 보고 시 리스크/후속 작업이 있으면 함께 제시한다.
 
-## SDD 워크플로우 (필수)
+## spec-kit 워크플로우 (필수)
 
-1. 기능 작업은 반드시 `specs/[feature-name]/`에서 시작한다.
-2. 문서 작성 순서는 `README.md -> spec.md -> plan.md`를 고정한다.
-3. 구현 작업 단위는 `tasks.md`에만 정의한다.
-4. `progress.md`는 `tasks.md` 상태를 그대로 미러링한다.
-5. 기술 이슈/의사결정/학습 내용은 `findings.md`에 날짜와 함께 누적 기록한다.
-6. 상태 값은 `대기`, `진행중`, `완료`, `차단`만 사용하고, `진행중` 작업은 동시에 1개만 둔다.
+1. 기능 작업은 반드시 `.speckit/[feature]-spec.md`에서 시작한다.
+2. 문서 작성 순서: spec → plan → tasks → implement → checklist.
+3. `.speckit/constitution.md`의 프로젝트 원칙을 항상 준수한다.
+4. 우선순위는 P1/P2/P3으로 표기한다.
+5. 병렬 가능 태스크는 `[P]` 마커로 표시한다.
 
-### SDD Definition of Done
+### Definition of Done
 
-1. 해당 task가 `tasks.md`에서 완료 처리됨
-2. `progress.md`가 동일 상태로 동기화됨
-3. `findings.md`에 근거(결정/리스크/테스트 결과)가 기록됨
-4. `npm run lint`, `npm run test:run`, `npm run build` 통과
+1. 해당 task가 tasks.md에서 `[x]` 처리됨
+2. checklist.md 항목 모두 체크됨
+3. `npm run lint`, `npm run test:run`, `npm run build` 통과
 
 ## 검증 명령
 

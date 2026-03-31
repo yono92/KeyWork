@@ -168,31 +168,27 @@ Zustand 단일 스토어 (`useTypingStore`)로 전역 상태 관리. **`darkMode
 - XP/레벨 시스템은 제거됨 — 일일 미션과 플레이 스트릭만 유지
 - 타이핑 디펜스, 받아쓰기 게임 모드는 제거됨
 
-## SDD (Spec-Driven Development) 규칙
+## spec-kit 워크플로우
 
-기능 개발은 아래 순서를 반드시 따릅니다.
+기능 개발은 `.speckit/` 디렉토리의 spec-kit 워크플로우를 따릅니다.
 
-1. `specs/[feature-name]/README.md` 작성
-- 기능 배경, 목적, 범위/제외 범위 요약
+1. **Constitution 확인** — `.speckit/constitution.md`에서 프로젝트 원칙 확인
+2. **Specify** — `.speckit/[feature]-spec.md` 작성 (유저 스토리, P1/P2/P3 우선순위, Given/When/Then 수용 기준)
+3. **Plan** — `.speckit/[feature]-plan.md` 작성 (기술 설계, 아키텍처, 영향 파일)
+4. **Tasks** — `.speckit/[feature]-tasks.md` 작성 (Setup → Foundational → User Stories → Polish)
+5. **Implement** — 태스크 순서대로 구현
+6. **Verify** — `.speckit/[feature]-checklist.md`로 완료 검증
 
-2. `specs/[feature-name]/spec.md` 작성 (Outside-in)
-- 사용자 스토리
-- 기능/비기능 요구사항
-- Acceptance Criteria
+### 우선순위
+- **P1**: 크리티컬/차단 이슈 (MVP 필수)
+- **P2**: 중요/다음 스프린트
+- **P3**: 백로그/나이스투해브
 
-3. `specs/[feature-name]/plan.md` 작성
-- 기술 설계, 영향 파일, 리스크, 테스트 전략
-
-4. `specs/[feature-name]/tasks.md` 작성
-- 구현 가능한 작업 단위로 분해
-- 완료 조건 명시
-
-5. 구현 추적
-- `progress.md`는 `tasks.md`를 미러링
-- 구현 중 발견사항은 `findings.md`에 누적
+### 완료 조건
+- `npm run lint`, `npm run build`, `npm run test:run` 통과
+- checklist.md 항목 모두 체크
 
 ### 상태/완료 규칙
-
-- 상태 값: `대기`, `진행중`, `완료`, `차단`
-- 한 시점에 `진행중` task는 1개만 유지
-- 완료 시 `lint`, `test:run`, `build`를 모두 통과해야 함
+- 완료 마커: `[x]` 완료, `[ ]` 미완료
+- 불명확 항목: `[NEEDS CLARIFICATION]` 마커 사용
+- 병렬 태스크: `[P]` 마커로 표기
