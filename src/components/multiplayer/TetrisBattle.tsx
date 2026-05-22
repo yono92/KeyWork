@@ -40,18 +40,13 @@ export default function TetrisBattle({ room, onFinish }: TetrisBattleProps) {
     const cellSize = Math.max(10, Math.floor(rawCellSize * 0.82));
     const opponentCellSize = Math.max(4, Math.floor(cellSize * 0.42));
 
-    const onLinesCleared = useCallback((rows: number[], _removed: number, totalGain: number, newCombo: number) => {
-        anim.triggerFlash(rows);
+    const onLinesCleared = useCallback((rowsCleared: number, chain: number, totalGain: number, newCombo: number) => {
         anim.triggerScorePop();
         anim.addFloatingText(`+${totalGain}`, "var(--retro-game-warning)");
 
-        const lineCount = rows.length;
-        if (lineCount === 2) anim.triggerClearLabel("DOUBLE");
-        else if (lineCount === 3) anim.triggerClearLabel("TRIPLE");
-        else if (lineCount >= 4) {
-            anim.triggerClearLabel("TETRIS!");
-            anim.triggerScreenFlash();
-        }
+        if (chain >= 3) { anim.triggerClearLabel(`CHAIN x${chain}`); anim.triggerScreenFlash(); }
+        else if (chain >= 2) anim.triggerClearLabel(`CHAIN x${chain}`);
+        else if (rowsCleared >= 4) { anim.triggerClearLabel("BIG CLEAR"); anim.triggerScreenFlash(); }
 
         if (newCombo >= 2) anim.addFloatingText(`COMBO x${newCombo}`, "var(--retro-game-info)");
         if (newCombo >= 3) anim.triggerShake();

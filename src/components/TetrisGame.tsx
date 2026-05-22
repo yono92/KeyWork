@@ -24,17 +24,19 @@ function drawBackground(ctx: CanvasRenderingContext2D, w: number, h: number) {
 }
 
 function drawSandGrains(ctx: CanvasRenderingContext2D, grid: SandGrid, grainPx: number) {
-    const shrink = grainPx * 0.12;
+    // 알갱이를 0.5px 겹치게 그려 틈/안티앨리어싱 심(seam) 제거 → 촘촘한 모래
+    const sz = grainPx + 0.5;
     for (let y = 0; y < SAND_ROWS; y++) {
         const row = grid[y];
         for (let x = 0; x < SAND_COLS; x++) {
             const g = row[x];
             if (g === null) continue;
             const c = CELL_COLORS[g];
+            // 알갱이별 미세 밝기 노이즈로 모래 질감
             const hash = (y * 31 + x * 17 + y * x * 7) & 0xff;
-            const brightness = 0.8 + (hash % 40) / 100;
+            const brightness = 0.82 + (hash % 36) / 100;
             ctx.fillStyle = adjustColor(c.face, brightness);
-            ctx.fillRect(x * grainPx + shrink, y * grainPx + shrink, grainPx - shrink * 2, grainPx - shrink * 2);
+            ctx.fillRect(x * grainPx, y * grainPx, sz, sz);
         }
     }
 }
@@ -85,13 +87,13 @@ export default function TetrisGame() {
     const prevLevelRef = useRef(1);
     const canvasRef = useRef<HTMLCanvasElement>(null);
 
-    const onLinesCleared = useCallback((rows: number[], _removed: number, totalGain: number, newCombo: number) => {
+    const onLinesCleared = useCallback((rowsCleared: number, chain: number, totalGain: number, newCombo: number) => {
         anim.triggerScorePop();
         anim.addFloatingText(`+${totalGain}`, "var(--retro-game-warning)");
-        const lineCount = _removed;
-        if (lineCount === 2) anim.triggerClearLabel("DOUBLE");
-        else if (lineCount === 3) anim.triggerClearLabel("TRIPLE");
-        else if (lineCount >= 4) { anim.triggerClearLabel("TETRIS!"); anim.triggerScreenFlash(); }
+        // 연쇄(한 드롭으로 연달아 터지는 것)를 주 스펙터클로
+        if (chain >= 3) { anim.triggerClearLabel(`CHAIN x${chain}`); anim.triggerScreenFlash(); }
+        else if (chain >= 2) anim.triggerClearLabel(`CHAIN x${chain}`);
+        else if (rowsCleared >= 4) { anim.triggerClearLabel("BIG CLEAR"); anim.triggerScreenFlash(); }
         if (newCombo >= 2) anim.addFloatingText(`COMBO x${newCombo}`, "var(--retro-game-info)");
         if (newCombo >= 3) anim.triggerShake();
     }, [anim]);

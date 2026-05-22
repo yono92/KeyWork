@@ -73,14 +73,16 @@ export const PIECES: Record<PieceType, readonly (readonly [number, number][])[]>
     ],
 };
 
+// 선명하게 구분되는 모래 색 — 좌→우 같은 색 연결 클리어가 한눈에 읽히도록
+// 테트로미노 색 정체성(시안/노랑/보라/초록/빨강/파랑/주황) 기반, 약간 모래톤
 export const CELL_COLORS: Record<PieceType, { face: string; hi: string; lo: string }> = {
-    I: { face: "#d4b896", hi: "#e8d0b0", lo: "#a08060" },  // 밝은 모래
-    O: { face: "#c9a94e", hi: "#e0c468", lo: "#8a7430" },  // 황금 모래
-    T: { face: "#a07850", hi: "#c09870", lo: "#705030" },  // 갈색 흙
-    S: { face: "#8a7a5a", hi: "#a89878", lo: "#5a5035" },  // 젖은 모래
-    Z: { face: "#b06840", hi: "#d08860", lo: "#784020" },  // 붉은 흙
-    J: { face: "#6b5a3a", hi: "#8a7858", lo: "#403018" },  // 진한 흙
-    L: { face: "#c08040", hi: "#daa060", lo: "#885520" },  // 주황 흙
+    I: { face: "#34c6d8", hi: "#74e6f2", lo: "#1c8896" },  // 시안
+    O: { face: "#ecc636", hi: "#f8e480", lo: "#b08e16" },  // 노랑/골드
+    T: { face: "#a85fd4", hi: "#c895ec", lo: "#6e38a0" },  // 보라
+    S: { face: "#5cc24a", hi: "#8ee47a", lo: "#389028" },  // 초록
+    Z: { face: "#e44e3c", hi: "#f5847a", lo: "#a82e20" },  // 빨강
+    J: { face: "#4a7ad8", hi: "#80a4f0", lo: "#2c4ea8" },  // 파랑
+    L: { face: "#ee8c2c", hi: "#f8b46a", lo: "#aa5e12" },  // 주황
 };
 
 // re-export for sandPhysics consumers
@@ -114,13 +116,12 @@ const canPlaceSand = (
     });
 };
 
-const getLineScore = (removed: number, level: number): number => {
-    if (removed <= 0) return 0;
-    if (removed === 1) return 100 * level;
-    if (removed === 2) return 300 * level;
-    if (removed === 3) return 500 * level;
-    return 800 * level;
-};
+// ─── 클리어 점수 ───
+// 가로 한 줄 = SAND_COLS(120) 알갱이. 한 클리어 = (지운 줄 환산)×100×레벨×연쇄깊이.
+// 연쇄(한 드롭으로 연달아 터지는 것)가 깊을수록 배수가 커져 의도적 셋업을 보상.
+const SCORE_PER_ROW = 100;
+const clearStepScore = (grains: number, level: number, chain: number): number =>
+    Math.round((grains / SAND_COLS) * SCORE_PER_ROW * level * chain);
 
 // ─── 게임 상태 (Ref) ───
 
@@ -143,15 +144,17 @@ interface GameState {
     // 연결 그룹 클리어 플래시
     flashGrid: Uint8Array | null;
     flashTimer: number;
-    phaseClears: number;
-    totalSandRows: number;
+    phaseGrains: number;        // 이번 정착 단계에서 지운 알갱이 수
+    phaseScore: number;         // 이번 정착 단계 누적 점수(연쇄 배수 반영)
+    chainStep: number;          // 이번 정착 단계 연쇄 깊이
+    totalGrainsCleared: number; // 누적(통계용)
 }
 
 const FLASH_FRAMES = 12;
 const STEPS_PER_FRAME = 10;
 
 export interface TetrisCallbacks {
-    onLinesCleared: (rows: number[], removed: number, totalGain: number, combo: number) => void;
+    onLinesCleared: (rowsCleared: number, chain: number, totalGain: number, combo: number) => void;
     onHardDrop: (distance: number, landingRow: number) => void;
     onGameOver: () => void;
 }
@@ -179,8 +182,10 @@ export function useTetrisEngine(callbacks: TetrisCallbacks, isMobile: boolean) {
         stepToggle: false,
         flashGrid: null,
         flashTimer: 0,
-        phaseClears: 0,
-        totalSandRows: 0,
+        phaseGrains: 0,
+        phaseScore: 0,
+        chainStep: 0,
+        totalGrainsCleared: 0,
     });
 
     // ─── UI용 React state ───
@@ -249,24 +254,24 @@ export function useTetrisEngine(callbacks: TetrisCallbacks, isMobile: boolean) {
     const finishSettling = useCallback(() => {
         const s = gs.current;
         s.settling = false;
-        const clearedSandRows = s.phaseClears;
-        s.totalSandRows += clearedSandRows;
-        const newTetrisLines = Math.floor(s.totalSandRows / GRAIN_SCALE);
-        const linesThisPhase = newTetrisLines - s.lines;
 
-        if (linesThisPhase > 0) {
+        if (s.phaseGrains > 0) {
+            // 이번 드롭으로 한 줄(이상) 클리어됨
             s.combo += 1;
-            s.lines = newTetrisLines;
-            const lineScore = getLineScore(linesThisPhase, levelRef.current);
-            const comboBonus = s.combo >= 1 ? 50 * s.combo * levelRef.current : 0;
-            const totalGain = lineScore + comboBonus;
+            s.totalGrainsCleared += s.phaseGrains;
+            const rowsCleared = Math.max(1, Math.round(s.phaseGrains / SAND_COLS));
+            s.lines += rowsCleared;
+            const comboBonus = s.combo >= 2 ? 50 * s.combo * levelRef.current : 0;
+            const totalGain = s.phaseScore + comboBonus;
             s.score += totalGain;
-            callbacksRef.current.onLinesCleared([], linesThisPhase, totalGain, s.combo);
+            callbacksRef.current.onLinesCleared(rowsCleared, s.chainStep, totalGain, s.combo);
         } else {
             s.combo = 0;
         }
 
-        s.phaseClears = 0;
+        s.phaseGrains = 0;
+        s.phaseScore = 0;
+        s.chainStep = 0;
         spawnPiece();
     }, [spawnPiece]);
 
@@ -279,7 +284,9 @@ export function useTetrisEngine(callbacks: TetrisCallbacks, isMobile: boolean) {
         }
         s.activePiece = null;
         s.settling = true;
-        s.phaseClears = 0;
+        s.phaseGrains = 0;
+        s.phaseScore = 0;
+        s.chainStep = 0;
         s.gravityAcc = 0;
     }, []);
 
@@ -306,21 +313,17 @@ export function useTetrisEngine(callbacks: TetrisCallbacks, isMobile: boolean) {
             s.stepToggle = !s.stepToggle;
         }
 
-        // 정착 후 연결 그룹 탐색
+        // 정착 후 연결 그룹 탐색 (제거 → 재정착 → 재탐색으로 연쇄 발생)
         if (s.settling && !anyMoved) {
             const result = findConnectedGroups(s.sandGrid);
             if (result) {
+                s.chainStep += 1;
+                s.phaseGrains += result.count;
+                s.phaseScore += clearStepScore(result.count, levelRef.current, s.chainStep);
                 s.flashGrid = result.flashGrid;
                 s.flashTimer = FLASH_FRAMES;
-                s.phaseClears += result.count;
                 return;
             }
-            finishSettling();
-            return;
-        }
-
-        // 정착 완료
-        if (s.settling && !anyMoved) {
             finishSettling();
             return;
         }
@@ -430,8 +433,10 @@ export function useTetrisEngine(callbacks: TetrisCallbacks, isMobile: boolean) {
         s.stepToggle = false;
         s.flashGrid = null;
         s.flashTimer = 0;
-        s.phaseClears = 0;
-        s.totalSandRows = 0;
+        s.phaseGrains = 0;
+        s.phaseScore = 0;
+        s.chainStep = 0;
+        s.totalGrainsCleared = 0;
         spawnPiece();
     }, [spawnPiece]);
 
