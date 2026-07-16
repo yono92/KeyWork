@@ -10,38 +10,21 @@ import NavMenu from "./navigation/NavMenu";
 import ControlTray from "./navigation/ControlTray";
 import CoupangSidebarRail from "./affiliate/CoupangSidebarRail";
 import type { GameMode, AppLanguage } from "@/features/game-shell/config";
-import { Trophy, User } from "lucide-react";
+import { Trophy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import PixelAvatar from "@/components/avatar/PixelAvatar";
-import { useLocalProfile } from "@/hooks/useLocalProfile";
 
 
-function AccountSection({ language, pathname, onNavigate, variant = "full" }: {
+function RecordsSection({ language, pathname, onNavigate, variant = "full" }: {
     language: AppLanguage; pathname: string; onNavigate: (path: string) => void; variant?: "full" | "compact";
 }) {
     const ko = language === "korean";
-    const { profile } = useLocalProfile();
 
     return (
         <div className="px-3 pb-2 space-y-1.5">
             <p className="px-0 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--retro-text)]/50">
                 {ko ? "내 기록" : "Local data"}
             </p>
-            <div className={cn(
-                "px-3 py-1.5 flex items-center gap-2",
-                variant === "compact" ? "hidden lg:flex" : "",
-            )}>
-                <PixelAvatar config={profile.avatar_config} nickname={profile.nickname} size="sm" />
-                <span className="truncate text-xs font-bold text-[var(--retro-accent)]">{profile.nickname}</span>
-            </div>
-            <NavButton
-                icon={User}
-                label={ko ? "프로필" : "Profile"}
-                active={pathname === "/profile"}
-                onClick={() => onNavigate("/profile")}
-                variant={variant}
-            />
             <NavButton
                 icon={Trophy}
                 label={ko ? "내 기록" : "My Records"}
@@ -144,7 +127,7 @@ export default function SideNav() {
                         Modes
                     </p>
                     <NavMenu language={language} pathname={pathname} onNavigate={navigateTo} />
-                    <AccountSection language={language} pathname={pathname} onNavigate={navigateToPath} />
+                    <RecordsSection language={language} pathname={pathname} onNavigate={navigateToPath} />
 
                     <div className="mt-auto p-3 border-t-2 border-t-[var(--retro-border-mid)]">
                         <ControlTray />
@@ -180,7 +163,7 @@ export default function SideNav() {
                     onNavigate={navigateTo}
                     variant="compact"
                 />
-                <AccountSection language={language} pathname={pathname} onNavigate={navigateToPath} variant="compact" />
+                <RecordsSection language={language} pathname={pathname} onNavigate={navigateToPath} variant="compact" />
 
                 <div className="mt-auto overflow-hidden p-2.5 lg:p-3 border-t-2 border-t-[var(--retro-border-mid)]">
                     <CoupangSidebarRail />

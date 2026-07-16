@@ -4,33 +4,12 @@ import * as nav from "next/navigation";
 import SideNav from "../../src/components/SideNav";
 import useTypingStore from "../../src/store/store";
 
-const authContext = {
-    user: null,
-    profile: null,
-    isLoggedIn: false,
-    loading: false,
-    signIn: vi.fn(),
-    signUp: vi.fn(),
-    signOut: vi.fn(),
-    updateNickname: vi.fn(),
-};
-
-vi.mock("../../src/components/auth/AuthProvider", () => ({
-    useAuthContext: () => authContext,
-    AuthProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
-}));
-
 describe("SideNav", () => {
     beforeEach(() => {
         globalThis.__TEST_PATHNAME__ = "/practice";
         const mockPush = (nav as unknown as { __mockPush: ReturnType<typeof vi.fn> }).__mockPush;
         mockPush.mockClear();
-        Object.assign(authContext, {
-            user: null,
-            profile: null,
-            isLoggedIn: false,
-            loading: false,
-        });
+        localStorage.clear();
         useTypingStore.setState({
             darkMode: false,
             progress: 0,
@@ -66,14 +45,10 @@ describe("SideNav", () => {
         expect(mockPush).toHaveBeenCalledWith("/tetris");
     });
 
-    it("keeps the account section visible while auth is loading", () => {
-        Object.assign(authContext, {
-            loading: true,
-        });
-
+    it("shows local record navigation without account features", () => {
         render(<SideNav />);
 
-        expect(screen.getAllByRole("button", { name: "Checking account..." })[0]).toBeDisabled();
-        expect(screen.getAllByRole("button", { name: "Leaderboard" })[0]).toBeInTheDocument();
+        expect(screen.queryByRole("button", { name: "Profile" })).not.toBeInTheDocument();
+        expect(screen.getAllByRole("button", { name: "My Records" })[0]).toBeInTheDocument();
     });
 });

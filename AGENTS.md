@@ -17,10 +17,10 @@ KeyWork 저장소에서 작업하는 코딩 에이전트 공통 실행 지침이
 
 ## 프로젝트 컨텍스트
 
-- 앱 성격: 한/영 타이핑 연습 + 미니게임 + 멀티플레이어 대전 웹 앱
+- 앱 성격: 한/영 타이핑 연습 + 싱글플레이 미니게임 웹 앱
 - 스택: Next.js 15(App Router) + React 18 + TypeScript
 - 상태관리: Zustand (`src/store/store.ts`)
-- 백엔드: Supabase (인증, DB, Realtime)
+- 데이터 저장: 브라우저 localStorage (프로필, 커스텀 문장, 점수)
 - 스타일: Tailwind CSS + Radix UI + lucide-react
 - 라우팅: Next.js App Router (`app/`)
 - 배포 기준 URL: `https://key-work-rho.vercel.app`
@@ -34,12 +34,9 @@ KeyWork 저장소에서 작업하는 코딩 에이전트 공통 실행 지침이
 - `app/(game)/practice/page.tsx`
 - `app/(game)/falling-words/page.tsx`
 - `app/(game)/word-chain/page.tsx`
-- `app/(game)/word-chain/battle/page.tsx`
 - `app/(game)/typing-runner/page.tsx`
 - `app/(game)/tetris/page.tsx`
-- `app/(game)/tetris/battle/page.tsx`
 - `app/(game)/leaderboard/page.tsx`
-- `app/(game)/profile/page.tsx`
 - 공통 UI 셸: `src/components/AppFrame.tsx`
 - 메인 게임 렌더러: `src/components/MainLayout.tsx`
 - 테스트 설정: `vitest.config.ts`, `tests/setup.ts`

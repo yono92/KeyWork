@@ -28,15 +28,23 @@ const TypingInput: React.FC = () => {
     const [platform, setPlatform] = useState<"mac" | "windows">("windows");
 
     // 텍스트 소스
-    const [source, setSource] = useState<PracticeSource>(() => {
-        if (typeof window === "undefined") return "proverbs";
-        return (localStorage.getItem(SOURCE_STORAGE_KEY) as PracticeSource) || "proverbs";
-    });
+    const [source, setSource] = useState<PracticeSource>("proverbs");
     const [showManager, setShowManager] = useState(false);
 
     const { texts: customTexts, loading: customLoading, addText, updateText, deleteText } = useCustomTexts(language);
     const effectiveSource = source;
     const { submitScore } = useLocalScoreSubmit();
+
+    useEffect(() => {
+        try {
+            const savedSource = window.localStorage.getItem(SOURCE_STORAGE_KEY);
+            if (savedSource === "proverbs" || savedSource === "custom") {
+                setSource(savedSource);
+            }
+        } catch {
+            // 저장소 접근이 제한된 환경에서는 기본 소스를 유지한다.
+        }
+    }, []);
 
     const { pressedKeys } = useKeyboardState();
     const { advanceToNextPrompt } = usePracticeText(effectiveSource, customTexts);
@@ -57,7 +65,11 @@ const TypingInput: React.FC = () => {
 
     const handleSourceChange = useCallback((newSource: PracticeSource) => {
         setSource(newSource);
-        localStorage.setItem(SOURCE_STORAGE_KEY, newSource);
+        try {
+            window.localStorage.setItem(SOURCE_STORAGE_KEY, newSource);
+        } catch {
+            // 메모리 상태는 유지하고 영속화만 건너뛴다.
+        }
         setShowManager(false);
     }, []);
 

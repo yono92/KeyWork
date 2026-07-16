@@ -6,13 +6,9 @@ import CustomTextManager from "@/components/practice/CustomTextManager";
 import useTypingStore from "@/store/store";
 
 const mocks = vi.hoisted(() => ({
-    auth: {
-        isLoggedIn: false,
-    },
     customTexts: {
         texts: [] as Array<{
             id: number;
-            user_id: string;
             title: string;
             content: string;
             language: string;
@@ -29,14 +25,6 @@ const mocks = vi.hoisted(() => ({
     },
 }));
 
-vi.mock("@/components/auth/AuthProvider", () => ({
-    useAuthContext: () => ({
-        user: mocks.auth.isLoggedIn ? { id: "user-1" } : null,
-        profile: null,
-        isLoggedIn: mocks.auth.isLoggedIn,
-    }),
-}));
-
 vi.mock("@/hooks/useCustomTexts", () => ({
     useCustomTexts: () => mocks.customTexts,
 }));
@@ -49,7 +37,6 @@ describe("custom text UI", () => {
     beforeEach(() => {
         vi.clearAllMocks();
         localStorage.clear();
-        mocks.auth.isLoggedIn = false;
         mocks.customTexts.texts = [];
         mocks.customTexts.loading = false;
         useTypingStore.setState({
@@ -68,14 +55,13 @@ describe("custom text UI", () => {
         });
     });
 
-    it("disables the custom text source for signed-out users", () => {
+    it("keeps the custom text source available without an account", () => {
         render(<TypingInput />);
 
-        expect(screen.getByRole("button", { name: "내 텍스트" })).toBeDisabled();
+        expect(screen.getByRole("button", { name: "내 텍스트" })).toBeEnabled();
     });
 
     it("shows a fallback notice when custom source is selected without saved texts", () => {
-        mocks.auth.isLoggedIn = true;
         localStorage.setItem("keywork_practice_source", "custom");
 
         render(<TypingInput />);

@@ -9,7 +9,6 @@ const pages = [
   { name: 'typing-defense', path: '/typing-defense' },
   { name: 'dictation', path: '/dictation' },
   { name: 'leaderboard', path: '/leaderboard' },
-  { name: 'profile', path: '/profile' },
 ];
 
 for (const { name, path } of pages) {

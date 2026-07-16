@@ -15,10 +15,10 @@
 - Then 랜덤 문장이 표시되고, 타이핑 시작 시 WPM/KPM과 정확도가 실시간 갱신된다
 
 ### [P1] US-02: 커스텀 텍스트 연습
-> 로그인 사용자로서, 나만의 연습 텍스트를 등록하고 해당 텍스트로 타이핑 연습을 하고 싶다.
+> 사용자로서, 계정 없이 나만의 연습 텍스트를 등록하고 해당 텍스트로 타이핑 연습을 하고 싶다.
 
 **Acceptance Criteria:**
-- Given 로그인 상태에서 "My Texts" 탭 선택 시
+- Given 같은 브라우저에서 "My Texts" 탭 선택 시
 - When 커스텀 텍스트가 등록되어 있으면
 - Then 해당 텍스트로 연습할 수 있고, CRUD(추가/수정/삭제) 관리가 가능하다
 
@@ -34,7 +34,7 @@
 
 ### FR-001: 텍스트 소스
 - 속담/명언 탭: `src/data/proverbs.json` (한국어 145개, 영어 129개)
-- 커스텀 텍스트 탭: Supabase DB에서 사용자별 텍스트 로드 (로그인 필요)
+- 커스텀 텍스트 탭: 버전형 localStorage 키에서 언어별 텍스트 로드
 - 언어 설정에 따라 한/영 텍스트 자동 전환
 
 ### FR-002: 타이핑 입력 및 비교
@@ -72,7 +72,7 @@
 |------|------|
 | `src/components/TypingInput.tsx` | 메인 게임 컴포넌트 |
 | `src/components/Keyboard.tsx` | 온스크린 키보드 |
-| `src/components/CustomTextManager.tsx` | 커스텀 텍스트 CRUD |
+| `src/components/practice/CustomTextManager.tsx` | 커스텀 텍스트 CRUD |
 | `src/hooks/usePracticeText.ts` | 텍스트 로드 훅 |
 | `src/hooks/useCustomTexts.ts` | 커스텀 텍스트 CRUD 훅 |
 | `src/utils/hangulUtils.ts` | 한글 자모 분해/비교 |

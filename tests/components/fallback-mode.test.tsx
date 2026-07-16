@@ -4,14 +4,6 @@ import TypingInput from "../../src/components/TypingInput";
 import FallingWordsGame from "../../src/components/FallingWordsGame";
 import useTypingStore from "../../src/store/store";
 
-vi.mock("@/components/auth/AuthProvider", () => ({
-    useAuthContext: () => ({
-        user: null,
-        profile: null,
-        isLoggedIn: false,
-    }),
-}));
-
 describe("fallback mode UI", () => {
     beforeEach(() => {
         vi.restoreAllMocks();

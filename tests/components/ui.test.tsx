@@ -11,32 +11,10 @@ import MuteToggle from "../../src/components/MuteToggle";
 import ProgressBar from "../../src/components/ProgressBar";
 import useTypingStore from "../../src/store/store";
 
-const authContext = {
-    user: null as null | { id: string },
-    profile: null as null | { nickname: string; avatar_config: null },
-    isLoggedIn: false,
-    loading: false,
-    signIn: vi.fn(),
-    signUp: vi.fn(),
-    signOut: vi.fn(),
-    updateNickname: vi.fn(),
-};
-
-
-vi.mock("../../src/components/auth/AuthProvider", () => ({
-    useAuthContext: () => authContext,
-    AuthProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
-}));
-
 describe("UI components", () => {
     beforeEach(() => {
         globalThis.__TEST_PATHNAME__ = "/practice";
-        Object.assign(authContext, {
-            user: null,
-            profile: null,
-            isLoggedIn: false,
-            loading: false,
-        });
+        localStorage.clear();
         useTypingStore.setState({
             darkMode: false,
             progress: 25,

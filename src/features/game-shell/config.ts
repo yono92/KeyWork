@@ -57,12 +57,10 @@ export const PAGE_TITLES: Record<AppLanguage, Record<string, string>> = {
     korean: {
         ...Object.fromEntries(NAV_ITEMS.map((item) => [`/${item.id}`, item.label.korean])),
         "/leaderboard": "내 기록",
-        "/profile": "프로필",
     },
     english: {
         ...Object.fromEntries(NAV_ITEMS.map((item) => [`/${item.id}`, item.label.english])),
         "/leaderboard": "My Records",
-        "/profile": "Profile",
     },
 };
 

@@ -2,7 +2,7 @@
 
 import React, { createContext, useCallback, useContext, useState, useRef } from "react";
 
-export type ToastType = "level-up" | "achievement" | "high-score";
+export type ToastType = "level-up" | "high-score";
 
 interface Toast {
     id: number;

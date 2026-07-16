@@ -2,13 +2,13 @@
 
 ## 방향
 
-외부 백엔드 대체 없이 local-first 구조로 전환한다. 서버 인증 흉내를 남기지 않고 UI에서 계정 개념을 제거한다. 재사용 가능한 아바타·업적·통계 계산 로직은 유지하되, 데이터 소스만 브라우저 저장소로 교체한다.
+외부 백엔드 대체 없이 local-first 구조로 전환한다. 서버 인증 흉내를 남기지 않고 UI에서 계정 개념을 제거한다. 프로필·아바타·업적·계정 통계는 제거하고 커스텀 문장과 개인 점수만 브라우저에 저장한다.
 
 ## 단계
 
 1. 도메인 타입과 안전한 로컬 저장 유틸을 추가한다.
-2. 로컬 프로필과 커스텀 문장 훅을 구현하고 소비 화면을 교체한다.
-3. 프로필/랭킹 화면을 로컬 프로필/내 기록 화면으로 단순화한다.
+2. 커스텀 문장 훅을 로컬 저장으로 교체한다.
+3. 프로필 화면을 제거하고 랭킹 화면은 내 기록 화면으로 단순화한다.
 4. AuthProvider, 미들웨어, Supabase 클라이언트, 관리자 기능을 제거한다.
 5. Realtime 멀티플레이어 라우트·훅·컴포넌트를 제거하고 기본 게임의 온라인 진입점을 정리한다.
 6. 패키지, 환경변수, 문서, 테스트를 갱신한다.
@@ -16,18 +16,16 @@
 
 ## 데이터 설계
 
-- `keywork.profile.v1`: 닉네임, 아바타 설정
 - `keywork.customTexts.v1`: 사용자 작성 문장 배열
 - `keywork.scores.v1`: 로컬 게임 기록 배열
-- `keywork.achievements.v1`: 해금 업적과 시각
 
 모든 키는 JSON 파싱 실패 시 기본값을 반환하며 쓰기는 브라우저 가드 후 수행한다.
 
 ## 라우트 전략
 
-- 유지: `/`, `/practice`, `/falling-words`, `/word-chain`, `/typing-runner`, `/tetris`, `/profile`, `/leaderboard`
+- 유지: `/`, `/practice`, `/falling-words`, `/word-chain`, `/typing-runner`, `/tetris`, `/leaderboard`
 - 의미 변경: `/leaderboard`는 글로벌 순위가 아닌 로컬 최고 기록 화면
-- 제거: `/word-chain/battle`, `/tetris/battle`, `/admin/**`, `/api/admin/**`, `/api/rooms/cleanup`
+- 제거: `/profile`, `/word-chain/battle`, `/tetris/battle`, `/admin/**`, `/api/admin/**`, `/api/rooms/cleanup`
 
 ## 리스크
 

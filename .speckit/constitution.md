@@ -2,9 +2,9 @@
 
 ## 프로젝트 개요
 
-KeyWork는 한국어/영어 타이핑 연습 웹앱으로, 5가지 게임 모드와 2가지 멀티플레이어 대전을 제공한다. Win98/Mac-classic 레트로 테마가 핵심 정체성이며, Supabase 기반 인증/랭킹/멀티플레이어를 지원하고 Vercel에 배포되어 있다.
+KeyWork는 한국어/영어 타이핑 연습 웹앱으로, 5가지 싱글플레이 게임 모드를 제공한다. Win98/Mac-classic 레트로 테마가 핵심 정체성이며, 커스텀 문장과 점수는 브라우저에 저장하고 Vercel에 배포한다.
 
-- **스택**: Next.js 15 (App Router) + React 18 + TypeScript + Zustand + Supabase + Tailwind CSS
+- **스택**: Next.js 15 (App Router) + React 18 + TypeScript + Zustand + Tailwind CSS
 - **배포**: Vercel (서버리스)
 - **대상 사용자**: 한/영 타이핑 실력을 향상시키려는 사용자
 
@@ -24,14 +24,18 @@ Win98/Mac-classic 미학을 최우선으로 한다. 모던 글래스모피즘(`b
 
 모든 타이핑 기능은 한국어와 영어 모두 동작해야 한다. 한글 정확도는 자모 수준(`hangulUtils.ts`)에서 계산하며, 영어는 문자 수준 비교를 사용한다.
 
-### 4. 품질 게이트
+### 4. 로컬 퍼스트
+
+사용자 데이터는 버전형 localStorage 키에 저장한다. 브라우저 전용 접근은 마운트 이후 또는 사용자 이벤트에서만 수행하고, 손상되거나 차단된 저장소는 안전한 기본값으로 처리한다.
+
+### 5. 품질 게이트
 
 모든 변경은 아래 3가지를 통과해야 완료로 인정한다:
 - `npm run lint`
 - `npm run build`
 - `npm run test:run`
 
-### 5. 스펙 우선
+### 6. 스펙 우선
 
 기능 구현 전 반드시 spec → plan → tasks 순서로 문서를 작성한다. 문서 없이 구현을 시작하지 않는다.
 
