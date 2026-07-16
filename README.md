@@ -21,7 +21,7 @@
 | `/falling-words` | 단어 낙하 아케이드 |
 | `/word-chain` | 로컬 사전과 krdict API를 사용하는 끝말잇기 |
 | `/typing-runner` | AI 상대 타이핑 레이스 |
-| `/tetris` | 싱글플레이 테트리스 |
+| `/tetris` | 고스트·홀드를 지원하는 클래식 레트로 테트리스 |
 | `/leaderboard` | 현재 브라우저의 모드별 개인 기록 |
 
 ## 로컬 데이터

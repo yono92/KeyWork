@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-    title: "샌드트리스",
-    description: "모래 물리 기반 퍼즐 게임! 블록이 모래로 변해 쌓이는 샌드트리스. 같은 색이 연결되면 클리어하며 모바일 터치를 지원합니다.",
-    keywords: ["샌드트리스", "sandtris", "모래 퍼즐", "레트로 게임", "블록 퍼즐"],
+    title: "레트로 테트리스",
+    description: "고스트와 홀드를 지원하는 클래식 10×20 레트로 테트리스입니다. 7-bag 블록과 단계별 속도에 도전해 보세요.",
+    keywords: ["테트리스", "retro tetris", "클래식 게임", "블록 퍼즐", "고스트", "홀드"],
 };
 
 export default function TetrisLayout({ children }: { children: React.ReactNode }) {

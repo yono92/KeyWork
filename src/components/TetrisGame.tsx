@@ -1,118 +1,69 @@
 "use client";
 
-import React, { useCallback, useEffect, useRef } from "react";
-import { useResponsiveTetrisSize } from "../hooks/useResponsiveTetrisSize";
-import { useTetrisAnimations } from "../hooks/useTetrisAnimations";
-import { useTetrisEngine, PIECES, CELL_COLORS, BOARD_WIDTH, BOARD_HEIGHT } from "../hooks/useTetrisEngine";
-import type { PieceType } from "../hooks/useTetrisEngine";
-import { GRAIN_SCALE, SAND_COLS, SAND_ROWS } from "../lib/sandPhysics";
-import type { SandGrid } from "../lib/sandPhysics";
-import useTypingStore from "../store/store";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ArrowDown, ArrowLeft, ArrowRight, ChevronsDown, Pause, Play, RotateCcw, RotateCw } from "lucide-react";
 import { useLocalScoreSubmit } from "@/hooks/useLocalScoreSubmit";
+import { useTetrisEngine } from "@/hooks/useTetrisEngine";
+import { PIECES, type PieceType } from "@/lib/tetrisCore";
 
-// ─── Canvas 2D 드로잉 ───
+const PIECE_CLASSES: Record<PieceType, string> = {
+    I: "bg-cyan-400 border-cyan-200 border-r-cyan-700 border-b-cyan-700",
+    O: "bg-amber-300 border-yellow-100 border-r-amber-700 border-b-amber-700",
+    T: "bg-violet-500 border-violet-300 border-r-violet-900 border-b-violet-900",
+    S: "bg-emerald-500 border-emerald-300 border-r-emerald-900 border-b-emerald-900",
+    Z: "bg-rose-500 border-rose-300 border-r-rose-900 border-b-rose-900",
+    J: "bg-blue-500 border-blue-300 border-r-blue-900 border-b-blue-900",
+    L: "bg-orange-500 border-orange-300 border-r-orange-900 border-b-orange-900",
+};
 
-function adjustColor(hex: string, factor: number): string {
-    const r = parseInt(hex.slice(1, 3), 16);
-    const g = parseInt(hex.slice(3, 5), 16);
-    const b = parseInt(hex.slice(5, 7), 16);
-    return `rgb(${Math.min(255, Math.round(r * factor))},${Math.min(255, Math.round(g * factor))},${Math.min(255, Math.round(b * factor))})`;
+const panelClass = "border-2 border-t-slate-400 border-l-slate-400 border-r-slate-950 border-b-slate-950 bg-slate-800 p-2.5 shadow-[inset_1px_1px_0_rgba(255,255,255,0.08)]";
+const controlClass = "flex min-h-11 items-center justify-center border-2 border-t-slate-400 border-l-slate-400 border-r-slate-950 border-b-slate-950 bg-slate-700 text-slate-100 transition active:translate-y-px active:border-t-slate-950 active:border-l-slate-950 disabled:cursor-not-allowed disabled:opacity-35";
+
+function PiecePreview({ type, label }: { type: PieceType | null; label: string }) {
+    const occupied = useMemo(() => new Set(
+        type ? PIECES[type][0].map(([x, y]) => `${x}-${y}`) : [],
+    ), [type]);
+
+    return (
+        <div aria-label={`${label}: ${type ?? "없음"}`} className="grid aspect-square w-full max-w-24 grid-cols-4 grid-rows-4 gap-px border-2 border-t-slate-950 border-l-slate-950 border-r-slate-500 border-b-slate-500 bg-slate-950 p-2">
+            {Array.from({ length: 16 }, (_, index) => {
+                const x = index % 4;
+                const y = Math.floor(index / 4);
+                const filled = type && occupied.has(`${x}-${y}`);
+                return <span key={index} className={filled ? `border ${PIECE_CLASSES[type]}` : "bg-slate-950"} />;
+            })}
+        </div>
+    );
 }
 
-function drawBackground(ctx: CanvasRenderingContext2D, w: number, h: number) {
-    ctx.fillStyle = "#050505";
-    ctx.fillRect(0, 0, w, h);
+function Stat({ label, value, accent = false }: { label: string; value: string | number; accent?: boolean }) {
+    return (
+        <div className="border border-slate-600 bg-slate-950 px-2 py-1.5">
+            <dt className="font-pixel text-[7px] tracking-wider text-slate-500">{label}</dt>
+            <dd className={`mt-1 font-mono text-base font-black tabular-nums ${accent ? "text-amber-300" : "text-slate-100"}`}>{value}</dd>
+        </div>
+    );
 }
-
-function drawSandGrains(ctx: CanvasRenderingContext2D, grid: SandGrid, grainPx: number) {
-    // 알갱이를 0.5px 겹치게 그려 틈/안티앨리어싱 심(seam) 제거 → 촘촘한 모래
-    const sz = grainPx + 0.5;
-    for (let y = 0; y < SAND_ROWS; y++) {
-        const row = grid[y];
-        for (let x = 0; x < SAND_COLS; x++) {
-            const g = row[x];
-            if (g === null) continue;
-            const c = CELL_COLORS[g];
-            // 알갱이별 미세 밝기 노이즈로 모래 질감
-            const hash = (y * 31 + x * 17 + y * x * 7) & 0xff;
-            const brightness = 0.82 + (hash % 36) / 100;
-            ctx.fillStyle = adjustColor(c.face, brightness);
-            ctx.fillRect(x * grainPx, y * grainPx, sz, sz);
-        }
-    }
-}
-
-function drawFlashGrid(ctx: CanvasRenderingContext2D, flashGrid: Uint8Array | null, grainPx: number) {
-    if (!flashGrid) return;
-    ctx.fillStyle = "rgba(255, 255, 255, 0.85)";
-    for (let y = 0; y < SAND_ROWS; y++) {
-        for (let x = 0; x < SAND_COLS; x++) {
-            if (flashGrid[y * SAND_COLS + x]) {
-                ctx.fillRect(x * grainPx, y * grainPx, grainPx, grainPx);
-            }
-        }
-    }
-}
-
-function drawActivePiece(ctx: CanvasRenderingContext2D, type: PieceType, rotation: number, px: number, py: number, cellSize: number) {
-    const c = CELL_COLORS[type];
-    const bw = Math.max(1, Math.floor(cellSize * 0.08));
-    for (const [dx, dy] of PIECES[type][rotation]) {
-        const x = (px + dx) * cellSize;
-        const y = (py + dy) * cellSize;
-        if (y + cellSize < 0) continue;
-        ctx.fillStyle = c.face; ctx.fillRect(x, y, cellSize, cellSize);
-        ctx.fillStyle = c.hi; ctx.fillRect(x, y, cellSize, bw); ctx.fillRect(x, y, bw, cellSize);
-        ctx.fillStyle = c.lo; ctx.fillRect(x, y + cellSize - bw, cellSize, bw); ctx.fillRect(x + cellSize - bw, y, bw, cellSize);
-        ctx.fillStyle = "rgba(255,255,255,0.12)"; ctx.fillRect(x + bw, y + bw, cellSize - bw * 2, cellSize - bw * 2);
-    }
-}
-
-function drawGhostPiece(ctx: CanvasRenderingContext2D, type: PieceType, rotation: number, px: number, ghostY: number, cellSize: number) {
-    const c = CELL_COLORS[type];
-    ctx.strokeStyle = `${c.face}55`; ctx.lineWidth = 1; ctx.setLineDash([3, 3]);
-    for (const [dx, dy] of PIECES[type][rotation]) {
-        const x = (px + dx) * cellSize; const y = (ghostY + dy) * cellSize;
-        if (y + cellSize < 0) continue;
-        ctx.strokeRect(x + 0.5, y + 0.5, cellSize - 1, cellSize - 1);
-    }
-    ctx.setLineDash([]);
-}
-
-// ─── 컴포넌트 ───
 
 export default function TetrisGame() {
     const { submitScore } = useLocalScoreSubmit();
     const scoreRecordedRef = useRef(false);
-    const animEnabled = useTypingStore((s) => s.fxEnabled);
-    const { sectionRef, cellSize, miniCellSize, sidePanelWidth, isMobile } = useResponsiveTetrisSize();
-    const anim = useTetrisAnimations(animEnabled);
-    const prevLevelRef = useRef(1);
-    const canvasRef = useRef<HTMLCanvasElement>(null);
+    const clearTimerRef = useRef<number | null>(null);
+    const [clearLabel, setClearLabel] = useState<string | null>(null);
 
-    const onLinesCleared = useCallback((rowsCleared: number, chain: number, totalGain: number, newCombo: number) => {
-        anim.triggerScorePop();
-        anim.addFloatingText(`+${totalGain}`, "var(--retro-game-warning)");
-        // 연쇄(한 드롭으로 연달아 터지는 것)를 주 스펙터클로
-        if (chain >= 3) { anim.triggerClearLabel(`CHAIN x${chain}`); anim.triggerScreenFlash(); }
-        else if (chain >= 2) anim.triggerClearLabel(`CHAIN x${chain}`);
-        else if (rowsCleared >= 4) { anim.triggerClearLabel("BIG CLEAR"); anim.triggerScreenFlash(); }
-        if (newCombo >= 2) anim.addFloatingText(`COMBO x${newCombo}`, "var(--retro-game-info)");
-        if (newCombo >= 3) anim.triggerShake();
-    }, [anim]);
-
-    const onHardDrop = useCallback((distance: number, landingRow: number) => {
-        anim.setHardDropDistance(distance);
-        anim.triggerShake();
-        if (animEnabled && distance > 2) {
-            anim.setImpactRow(landingRow);
-            setTimeout(() => anim.setImpactRow(null), 400);
-        }
-    }, [anim, animEnabled]);
-
+    const onLinesCleared = useCallback((lines: number, scoreGain: number) => {
+        const labels = ["", "SINGLE", "DOUBLE", "TRIPLE", "TETRIS!"];
+        setClearLabel(`${labels[lines]} +${scoreGain}`);
+        if (clearTimerRef.current) window.clearTimeout(clearTimerRef.current);
+        clearTimerRef.current = window.setTimeout(() => setClearLabel(null), 900);
+    }, []);
+    const onHardDrop = useCallback(() => {}, []);
     const onGameOver = useCallback(() => {}, []);
+    const engine = useTetrisEngine({ onLinesCleared, onHardDrop, onGameOver });
 
-    const engine = useTetrisEngine({ onLinesCleared, onHardDrop, onGameOver }, isMobile);
+    useEffect(() => () => {
+        if (clearTimerRef.current) window.clearTimeout(clearTimerRef.current);
+    }, []);
 
     useEffect(() => {
         if (!engine.gameOver) {
@@ -124,512 +75,148 @@ export default function TetrisGame() {
         submitScore({ game_mode: "tetris", score: engine.score });
     }, [engine.gameOver, engine.score, submitScore]);
 
-    // 레벨업 글로우
-    useEffect(() => {
-        if (engine.level > prevLevelRef.current && engine.running) anim.triggerLevelGlow();
-        prevLevelRef.current = engine.level;
-    }, [engine.level, engine.running, anim]);
+    const activeCells = useMemo(() => new Map<string, PieceType>(
+        engine.activePiece
+            ? PIECES[engine.activePiece.type][engine.activePiece.rotation].map(([dx, dy]) => [
+                `${engine.activePiece!.x + dx}-${engine.activePiece!.y + dy}`,
+                engine.activePiece!.type,
+            ])
+            : [],
+    ), [engine.activePiece]);
 
-    const controlsDisabled = !engine.running || engine.paused || engine.gameOver || engine.settling;
-    const boardPx = cellSize * BOARD_WIDTH;
-    const boardH = cellSize * BOARD_HEIGHT;
+    const ghostCells = useMemo(() => new Set(
+        engine.activePiece
+            ? PIECES[engine.activePiece.type][engine.activePiece.rotation].map(([dx, dy]) =>
+                `${engine.activePiece!.x + dx}-${engine.ghostY + dy}`,
+            )
+            : [],
+    ), [engine.activePiece, engine.ghostY]);
 
-    // ─── RAF: tick + Canvas 드로잉 ───
-    const tickRef = useRef(engine.tick);
-    const cellSizeRef = useRef(cellSize);
-    tickRef.current = engine.tick;
-    cellSizeRef.current = cellSize;
+    const controlsDisabled = !engine.running || engine.paused || engine.gameOver;
+    const buttonLabel = engine.gameOver ? "다시 시작" : engine.running ? "게임 재시작" : "게임 시작";
 
-    useEffect(() => {
-        let frameId = 0;
-        let lastTime = 0;
-
-        const loop = (time: number) => {
-            const dt = lastTime ? Math.min(time - lastTime, 100) : 16;
-            lastTime = time;
-            tickRef.current(dt);
-
-            const canvas = canvasRef.current;
-            const ctx = canvas?.getContext("2d");
-            if (ctx && canvas) {
-                const cs = cellSizeRef.current;
-                const gp = cs / GRAIN_SCALE;
-                const dpr = window.devicePixelRatio || 1;
-                const w = BOARD_WIDTH * cs;
-                const h = BOARD_HEIGHT * cs;
-
-                if (canvas.width !== Math.round(w * dpr) || canvas.height !== Math.round(h * dpr)) {
-                    canvas.width = Math.round(w * dpr);
-                    canvas.height = Math.round(h * dpr);
-                    canvas.style.width = `${w}px`;
-                    canvas.style.height = `${h}px`;
-                    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-                }
-
-                const s = engine.gsRef.current;
-                drawBackground(ctx, w, h);
-                drawSandGrains(ctx, s.sandGrid, gp);
-                drawFlashGrid(ctx, s.flashGrid, gp);
-                if (s.activePiece && s.running && !s.gameOver && !s.settling) {
-                    drawGhostPiece(ctx, s.activePiece.type, s.activePiece.rotation, s.activePiece.x, s.ghostY, cs);
-                }
-                if (s.activePiece && s.running && !s.gameOver) {
-                    drawActivePiece(ctx, s.activePiece.type, s.activePiece.rotation, s.activePiece.x, s.activePiece.y, cs);
-                }
-            }
-
-            frameId = requestAnimationFrame(loop);
-        };
-
-        frameId = requestAnimationFrame(loop);
-        return () => cancelAnimationFrame(frameId);
-    }, [engine.gsRef]);
-
-    // ─── 베벨 유틸 ───
-    const bevel = (inset = false) => ({
-        borderStyle: "solid" as const,
-        borderWidth: "2px",
-        borderTopColor: inset ? "#1a1a20" : "#666670",
-        borderLeftColor: inset ? "#1a1a20" : "#666670",
-        borderBottomColor: inset ? "#666670" : "#1a1a20",
-        borderRightColor: inset ? "#666670" : "#1a1a20",
-    });
-
-    // ─── 미니 프리뷰 (NEXT / HOLD) ───
-    const renderMiniPreview = (pieceType: PieceType | null) => {
-        const sz = miniCellSize;
-        return (
-            <div
-                style={{
-                    display: "grid",
-                    gridTemplateColumns: `repeat(4, ${sz}px)`,
-                    gap: 0,
-                    background: "#0a0a0a",
-                    padding: 2,
-                    width: "fit-content",
-                    margin: "0 auto",
-                    ...bevel(true),
-                }}
-            >
-                {Array.from({ length: 16 }).map((_, idx) => {
-                    const x = idx % 4;
-                    const y = Math.floor(idx / 4);
-                    const filled = pieceType !== null && PIECES[pieceType][0].some(([dx, dy]) => dx === x && dy === y);
-                    if (filled && pieceType) {
-                        const c = CELL_COLORS[pieceType];
-                        return (
-                            <div
-                                key={idx}
-                                style={{
-                                    width: sz, height: sz,
-                                    background: c.face,
-                                    borderStyle: "solid",
-                                    borderWidth: "1px",
-                                    borderTopColor: c.hi,
-                                    borderLeftColor: c.hi,
-                                    borderBottomColor: c.lo,
-                                    borderRightColor: c.lo,
-                                    imageRendering: "pixelated",
-                                }}
-                                aria-hidden="true"
-                            />
-                        );
-                    }
-                    return <div key={idx} style={{ width: sz, height: sz, background: "#111118" }} aria-hidden="true" />;
-                })}
-            </div>
-        );
-    };
-
-    // ─── 보드 렌더 (Canvas + 오버레이) ───
-    const shakeAnim = anim.shaking
-        ? anim.hardDropDistance > 6
-            ? "tetris-hard-shake 0.25s ease-out"
-            : anim.hardDropDistance > 2
-                ? "tetris-hard-shake 0.2s ease-out"
-                : "tetris-shake 0.18s ease-out"
-        : undefined;
-
-    const renderBoard = () => (
-        <div style={{ position: "relative", alignSelf: "start", width: "fit-content", margin: "0 auto", animation: shakeAnim }}>
-            <div
-                style={{
-                    padding: 4,
-                    background: "#2a2a30",
-                    borderStyle: "solid",
-                    borderWidth: "3px",
-                    borderTopColor: "#555560",
-                    borderLeftColor: "#555560",
-                    borderBottomColor: "#111115",
-                    borderRightColor: "#111115",
-                    animation: anim.levelGlow ? "tetris-level-glow 0.6s ease-out" : undefined,
-                }}
-            >
-                <div style={{ padding: 1, background: "#111115", ...bevel(true) }}>
-                    <canvas
-                        ref={canvasRef}
-                        style={{
-                            display: "block",
-                            width: boardPx,
-                            height: boardH,
-                            imageRendering: "pixelated",
-                        }}
-                    />
-                </div>
+    const board = (
+        <div className="relative mx-auto aspect-[1/2] w-[min(78vw,310px)] border-[5px] border-t-slate-500 border-l-slate-500 border-r-slate-950 border-b-slate-950 bg-[#070a12] p-1 shadow-[0_10px_28px_rgba(0,0,0,0.45)] sm:w-[min(48vw,350px)]">
+            <div className="grid h-full grid-cols-10 grid-rows-[repeat(20,minmax(0,1fr))] gap-px bg-slate-800/70" role="grid" aria-label="테트리스 게임 보드">
+                {engine.board.flatMap((row, y) => row.map((lockedType, x) => {
+                    const key = `${x}-${y}`;
+                    const activeType = activeCells.get(key);
+                    const type = activeType ?? lockedType;
+                    const ghost = !type && ghostCells.has(key);
+                    return (
+                        <span
+                            key={key}
+                            role="gridcell"
+                            className={type
+                                ? `border-2 shadow-[inset_2px_2px_0_rgba(255,255,255,0.22)] ${PIECE_CLASSES[type]}`
+                                : ghost
+                                    ? "border-2 border-dashed border-slate-400/70 bg-slate-300/10"
+                                    : "bg-[#090d18]"
+                            }
+                        />
+                    );
+                }))}
             </div>
 
-            {/* 임팩트 라인 */}
-            {anim.impactRow !== null && (
-                <div
-                    style={{
-                        position: "absolute",
-                        left: 7, right: 7,
-                        top: 7 + anim.impactRow * cellSize + cellSize / 2 - 1,
-                        height: 2,
-                        background: "linear-gradient(90deg, transparent, #fff, #ffe000, #fff, transparent)",
-                        animation: "tetris-impact-line 0.4s ease-out forwards",
-                        pointerEvents: "none",
-                        zIndex: 5,
-                    }}
-                />
-            )}
-
-            {/* 플로팅 텍스트 */}
-            {anim.floatingTexts.map((ft) => {
-                const isCombo = ft.text.startsWith("COMBO");
-                const comboNum = isCombo ? parseInt(ft.text.replace(/\D/g, "")) || 2 : 0;
-                return (
-                    <div
-                        key={ft.id}
-                        style={{
-                            position: "absolute",
-                            left: "50%", top: "40%",
-                            transform: "translateX(-50%)",
-                            color: ft.color,
-                            fontSize: isCombo ? Math.max(16, cellSize * 0.8) + comboNum * 2 : Math.max(14, cellSize * 0.7),
-                            fontWeight: 900,
-                            letterSpacing: 2,
-                            textShadow: "2px 2px 0 #000, -1px -1px 0 #000",
-                            animation: isCombo ? "tetris-combo-pulse 1.2s ease-out forwards" : "tetris-float-up 1s ease-out forwards",
-                            pointerEvents: "none",
-                            zIndex: 8,
-                            whiteSpace: "nowrap",
-                            fontFamily: "monospace",
-                        }}
-                    >
-                        {ft.text}
-                    </div>
-                );
-            })}
-
-            {/* 클리어 라벨 */}
-            {anim.clearLabel && (
-                <div
-                    style={{
-                        position: "absolute",
-                        left: "50%", top: "30%",
-                        transform: "translateX(-50%)",
-                        color: anim.clearLabel === "TETRIS!" ? "var(--retro-game-warning)" : "var(--retro-game-text)",
-                        fontSize: anim.clearLabel === "TETRIS!" ? Math.max(24, cellSize * 1.4) : Math.max(18, cellSize * 1),
-                        fontWeight: 900,
-                        letterSpacing: 4,
-                        textShadow: anim.clearLabel === "TETRIS!"
-                            ? "0 0 20px #ffd700, 0 0 40px #ff8c00, 2px 2px 0 #000"
-                            : "0 0 10px #fff, 2px 2px 0 #000",
-                        animation: anim.clearLabel === "TETRIS!"
-                            ? "tetris-tetris-clear 1.5s ease-out forwards"
-                            : "tetris-float-up 1.2s ease-out forwards",
-                        pointerEvents: "none",
-                        zIndex: 12,
-                        whiteSpace: "nowrap",
-                        fontFamily: "monospace",
-                    }}
-                >
-                    {anim.clearLabel}
+            {clearLabel && (
+                <div aria-live="polite" className="pointer-events-none absolute inset-x-3 top-1/2 -translate-y-1/2 border-y-2 border-amber-300 bg-slate-950/90 py-3 text-center font-pixel text-[11px] text-amber-300 shadow-[0_0_24px_rgba(251,191,36,0.45)]">
+                    {clearLabel}
                 </div>
             )}
 
-            {/* 스크린 플래시 */}
-            {anim.screenFlash && (
-                <div
-                    style={{
-                        position: "absolute", inset: 0,
-                        background: "linear-gradient(180deg, rgba(255,255,255,0.7), rgba(255,224,0,0.4))",
-                        animation: "game-screen-flash 150ms ease-out forwards",
-                        pointerEvents: "none",
-                        zIndex: 11,
-                    }}
-                />
-            )}
-
-            {/* PAUSE 오버레이 */}
-            {engine.paused && engine.running && !engine.gameOver && (
-                <div
-                    style={{
-                        position: "absolute", inset: 0,
-                        display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-                        background: "rgba(0,0,0,0.82)",
-                        animation: "tetris-fade-in 0.2s ease-out",
-                        zIndex: 10,
-                    }}
-                >
-                    <p style={{ color: "#e0d080", fontSize: 22, fontWeight: 900, letterSpacing: 6, textTransform: "uppercase", animation: "tetris-blink 1s step-end infinite", textShadow: "2px 2px 0 #000" }}>
-                        PAUSE
+            {(!engine.running || engine.paused || engine.gameOver) && (
+                <div className="absolute inset-1 flex flex-col items-center justify-center bg-slate-950/88 px-5 text-center backdrop-blur-[1px]">
+                    <p className="font-pixel text-[9px] tracking-widest text-cyan-300">
+                        {engine.gameOver ? "GAME OVER" : engine.paused ? "PAUSED" : "READY?"}
                     </p>
-                    <p style={{ color: "#666670", fontSize: 11, marginTop: 6 }}>P 키로 재개</p>
-                    <button
-                        onClick={() => engine.setPaused(false)}
-                        style={{ ...bevel(), background: "#2a2a30", color: "#ccccdd", padding: "6px 20px", cursor: "pointer", marginTop: 12, fontSize: 13, fontWeight: 900, letterSpacing: 2 }}
-                    >
-                        CONTINUE
-                    </button>
-                </div>
-            )}
-
-            {/* GAME OVER 오버레이 */}
-            {engine.gameOver && (
-                <>
-                    <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg, rgba(0,0,0,0.9), rgba(20,0,0,0.85))", animation: "game-over-curtain 0.8s ease-out forwards", zIndex: 9 }} />
-                    <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", animation: "tetris-fade-in 0.5s 0.3s ease-out both", zIndex: 10 }}>
-                        <p className="font-pixel" style={{ color: "#cc3333", fontSize: 16, letterSpacing: 4, textShadow: "0 0 20px rgba(255,51,51,0.5), 2px 2px 0 #000" }}>
-                            GAME OVER
-                        </p>
-                        <p className="font-pixel" style={{ color: "#ccccdd", fontSize: 10, marginTop: 8 }}>
-                            SCORE: {engine.score.toLocaleString()}
-                        </p>
-                        <button
-                            onClick={engine.resetGame}
-                            style={{ ...bevel(), background: "#2a2a30", color: "#ccccdd", padding: "6px 20px", cursor: "pointer", marginTop: 12, fontSize: 13, fontWeight: 900, letterSpacing: 2 }}
-                        >
-                            RETRY
+                    <p className="mt-3 max-w-56 text-xs leading-5 text-slate-300">
+                        {engine.gameOver
+                            ? `최종 점수 ${engine.score.toLocaleString()}점`
+                            : engine.paused
+                                ? "P 키 또는 아래 버튼으로 계속하세요."
+                                : "고스트를 따라 쌓고, C 키로 블록을 홀드하세요."}
+                    </p>
+                    {!engine.paused && (
+                        <button type="button" onClick={engine.resetGame} className="mt-5 min-h-11 border-2 border-t-cyan-200 border-l-cyan-200 border-r-cyan-900 border-b-cyan-900 bg-cyan-600 px-5 font-pixel text-[8px] text-white active:translate-y-px">
+                            {engine.gameOver ? "RETRY" : "START"}
                         </button>
-                    </div>
-                </>
-            )}
-
-            {/* START 오버레이 */}
-            {!engine.running && !engine.gameOver && (
-                <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.88)", zIndex: 10 }}>
-                    <p className="font-pixel" style={{ color: "#44ccff", fontSize: 20, letterSpacing: 6, textShadow: "2px 2px 0 #000, 0 0 10px #2288aa", marginBottom: 6 }}>
-                        SANDTRIS
-                    </p>
-                    <p className="font-pixel" style={{ color: "#666670", fontSize: 8, marginBottom: 14, animation: "tetris-blink 1.2s step-end infinite" }}>
-                        PRESS START
-                    </p>
-                    <button
-                        onClick={engine.resetGame}
-                        style={{ ...bevel(), background: "#882222", color: "#ccccdd", padding: "8px 28px", fontSize: 14, fontWeight: 900, letterSpacing: 3, cursor: "pointer" }}
-                    >
-                        START
-                    </button>
+                    )}
                 </div>
             )}
         </div>
     );
-
-    // ─── 사이드 패널 ───
-    const sp = Math.max(0.6, cellSize / 22);
-    const spFont = (base: number) => Math.round(base * sp);
-    const spPad = (base: number) => Math.round(base * sp);
-
-    const renderStatRow = (label: string, value: number, pop = false) => (
-        <div style={{ ...bevel(true), background: "#1a1a22", padding: `${spPad(4)}px ${spPad(8)}px`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <span className="font-pixel" style={{ color: "#888890", fontSize: spFont(8), textTransform: "uppercase", letterSpacing: 1 }}>{label}</span>
-            <span style={{ color: "#e0d080", fontSize: spFont(16), fontWeight: 900, fontVariantNumeric: "tabular-nums", fontFamily: "monospace", animation: pop && anim.scorePop ? "tetris-score-pop 0.3s ease-out" : undefined }}>
-                {value.toLocaleString()}
-            </span>
-        </div>
-    );
-
-    const boardTotalH = cellSize * BOARD_HEIGHT + 20;
-
-    const renderSidePanel = () => {
-        const gap = Math.max(2, spPad(4));
-        return (
-            <div style={{ display: "flex", flexDirection: "column", gap, maxHeight: boardTotalH, overflow: "hidden" }}>
-                <div style={{ ...bevel(), background: "#2a2a30", padding: spPad(5) }}>
-                    <p className="font-pixel" style={{ fontSize: spFont(8), letterSpacing: 2, textTransform: "uppercase", color: "#888890", textAlign: "center", marginBottom: spPad(3) }}>NEXT</p>
-                    {renderMiniPreview(engine.nextPieceType)}
-                </div>
-
-                <div style={{ ...bevel(), background: "#2a2a30", padding: spPad(5) }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: spPad(3) }}>
-                        <p className="font-pixel" style={{ fontSize: spFont(8), letterSpacing: 2, textTransform: "uppercase", color: "#888890" }}>
-                            HOLD <span style={{ fontSize: spFont(6), color: "#666670" }}>[C]</span>
-                        </p>
-                        {engine.holdUsedThisTurn && <span style={{ fontSize: spFont(8), color: "#cc3333", fontWeight: 700 }}>LOCK</span>}
-                    </div>
-                    {renderMiniPreview(engine.heldPieceType)}
-                </div>
-
-                <div style={{ ...bevel(), background: "#2a2a30", padding: spPad(5), display: "flex", flexDirection: "column", gap: spPad(2) }}>
-                    {renderStatRow("SCORE", engine.score, true)}
-                    {renderStatRow("LINES", engine.lines)}
-                    {renderStatRow("LEVEL", engine.level)}
-                    <div style={{ ...bevel(true), background: "#1a1a22", padding: `${spPad(2)}px ${spPad(8)}px`, textAlign: "center" }}>
-                        <span style={{ color: "#666670", fontSize: spFont(9) }}>SPEED {engine.dropIntervalMs}ms</span>
-                    </div>
-                </div>
-
-                {engine.combo >= 2 && (
-                    <div style={{ ...bevel(), background: "#1a1a22", padding: `${spPad(4)}px ${spPad(8)}px`, textAlign: "center" }}>
-                        <span style={{ color: "#44ccff", fontSize: spFont(14), fontWeight: 900, letterSpacing: 2, textShadow: "0 0 6px #2288aa", fontFamily: "monospace" }}>
-                            COMBO x{engine.combo}
-                        </span>
-                    </div>
-                )}
-
-                {!isMobile && (
-                    <div style={{ ...bevel(), background: "#2a2a30", padding: 0 }}>
-                        <div style={{ background: "#1a1a22", ...bevel(true), padding: `${spPad(4)}px ${spPad(6)}px` }}>
-                            <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: `${spPad(1)}px ${spPad(6)}px`, alignItems: "center" }}>
-                                {[["← →", "이동"], ["↑ ↓", "회전/내리기"], ["SPC", "드롭"], ["C/P", "홀드/정지"]].map(([k, v]) => (
-                                    <React.Fragment key={k}>
-                                        <span style={{ color: "#aabb88", fontSize: spFont(10), fontWeight: 900, fontFamily: "monospace", textAlign: "right", textShadow: "0 0 4px #446622", lineHeight: 1.3 }}>{k}</span>
-                                        <span style={{ color: "#888890", fontSize: spFont(9), fontFamily: "monospace", lineHeight: 1.3, opacity: 0.6 }}>{v}</span>
-                                    </React.Fragment>
-                                ))}
-                            </div>
-                            <button
-                                onClick={() => useTypingStore.getState().toggleFx()}
-                                style={{
-                                    width: "100%", marginTop: spPad(4), height: spPad(18),
-                                    fontSize: spFont(9), fontWeight: 700, letterSpacing: 2, fontFamily: "monospace",
-                                    ...bevel(animEnabled),
-                                    background: animEnabled ? "#1a2a1a" : "#2a2a30",
-                                    color: animEnabled ? "#aabb88" : "#666670",
-                                    cursor: "pointer",
-                                    textShadow: animEnabled ? "0 0 4px #446622" : "none",
-                                }}
-                            >
-                                FX {animEnabled ? "ON" : "OFF"}
-                            </button>
-                        </div>
-                    </div>
-                )}
-
-                {isMobile && (
-                    <div style={{ ...bevel(), background: "#2a2a30", padding: spPad(3) }}>
-                        <button
-                            onClick={() => useTypingStore.getState().toggleFx()}
-                            style={{
-                                width: "100%", height: spPad(20),
-                                fontSize: spFont(9), fontWeight: 700, letterSpacing: 2, fontFamily: "monospace",
-                                ...bevel(animEnabled),
-                                background: animEnabled ? "#1a2a1a" : "#2a2a30",
-                                color: animEnabled ? "#aabb88" : "#666670",
-                                cursor: "pointer",
-                                textShadow: animEnabled ? "0 0 4px #446622" : "none",
-                            }}
-                        >
-                            FX {animEnabled ? "ON" : "OFF"}
-                        </button>
-                    </div>
-                )}
-            </div>
-        );
-    };
-
-    // ─── 모바일 컨트롤 패드 ───
-    const renderControlPad = () => {
-        const btnH = 44;
-        const dpadStyle = (disabled: boolean): React.CSSProperties => ({
-            height: btnH, fontSize: 20, fontWeight: 900,
-            cursor: disabled ? "not-allowed" : "pointer",
-            background: disabled ? "#1a1a20" : "#2a2a30",
-            color: disabled ? "#444448" : "#ccccdd",
-            borderStyle: "solid", borderWidth: "3px",
-            borderTopColor: disabled ? "#222228" : "#666670",
-            borderLeftColor: disabled ? "#222228" : "#666670",
-            borderBottomColor: disabled ? "#111115" : "#1a1a20",
-            borderRightColor: disabled ? "#111115" : "#1a1a20",
-        });
-        return (
-            <div style={{ background: "#2a2a30", padding: 6, borderStyle: "solid", borderWidth: "3px", borderTopColor: "#666670", borderLeftColor: "#666670", borderBottomColor: "#1a1a20", borderRightColor: "#1a1a20" }}>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 5 }}>
-                    <div />
-                    <button onClick={engine.rotatePiece} disabled={controlsDisabled} style={dpadStyle(controlsDisabled)}>↑</button>
-                    <div />
-                    <button onClick={() => engine.moveHorizontal(-1)} disabled={controlsDisabled} style={dpadStyle(controlsDisabled)}>←</button>
-                    <button onClick={engine.softDrop} disabled={controlsDisabled} style={dpadStyle(controlsDisabled)}>↓</button>
-                    <button onClick={() => engine.moveHorizontal(1)} disabled={controlsDisabled} style={dpadStyle(controlsDisabled)}>→</button>
-                </div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1.4fr 1fr", gap: 5, marginTop: 5 }}>
-                    <button
-                        onClick={engine.holdPiece}
-                        disabled={controlsDisabled || engine.holdUsedThisTurn}
-                        style={{
-                            height: btnH, fontSize: 12, fontWeight: 900, letterSpacing: 1,
-                            cursor: (controlsDisabled || engine.holdUsedThisTurn) ? "not-allowed" : "pointer",
-                            background: (controlsDisabled || engine.holdUsedThisTurn) ? "#1a1a20" : "#334433",
-                            color: (controlsDisabled || engine.holdUsedThisTurn) ? "#444448" : "#ccccdd",
-                            borderStyle: "solid", borderWidth: "3px",
-                            borderTopColor: (controlsDisabled || engine.holdUsedThisTurn) ? "#222228" : "#666670",
-                            borderLeftColor: (controlsDisabled || engine.holdUsedThisTurn) ? "#222228" : "#666670",
-                            borderBottomColor: "#1a1a20", borderRightColor: "#1a1a20",
-                        }}
-                    >
-                        HOLD
-                    </button>
-                    <button
-                        onClick={engine.hardDrop}
-                        disabled={controlsDisabled}
-                        style={{
-                            height: btnH, fontSize: 13, fontWeight: 900, letterSpacing: 3,
-                            cursor: controlsDisabled ? "not-allowed" : "pointer",
-                            background: controlsDisabled ? "#1a1a20" : "#882222",
-                            color: controlsDisabled ? "#444448" : "#ccccdd",
-                            borderStyle: "solid", borderWidth: "3px",
-                            borderTopColor: controlsDisabled ? "#222228" : "#aa4444",
-                            borderLeftColor: controlsDisabled ? "#222228" : "#aa4444",
-                            borderBottomColor: "#1a1a20", borderRightColor: "#1a1a20",
-                        }}
-                    >
-                        DROP
-                    </button>
-                    <button
-                        onClick={() => { if (engine.running && !engine.gameOver) engine.setPaused((v) => !v); }}
-                        disabled={!engine.running || engine.gameOver}
-                        style={{
-                            height: btnH, fontSize: 14, fontWeight: 900,
-                            cursor: (!engine.running || engine.gameOver) ? "not-allowed" : "pointer",
-                            background: (!engine.running || engine.gameOver) ? "#1a1a20" : engine.paused ? "#886622" : "#2a2a30",
-                            color: (!engine.running || engine.gameOver) ? "#444448" : "#ccccdd",
-                            borderStyle: "solid", borderWidth: "3px",
-                            borderTopColor: (!engine.running || engine.gameOver) ? "#222228" : "#666670",
-                            borderLeftColor: (!engine.running || engine.gameOver) ? "#222228" : "#666670",
-                            borderBottomColor: "#1a1a20", borderRightColor: "#1a1a20",
-                        }}
-                    >
-                        {engine.paused ? "▶" : "⏸"}
-                    </button>
-                </div>
-            </div>
-        );
-    };
 
     return (
-        <section
-            ref={sectionRef}
-            className="w-full mx-auto h-full min-h-0 overflow-hidden flex flex-col gap-2"
-            style={{ color: "var(--retro-game-text)", fontFamily: "inherit" }}
-        >
-            <div className="mx-auto w-fit max-w-full min-h-0 flex-1">
-                {isMobile ? (
-                    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                        <div style={{ display: "grid", gridTemplateColumns: `${boardPx + 14}px ${sidePanelWidth}px`, alignItems: "start", gap: 8 }}>
-                            {renderBoard()}
-                            {renderSidePanel()}
-                        </div>
-                        {renderControlPad()}
-                    </div>
-                ) : (
-                    <div style={{ display: "grid", gridTemplateColumns: `${boardPx + 14}px ${sidePanelWidth}px`, alignItems: "start", gap: 12 }}>
-                        {renderBoard()}
-                        {renderSidePanel()}
-                    </div>
-                )}
+        <section className="mx-auto flex min-h-full w-full max-w-5xl flex-col items-center overflow-x-hidden bg-[radial-gradient(circle_at_top,#243047_0%,#111827_46%,#070a12_100%)] px-2 py-3 text-slate-100 sm:px-4 sm:py-5">
+            <header className="mb-3 text-center sm:mb-5">
+                <p className="font-pixel text-[7px] tracking-[0.35em] text-cyan-300">KEYWORK ARCADE</p>
+                <h1 className="mt-2 font-pixel text-sm tracking-[0.12em] text-white drop-shadow-[3px_3px_0_#155e75] sm:text-lg">RETRO TETRIS</h1>
+            </header>
+
+            <div className="mb-2 grid w-full max-w-[420px] grid-cols-3 gap-2 lg:hidden">
+                <div className={`${panelClass} flex flex-col items-center`}>
+                    <p className="mb-1 font-pixel text-[6px] text-slate-400">HOLD {engine.holdUsedThisTurn && "LOCK"}</p>
+                    <PiecePreview type={engine.heldPieceType} label="홀드" />
+                </div>
+                <dl className={`${panelClass} grid content-center gap-1`}>
+                    <Stat label="SCORE" value={engine.score.toLocaleString()} accent />
+                    <Stat label="LINES" value={engine.lines} />
+                </dl>
+                <div className={`${panelClass} flex flex-col items-center`}>
+                    <p className="mb-1 font-pixel text-[6px] text-slate-400">NEXT</p>
+                    <PiecePreview type={engine.nextPieceTypes[0] ?? null} label="다음" />
+                </div>
             </div>
+
+            <div className="grid items-start gap-4 lg:grid-cols-[150px_auto_150px]">
+                <aside className={`${panelClass} hidden w-[150px] lg:block`}>
+                    <div className="flex items-center justify-between">
+                        <h2 className="font-pixel text-[8px] text-cyan-300">HOLD</h2>
+                        <span className={`font-pixel text-[6px] ${engine.holdUsedThisTurn ? "text-rose-400" : "text-slate-500"}`}>
+                            {engine.holdUsedThisTurn ? "LOCK" : "[C]"}
+                        </span>
+                    </div>
+                    <div className="mt-3 flex justify-center"><PiecePreview type={engine.heldPieceType} label="홀드" /></div>
+                    <p className="mt-4 text-[11px] leading-5 text-slate-400">한 블록당 한 번 교체할 수 있습니다.</p>
+                </aside>
+
+                {board}
+
+                <aside className="hidden w-[150px] space-y-3 lg:block">
+                    <div className={panelClass}>
+                        <h2 className="font-pixel text-[8px] text-cyan-300">NEXT</h2>
+                        <div className="mt-3 flex justify-center"><PiecePreview type={engine.nextPieceTypes[0] ?? null} label="다음" /></div>
+                        <div className="mt-2 grid grid-cols-2 gap-1 opacity-65">
+                            {engine.nextPieceTypes.slice(1).map((type, index) => <PiecePreview key={`${type}-${index}`} type={type} label={`${index + 2}번째 다음`} />)}
+                        </div>
+                    </div>
+                    <dl className={`${panelClass} grid gap-2`}>
+                        <Stat label="SCORE" value={engine.score.toLocaleString()} accent />
+                        <Stat label="LINES" value={engine.lines} />
+                        <Stat label="LEVEL" value={engine.level} />
+                    </dl>
+                </aside>
+            </div>
+
+            <div className="mt-3 grid w-full max-w-[420px] grid-cols-4 gap-1.5 lg:hidden" aria-label="모바일 게임 조작">
+                <button type="button" aria-label="왼쪽 이동" onClick={() => engine.moveHorizontal(-1)} disabled={controlsDisabled} className={controlClass}><ArrowLeft aria-hidden="true" /></button>
+                <button type="button" aria-label="시계 반대 방향 회전" onClick={() => engine.rotatePiece(-1)} disabled={controlsDisabled} className={controlClass}><RotateCcw aria-hidden="true" /></button>
+                <button type="button" aria-label="시계 방향 회전" onClick={() => engine.rotatePiece(1)} disabled={controlsDisabled} className={controlClass}><RotateCw aria-hidden="true" /></button>
+                <button type="button" aria-label="오른쪽 이동" onClick={() => engine.moveHorizontal(1)} disabled={controlsDisabled} className={controlClass}><ArrowRight aria-hidden="true" /></button>
+                <button type="button" onClick={engine.holdPiece} disabled={controlsDisabled || engine.holdUsedThisTurn} className={`${controlClass} font-pixel text-[7px]`}>HOLD</button>
+                <button type="button" aria-label="한 칸 내리기" onClick={engine.softDrop} disabled={controlsDisabled} className={controlClass}><ArrowDown aria-hidden="true" /></button>
+                <button type="button" aria-label="바닥까지 내리기" onClick={engine.hardDrop} disabled={controlsDisabled} className={`${controlClass} bg-rose-800`}><ChevronsDown aria-hidden="true" /></button>
+                <button type="button" aria-label={engine.paused ? "계속하기" : "일시정지"} onClick={() => engine.setPaused((paused) => !paused)} disabled={!engine.running || engine.gameOver} className={controlClass}>
+                    {engine.paused ? <Play aria-hidden="true" /> : <Pause aria-hidden="true" />}
+                </button>
+            </div>
+
+            <div className="mt-3 flex flex-wrap justify-center gap-x-4 gap-y-1 text-[10px] text-slate-400">
+                <span>← → 이동</span><span>↑/X 회전</span><span>Z 역회전</span><span>Space 드롭</span><span>C 홀드</span><span>P 정지</span>
+            </div>
+            <button type="button" onClick={engine.resetGame} className="mt-3 text-[10px] text-slate-500 underline decoration-slate-600 underline-offset-4 hover:text-slate-300">
+                {buttonLabel}
+            </button>
         </section>
     );
 }
