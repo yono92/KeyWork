@@ -2,7 +2,7 @@
 // 각 파츠는 [x, y, paletteIndex][] 형태의 픽셀 좌표 배열
 // paletteIndex 0 = 투명, 1 = 외곽선, 2-4 = 피부색(skin 파라미터), 5-7 = 헤어색(hairColor 파라미터)
 
-import type { AvatarConfig } from "@/lib/supabase/types";
+import type { AvatarConfig } from "@/types/domain";
 
 // ── 기본 아바타 설정 ──
 export const DEFAULT_AVATAR_CONFIG: AvatarConfig = {

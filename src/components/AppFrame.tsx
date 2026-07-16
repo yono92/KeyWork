@@ -4,7 +4,6 @@ import React, { useEffect } from "react";
 import type { ReactNode } from "react";
 import SideNav from "./SideNav";
 import useTypingStore from "../store/store";
-import GlobalInviteHost from "./multiplayer/GlobalInviteHost";
 import { ToastQueueProvider } from "./effects/ToastQueue";
 
 interface AppFrameProps {
@@ -46,7 +45,6 @@ export default function AppFrame({ children }: AppFrameProps) {
     return (
         <ToastQueueProvider>
             <div className={`relative h-screen overflow-hidden bg-[var(--retro-app-bg)] ${fxEnabled ? "animate-crt-boot" : ""}`}>
-                <GlobalInviteHost />
                 {fxEnabled && <div className="crt-scanlines" aria-hidden="true" />}
                 <div className="relative z-10 h-full box-border p-2.5 md:p-3.5">
                     <div className="flex h-full gap-2.5 md:gap-3.5">

@@ -8,6 +8,7 @@ import type { PieceType } from "../hooks/useTetrisEngine";
 import { GRAIN_SCALE, SAND_COLS, SAND_ROWS } from "../lib/sandPhysics";
 import type { SandGrid } from "../lib/sandPhysics";
 import useTypingStore from "../store/store";
+import { useLocalScoreSubmit } from "@/hooks/useLocalScoreSubmit";
 
 // ─── Canvas 2D 드로잉 ───
 
@@ -81,6 +82,8 @@ function drawGhostPiece(ctx: CanvasRenderingContext2D, type: PieceType, rotation
 // ─── 컴포넌트 ───
 
 export default function TetrisGame() {
+    const { submitScore } = useLocalScoreSubmit();
+    const scoreRecordedRef = useRef(false);
     const animEnabled = useTypingStore((s) => s.fxEnabled);
     const { sectionRef, cellSize, miniCellSize, sidePanelWidth, isMobile } = useResponsiveTetrisSize();
     const anim = useTetrisAnimations(animEnabled);
@@ -110,6 +113,16 @@ export default function TetrisGame() {
     const onGameOver = useCallback(() => {}, []);
 
     const engine = useTetrisEngine({ onLinesCleared, onHardDrop, onGameOver }, isMobile);
+
+    useEffect(() => {
+        if (!engine.gameOver) {
+            scoreRecordedRef.current = false;
+            return;
+        }
+        if (scoreRecordedRef.current || engine.score <= 0) return;
+        scoreRecordedRef.current = true;
+        submitScore({ game_mode: "tetris", score: engine.score });
+    }, [engine.gameOver, engine.score, submitScore]);
 
     // 레벨업 글로우
     useEffect(() => {

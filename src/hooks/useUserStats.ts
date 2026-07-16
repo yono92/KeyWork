@@ -1,9 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { createClient } from "@/lib/supabase/client";
-import { useAuthContext } from "@/components/auth/AuthProvider";
 import { NAV_ITEMS } from "@/features/game-shell/config";
+import { loadLocalScores } from "@/lib/localData";
 import {
     aggregateUserStats,
     type AggregatedUserStats,
@@ -28,35 +27,14 @@ export type StreakDay = StreakDaySummary;
 export type UserStats = AggregatedUserStats;
 
 export function useUserStats() {
-    const { user } = useAuthContext();
     const [stats, setStats] = useState<UserStats | null>(null);
     const [loading, setLoading] = useState(true);
 
-    const fetchStats = useCallback(async () => {
-        if (!user) {
-            setStats(null);
-            setLoading(false);
-            return;
-        }
-
+    const fetchStats = useCallback(() => {
         setLoading(true);
-        try {
-            const supabase = createClient();
-            const { data: scores, error } = await supabase
-                .from("game_scores")
-                .select("id, game_mode, score, accuracy, wpm, is_multiplayer, is_win, created_at")
-                .eq("user_id", user.id)
-                .order("created_at", { ascending: false });
-
-            if (error) throw error;
-
-            setStats(aggregateUserStats(scores ?? [], DISPLAY_MODES));
-        } catch {
-            setStats(null);
-        } finally {
-            setLoading(false);
-        }
-    }, [user]);
+        setStats(aggregateUserStats(loadLocalScores(), DISPLAY_MODES));
+        setLoading(false);
+    }, []);
 
     useEffect(() => {
         fetchStats();

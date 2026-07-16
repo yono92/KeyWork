@@ -5,7 +5,7 @@ import {
     getRandomSentenceUnique,
     normalizePracticePrompt,
 } from "../utils/sentenceUtils";
-import type { CustomText } from "@/lib/supabase/types";
+import type { CustomText } from "@/types/domain";
 
 export type PracticeSource = "proverbs" | "custom";
 

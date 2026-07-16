@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useMemo } from "react";
-import type { AvatarConfig } from "@/lib/supabase/types";
+import type { AvatarConfig } from "@/types/domain";
 import {
   BASE_PALETTE,
   SKIN_COLORS,

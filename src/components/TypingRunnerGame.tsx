@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo } from "react";
+import React, { useCallback, useEffect, useMemo, useRef } from "react";
 import useTypingStore from "../store/store";
 import { formatPlayTime } from "../utils/formatting";
 import PauseOverlay from "./game/PauseOverlay";
@@ -7,6 +7,7 @@ import GameInput from "./game/GameInput";
 import { Button } from "@/components/ui/button";
 import { useRunnerEngine, CHAR_X_PERCENT, INITIAL_LIVES, OBSTACLE_CLEAR_COLORS } from "../hooks/useRunnerEngine";
 import { useParticleSystem } from "../hooks/useParticleSystem";
+import { useLocalScoreSubmit } from "@/hooks/useLocalScoreSubmit";
 
 const comboCounterRef = { current: 0 };
 
@@ -206,6 +207,8 @@ const Stars: React.FC = () => {
 const GROUND_BOTTOM = 22;
 
 const TypingRunnerGame: React.FC = () => {
+    const { submitScore } = useLocalScoreSubmit();
+    const scoreRecordedRef = useRef(false);
     const darkMode = useTypingStore((s) => s.darkMode);
     const retroTheme = useTypingStore((s) => s.retroTheme);
     const language = useTypingStore((s) => s.language);
@@ -237,6 +240,16 @@ const TypingRunnerGame: React.FC = () => {
     }, []);
 
     const engine = useRunnerEngine({ onHit, onClear, onMilestone, onGameOver });
+
+    useEffect(() => {
+        if (!engine.gameOver) {
+            scoreRecordedRef.current = false;
+            return;
+        }
+        if (scoreRecordedRef.current || engine.score <= 0) return;
+        scoreRecordedRef.current = true;
+        submitScore({ game_mode: "typing-runner", score: engine.score });
+    }, [engine.gameOver, engine.score, submitScore]);
 
     const restartGame = useCallback(() => {
         particles.resetParticles();

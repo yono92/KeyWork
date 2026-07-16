@@ -1,40 +1,21 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { createClient } from "@/lib/supabase/client";
-import { useAuthContext } from "@/components/auth/AuthProvider";
-import type { CustomText } from "@/lib/supabase/types";
+import { loadCustomTexts, saveCustomTexts } from "@/lib/localData";
+import type { CustomText } from "@/types/domain";
 
 export function useCustomTexts(language: "korean" | "english") {
-    const { user } = useAuthContext();
     const [texts, setTexts] = useState<CustomText[]>([]);
     const [loading, setLoading] = useState(true);
 
     const fetchTexts = useCallback(async () => {
-        if (!user) {
-            setTexts([]);
-            setLoading(false);
-            return;
-        }
-
         setLoading(true);
-        try {
-            const supabase = createClient();
-            const { data, error } = await supabase
-                .from("custom_texts")
-                .select("*")
-                .eq("user_id", user.id)
-                .eq("language", language)
-                .order("updated_at", { ascending: false });
-
-            if (error) throw error;
-            setTexts(data ?? []);
-        } catch {
-            setTexts([]);
-        } finally {
-            setLoading(false);
-        }
-    }, [user, language]);
+        const next = loadCustomTexts()
+            .filter((text) => text.language === language)
+            .sort((a, b) => b.updated_at.localeCompare(a.updated_at));
+        setTexts(next);
+        setLoading(false);
+    }, [language]);
 
     useEffect(() => {
         fetchTexts();
@@ -42,67 +23,46 @@ export function useCustomTexts(language: "korean" | "english") {
 
     const addText = useCallback(
         async (title: string, content: string) => {
-            if (!user) return null;
-            const supabase = createClient();
-            const { data, error } = await supabase
-                .from("custom_texts")
-                .insert({
-                    user_id: user.id,
-                    title: title.trim().slice(0, 50),
-                    content: content.trim().slice(0, 2000),
-                    language,
-                })
-                .select()
-                .single();
-
-            if (error) throw error;
+            const now = new Date().toISOString();
+            const data: CustomText = {
+                id: Date.now(),
+                title: title.trim().slice(0, 50),
+                content: content.trim().slice(0, 2000),
+                language,
+                created_at: now,
+                updated_at: now,
+            };
+            const allTexts = [data, ...loadCustomTexts()];
+            saveCustomTexts(allTexts);
             setTexts((prev) => [data, ...prev]);
             return data;
         },
-        [user, language],
+        [language],
     );
 
     const updateText = useCallback(
         async (id: number, title: string, content: string) => {
-            if (!user) return;
             const nextTitle = title.trim().slice(0, 50);
             const nextContent = content.trim().slice(0, 2000);
             const updatedAt = new Date().toISOString();
-            const supabase = createClient();
-            const { error } = await supabase
-                .from("custom_texts")
-                .update({
-                    title: nextTitle,
-                    content: nextContent,
-                    updated_at: updatedAt,
-                })
-                .eq("id", id)
-                .eq("user_id", user.id);
-
-            if (error) throw error;
+            saveCustomTexts(loadCustomTexts().map((text) => (
+                text.id === id ? { ...text, title: nextTitle, content: nextContent, updated_at: updatedAt } : text
+            )));
             setTexts((prev) =>
                 prev.map((t) =>
                     t.id === id ? { ...t, title: nextTitle, content: nextContent, updated_at: updatedAt } : t,
                 ),
             );
         },
-        [user],
+        [],
     );
 
     const deleteText = useCallback(
         async (id: number) => {
-            if (!user) return;
-            const supabase = createClient();
-            const { error } = await supabase
-                .from("custom_texts")
-                .delete()
-                .eq("id", id)
-                .eq("user_id", user.id);
-
-            if (error) throw error;
+            saveCustomTexts(loadCustomTexts().filter((text) => text.id !== id));
             setTexts((prev) => prev.filter((t) => t.id !== id));
         },
-        [user],
+        [],
     );
 
     return { texts, loading, addText, updateText, deleteText, refetch: fetchTexts };

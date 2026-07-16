@@ -56,17 +56,13 @@ export const NAV_ITEMS: readonly NavItem[] = [
 export const PAGE_TITLES: Record<AppLanguage, Record<string, string>> = {
     korean: {
         ...Object.fromEntries(NAV_ITEMS.map((item) => [`/${item.id}`, item.label.korean])),
-        "/leaderboard": "랭킹",
+        "/leaderboard": "내 기록",
         "/profile": "프로필",
-        "/tetris/battle": "테트리스 대전",
-        "/word-chain/battle": "끝말잇기 대전",
     },
     english: {
         ...Object.fromEntries(NAV_ITEMS.map((item) => [`/${item.id}`, item.label.english])),
-        "/leaderboard": "Leaderboard",
+        "/leaderboard": "My Records",
         "/profile": "Profile",
-        "/tetris/battle": "Tetris Battle",
-        "/word-chain/battle": "Word Chain Battle",
     },
 };
 

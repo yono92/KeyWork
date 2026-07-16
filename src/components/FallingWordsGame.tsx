@@ -15,6 +15,7 @@ import GameOverModal from "./game/GameOverModal";
 import GameInput from "./game/GameInput";
 import { Button } from "@/components/ui/button";
 import FallbackNotice from "./game/FallbackNotice";
+import { useLocalScoreSubmit } from "@/hooks/useLocalScoreSubmit";
 
 
 interface Word {
@@ -66,6 +67,8 @@ const DIFFICULTY_CONFIG = {
 } as const;
 
 const FallingWordsGame: React.FC = () => {
+    const { submitScore } = useLocalScoreSubmit();
+    const scoreRecordedRef = useRef(false);
     const darkMode = useTypingStore((state) => state.darkMode);
     const retroTheme = useTypingStore((state) => state.retroTheme);
     const language = useTypingStore((state) => state.language);
@@ -379,6 +382,16 @@ const FallingWordsGame: React.FC = () => {
         if (!gameOver) return;
         if (score > highScore) setHighScore(score);
     }, [gameOver, score, highScore, setHighScore]);
+
+    useEffect(() => {
+        if (!gameOver) {
+            scoreRecordedRef.current = false;
+            return;
+        }
+        if (scoreRecordedRef.current || score <= 0) return;
+        scoreRecordedRef.current = true;
+        submitScore({ game_mode: "falling-words", score });
+    }, [gameOver, score, submitScore]);
 
     const getLevelRequirements = (currentLevel: number) => ({
         scoreNeeded: currentLevel * config.scorePerLevel,

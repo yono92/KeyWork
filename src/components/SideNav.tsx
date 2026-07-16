@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import useTypingStore from "../store/store";
@@ -10,108 +10,45 @@ import NavMenu from "./navigation/NavMenu";
 import ControlTray from "./navigation/ControlTray";
 import CoupangSidebarRail from "./affiliate/CoupangSidebarRail";
 import type { GameMode, AppLanguage } from "@/features/game-shell/config";
-import { Trophy, User, LogIn, LogOut } from "lucide-react";
+import { Trophy, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { useAuthContext } from "@/components/auth/AuthProvider";
-import AuthModal from "@/components/auth/AuthModal";
 import PixelAvatar from "@/components/avatar/PixelAvatar";
+import { useLocalProfile } from "@/hooks/useLocalProfile";
 
 
 function AccountSection({ language, pathname, onNavigate, variant = "full" }: {
     language: AppLanguage; pathname: string; onNavigate: (path: string) => void; variant?: "full" | "compact";
 }) {
     const ko = language === "korean";
-    const { isLoggedIn, loading, profile, signOut } = useAuthContext();
-    const [showAuth, setShowAuth] = useState(false);
+    const { profile } = useLocalProfile();
 
     return (
         <div className="px-3 pb-2 space-y-1.5">
             <p className="px-0 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--retro-text)]/50">
-                {ko ? "계정" : "Account"}
+                {ko ? "내 기록" : "Local data"}
             </p>
-
-            {loading ? (
-                <>
-                    <NavButton
-                        icon={LogIn}
-                        label={ko ? "계정 확인 중..." : "Checking account..."}
-                        active={false}
-                        onClick={() => {}}
-                        variant={variant}
-                        disabled
-                    />
-                    <NavButton
-                        icon={Trophy}
-                        label={ko ? "랭킹" : "Leaderboard"}
-                        active={pathname === "/leaderboard"}
-                        onClick={() => onNavigate("/leaderboard")}
-                        variant={variant}
-                    />
-                </>
-            ) : isLoggedIn ? (
-                <>
-                    {/* 아바타 + 닉네임 */}
-                    <div className={cn(
-                        "px-3 py-1.5 flex items-center gap-2",
-                        variant === "compact" ? "hidden lg:flex" : "",
-                    )}>
-                        <PixelAvatar
-                            config={profile?.avatar_config ?? null}
-                            nickname={profile?.nickname ?? "?"}
-                            size="sm"
-                        />
-                        <span className="text-xs font-bold text-[var(--retro-accent)] truncate">
-                            {profile?.nickname ?? "Player"}
-                        </span>
-                    </div>
-                    {/* 프로필 */}
-                    <NavButton
-                        icon={User}
-                        label={ko ? "프로필" : "Profile"}
-                        active={pathname === "/profile"}
-                        onClick={() => onNavigate("/profile")}
-                        variant={variant}
-                    />
-                    {/* 랭킹 */}
-                    <NavButton
-                        icon={Trophy}
-                        label={ko ? "랭킹" : "Leaderboard"}
-                        active={pathname === "/leaderboard"}
-                        onClick={() => onNavigate("/leaderboard")}
-                        variant={variant}
-                    />
-                    {/* 로그아웃 */}
-                    <NavButton
-                        icon={LogOut}
-                        label={ko ? "로그아웃" : "Logout"}
-                        active={false}
-                        onClick={() => signOut()}
-                        variant={variant}
-                        danger
-                    />
-                </>
-            ) : (
-                <>
-                    <NavButton
-                        icon={LogIn}
-                        label={ko ? "로그인" : "Login"}
-                        active={false}
-                        onClick={() => setShowAuth(true)}
-                        variant={variant}
-                    />
-                    {/* 랭킹은 비로그인도 볼 수 있음 */}
-                    <NavButton
-                        icon={Trophy}
-                        label={ko ? "랭킹" : "Leaderboard"}
-                        active={pathname === "/leaderboard"}
-                        onClick={() => onNavigate("/leaderboard")}
-                        variant={variant}
-                    />
-                </>
-            )}
-
-            {showAuth && <AuthModal onClose={() => setShowAuth(false)} />}
+            <div className={cn(
+                "px-3 py-1.5 flex items-center gap-2",
+                variant === "compact" ? "hidden lg:flex" : "",
+            )}>
+                <PixelAvatar config={profile.avatar_config} nickname={profile.nickname} size="sm" />
+                <span className="truncate text-xs font-bold text-[var(--retro-accent)]">{profile.nickname}</span>
+            </div>
+            <NavButton
+                icon={User}
+                label={ko ? "프로필" : "Profile"}
+                active={pathname === "/profile"}
+                onClick={() => onNavigate("/profile")}
+                variant={variant}
+            />
+            <NavButton
+                icon={Trophy}
+                label={ko ? "내 기록" : "My Records"}
+                active={pathname === "/leaderboard"}
+                onClick={() => onNavigate("/leaderboard")}
+                variant={variant}
+            />
         </div>
     );
 }

@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PencilLine, Plus, Trash2, X } from "lucide-react";
-import type { CustomText } from "@/lib/supabase/types";
+import type { CustomText } from "@/types/domain";
 
 interface Props {
     texts: CustomText[];

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import useTypingStore from "../store/store";
 import { formatPlayTime } from "../utils/formatting";
 import PauseOverlay from "./game/PauseOverlay";
@@ -7,12 +7,25 @@ import GameInput from "./game/GameInput";
 import { Button } from "@/components/ui/button";
 import FallbackNotice from "./game/FallbackNotice";
 import { useWordChainGame, getStartChars } from "../hooks/useWordChainGame";
+import { useLocalScoreSubmit } from "@/hooks/useLocalScoreSubmit";
 
 const WordChainGame: React.FC = () => {
+    const { submitScore } = useLocalScoreSubmit();
+    const scoreRecordedRef = useRef(false);
     const darkMode = useTypingStore((s) => s.darkMode);
     const retroTheme = useTypingStore((s) => s.retroTheme);
 
     const game = useWordChainGame();
+
+    useEffect(() => {
+        if (!game.gameOver) {
+            scoreRecordedRef.current = false;
+            return;
+        }
+        if (scoreRecordedRef.current || game.score <= 0) return;
+        scoreRecordedRef.current = true;
+        submitScore({ game_mode: "word-chain", score: game.score });
+    }, [game.gameOver, game.score, submitScore]);
 
     return (
         <div className="relative w-full flex-1 min-h-[280px] sm:min-h-[400px] overflow-hidden retro-monitor-bezel">

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import type { AvatarConfig } from "@/lib/supabase/types";
+import type { AvatarConfig } from "@/types/domain";
 import {
   DEFAULT_AVATAR_CONFIG,
   SKIN_COLORS,

@@ -1,4 +1,4 @@
-import type { GameMode } from "@/lib/supabase/types";
+import type { GameMode } from "@/types/domain";
 
 // ── 업적 검사에 사용되는 컨텍스트 ──
 
@@ -151,14 +151,6 @@ export const ACHIEVEMENTS: AchievementDef[] = [
         description: { ko: "끝말잇기에서 3,000점 달성", en: "Score 3,000 in Word Chain" },
         check: (ctx) => bestScoreByMode(ctx.allScores, "word-chain") >= 3000,
     },
-    {
-        id: "race-master",
-        category: "mode-master",
-        icon: "🏎️",
-        name: { ko: "레이스 달인", en: "Race Master" },
-        description: { ko: "타이핑 레이스에서 2,000점 달성", en: "Score 2,000 in Typing Race" },
-        check: (ctx) => bestScoreByMode(ctx.allScores, "typing-race") >= 2000,
-    },
     // ── 기록 달성 ──
     {
         id: "speed-demon-50",
@@ -249,39 +241,6 @@ export const ACHIEVEMENTS: AchievementDef[] = [
         name: { ko: "연습벌레", en: "Practice Bug" },
         description: { ko: "문장연습 10회 플레이", en: "Play Practice 10 times" },
         check: (ctx) => countByMode(ctx.allScores, "practice") >= 10,
-    },
-    // ── 멀티플레이 ──
-    {
-        id: "mp-first-win",
-        category: "multiplayer",
-        icon: "⚔️",
-        name: { ko: "첫 승리", en: "First Victory" },
-        description: { ko: "멀티플레이에서 첫 승리", en: "Win your first multiplayer match" },
-        check: (ctx) => mpWins(ctx.allScores) >= 1,
-    },
-    {
-        id: "mp-5-wins",
-        category: "multiplayer",
-        icon: "🗡️",
-        name: { ko: "파이터", en: "Fighter" },
-        description: { ko: "멀티플레이 5승 달성", en: "Win 5 multiplayer matches" },
-        check: (ctx) => mpWins(ctx.allScores) >= 5,
-    },
-    {
-        id: "mp-20-wins",
-        category: "multiplayer",
-        icon: "🏟️",
-        name: { ko: "챔피언", en: "Champion" },
-        description: { ko: "멀티플레이 20승 달성", en: "Win 20 multiplayer matches" },
-        check: (ctx) => mpWins(ctx.allScores) >= 20,
-    },
-    {
-        id: "mp-10-matches",
-        category: "multiplayer",
-        icon: "🤝",
-        name: { ko: "대전 매니아", en: "Battle Maniac" },
-        description: { ko: "멀티플레이 10회 참가", en: "Participate in 10 multiplayer matches" },
-        check: (ctx) => mpTotal(ctx.allScores) >= 10,
     },
 ];
 

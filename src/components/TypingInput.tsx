@@ -8,7 +8,7 @@ import { usePracticeText } from "../hooks/usePracticeText";
 import type { PracticeSource } from "../hooks/usePracticeText";
 import { useTypingMetrics } from "../hooks/useTypingMetrics";
 import { useCustomTexts } from "../hooks/useCustomTexts";
-import { useAuthContext } from "@/components/auth/AuthProvider";
+import { useLocalScoreSubmit } from "@/hooks/useLocalScoreSubmit";
 import CustomTextManager from "./practice/CustomTextManager";
 import { BookOpen, FileText, Settings2 } from "lucide-react";
 
@@ -28,7 +28,6 @@ const TypingInput: React.FC = () => {
     const [platform, setPlatform] = useState<"mac" | "windows">("windows");
 
     // 텍스트 소스
-    const { isLoggedIn } = useAuthContext();
     const [source, setSource] = useState<PracticeSource>(() => {
         if (typeof window === "undefined") return "proverbs";
         return (localStorage.getItem(SOURCE_STORAGE_KEY) as PracticeSource) || "proverbs";
@@ -36,7 +35,8 @@ const TypingInput: React.FC = () => {
     const [showManager, setShowManager] = useState(false);
 
     const { texts: customTexts, loading: customLoading, addText, updateText, deleteText } = useCustomTexts(language);
-    const effectiveSource = (!isLoggedIn || source !== "custom") ? "proverbs" : source;
+    const effectiveSource = source;
+    const { submitScore } = useLocalScoreSubmit();
 
     const { pressedKeys } = useKeyboardState();
     const { advanceToNextPrompt } = usePracticeText(effectiveSource, customTexts);
@@ -106,6 +106,14 @@ const TypingInput: React.FC = () => {
 
         if (e.key === "Enter") {
             e.preventDefault();
+            if (typingSpeed > 0) {
+                submitScore({
+                    game_mode: "practice",
+                    score: Math.round(typingSpeed * (accuracy / 100) * 10),
+                    wpm: typingSpeed,
+                    accuracy,
+                });
+            }
             recordSession();
             resetCurrentMetrics();
             advanceToNextPrompt();
@@ -169,14 +177,11 @@ const TypingInput: React.FC = () => {
                         {ko ? "속담" : "Proverbs"}
                     </button>
                     <button
-                        onClick={() => isLoggedIn && handleSourceChange("custom")}
-                        disabled={!isLoggedIn}
+                        onClick={() => handleSourceChange("custom")}
                         className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold transition-colors ${rnd} ${
                             effectiveSource === "custom"
                                 ? "bg-[var(--retro-accent)] text-[var(--retro-text-inverse)]"
-                                : isLoggedIn
-                                    ? "border border-[var(--retro-border-mid)] bg-[var(--retro-surface)] text-[var(--retro-text)]/60 hover:bg-[var(--retro-surface-alt)]"
-                                    : "border border-[var(--retro-border-mid)] bg-[var(--retro-surface)] text-[var(--retro-text)]/30 cursor-not-allowed"
+                                : "border border-[var(--retro-border-mid)] bg-[var(--retro-surface)] text-[var(--retro-text)]/60 hover:bg-[var(--retro-surface-alt)]"
                         }`}
                     >
                         <FileText className="h-3 w-3" />

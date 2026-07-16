@@ -1,10 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { createClient } from "@/lib/supabase/client";
-import { useAuthContext } from "@/components/auth/AuthProvider";
 import { ACHIEVEMENTS } from "@/data/achievements";
-import type { AchievementDef } from "@/data/achievements";
+import type { AchievementCheckContext, AchievementDef } from "@/data/achievements";
+import { loadLocalScores } from "@/lib/localData";
 
 export interface AchievementWithStatus {
     def: AchievementDef;
@@ -13,48 +12,33 @@ export interface AchievementWithStatus {
 }
 
 export function useAchievements() {
-    const { user } = useAuthContext();
     const [achievements, setAchievements] = useState<AchievementWithStatus[]>([]);
     const [loading, setLoading] = useState(true);
     const [unlockedCount, setUnlockedCount] = useState(0);
 
-    const fetch = useCallback(async () => {
-        if (!user) {
-            setAchievements([]);
-            setUnlockedCount(0);
-            setLoading(false);
-            return;
-        }
-
+    const fetch = useCallback(() => {
         setLoading(true);
-        try {
-            const supabase = createClient();
-            const { data, error } = await supabase
-                .from("user_achievements")
-                .select("achievement_id, unlocked_at")
-                .eq("user_id", user.id);
-
-            if (error) throw error;
-
-            const unlockedMap = new Map(
-                (data ?? []).map((a) => [a.achievement_id, a.unlocked_at]),
-            );
-
-            const list: AchievementWithStatus[] = ACHIEVEMENTS.map((def) => ({
+        const scores = loadLocalScores();
+        const allScores: AchievementCheckContext["allScores"] = scores.map((score) => ({
+            game_mode: score.game_mode,
+            score: score.score,
+            wpm: score.wpm,
+            accuracy: score.accuracy,
+            is_multiplayer: false,
+            is_win: null,
+        }));
+        const list = ACHIEVEMENTS.map((def) => {
+            const matchedScore = scores.find((score) => def.check({ currentScore: score, allScores }));
+            return {
                 def,
-                unlocked: unlockedMap.has(def.id),
-                unlockedAt: unlockedMap.get(def.id) ?? null,
-            }));
-
-            setAchievements(list);
-            setUnlockedCount(list.filter((a) => a.unlocked).length);
-        } catch {
-            setAchievements([]);
-            setUnlockedCount(0);
-        } finally {
-            setLoading(false);
-        }
-    }, [user]);
+                unlocked: Boolean(matchedScore),
+                unlockedAt: matchedScore?.created_at ?? null,
+            };
+        });
+        setAchievements(list);
+        setUnlockedCount(list.filter((item) => item.unlocked).length);
+        setLoading(false);
+    }, []);
 
     useEffect(() => {
         fetch();
